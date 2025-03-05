@@ -1,4 +1,3 @@
-# %%
 import numpy as np
 from scipy.stats import norm
 import region_stats
@@ -29,17 +28,15 @@ def circle_prob(fits_file: str, radius: float, center: tuple = (float('inf'), fl
     n_incl_meas = incl_area / beam_size
     n_excl_meas = excl_area / beam_size
 
-    #calculate error for rms for inclusion and exclusion regions
-    int_err = 1 / (2*(n_incl_meas - 1))**(1/2)
-    ext_err = 1 / (2*(n_excl_meas - 1))**(1/2)
+    #calculate error for rms
+    rms_err = rms_val * (2 / (n_excl_meas - 1))**(1/4)
 
-    #create normal distributions from rms and error for rms for inclusion and exclusion regions
-    uncert = np.linspace(-1 * rms_val / 2, rms_val / 2, 1000)
-    int_uncert_pdf = norm.pdf(uncert, loc = 0, scale = int_err)
-    ext_uncert_pdf = norm.pdf(uncert, loc = 0, scale = ext_err)
+    #create normal distributions from rms and error for rms
+    uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)
+    uncert_pdf = norm.pdf(uncert, loc = 0, scale = rms_err)
 
     #sum and normalize to find probabilities
-    prob_dict['int_prob'] = float(sum((norm.cdf((-1 * int_peak_val)/(rms_val + uncert)) * n_incl_meas) * int_uncert_pdf) / sum(int_uncert_pdf))
-    prob_dict['ext_prob'] = float(sum((norm.cdf((-1 * ext_peak_val)/(rms_val + uncert)) * n_excl_meas) * ext_uncert_pdf) / sum(ext_uncert_pdf))
+    prob_dict['int_prob'] = float(sum((norm.cdf((-1 * int_peak_val)/(rms_val + uncert)) * n_incl_meas) * uncert_pdf) / sum(uncert_pdf))
+    prob_dict['ext_prob'] = float(sum((norm.cdf((-1 * ext_peak_val)/(rms_val + uncert)) * n_excl_meas) * uncert_pdf) / sum(uncert_pdf))
 
     return prob_dict
