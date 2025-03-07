@@ -29,7 +29,7 @@ def circle_prob(fits_file: str, radius: float, center: tuple = (float('inf'), fl
     n_excl_meas = excl_area / beam_size
 
     #calculate error for rms
-    rms_err = rms_val * (2 / (n_excl_meas - 1))**(1/4)
+    rms_err = rms_val * (n_excl_meas)**(-1/2)
 
     #create normal distributions from rms and error for rms
     uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)

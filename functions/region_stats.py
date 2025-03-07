@@ -61,7 +61,7 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
     y_cell_size.to(u.arcsec)
 
     #find beam size (units of arcsec^2)
-    beam_size = (info.header['BEAMSIZE'] * Angle(1, x_unit) * Angle(1, y_unit)).to(u.arcsec**2)
+    beam_size = ((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)
 
     #find axis sizes
     x_axis_size = info.header['NAXIS1'] * x_cell_size
