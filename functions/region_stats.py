@@ -2,6 +2,7 @@ from astropy.io import fits
 import numpy as np
 from astropy.coordinates import Angle
 import astropy.units as u
+import fits_data_index
 
 def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float('inf'), center: tuple = (float('inf'), float('inf'))):
     '''Given a FITS file, exclusion radius in units of arcsec (exclude area within this radius),
@@ -14,7 +15,7 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
     If no center given, will eventually default to center of ((length of x-axis)/2, (length of y-axis)/2), rounded up.
     '''
 
-    file_index = 0
+    i = fits_data_index(fits_file)
 
     #open FITS file
     try:
@@ -23,17 +24,8 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
         print(f'Unable to open {fits_file}')
 
     #extract data array
-    while True:
-        #going through the indices of file to find the array
-        try:
-            info = file[file_index]
-            data = info.data
-            if isinstance(data, np.ndarray):
-                break
-            else:
-                file_index += 1
-        except:
-            print(f'Error in extracting data from {fits_file}')
+    info = file[i]
+    data = info.data
 
     #getting dimensions for array
     try:
@@ -60,7 +52,7 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
     y_cell_size = (Angle(info.header['CDELT2'], y_unit)).to(u.arcsec)
     y_cell_size.to(u.arcsec)
 
-    #find beam size (units of arcsec^2)
+    #find major axis (units of arcsec), minor axis (units of arcsec), beam size (units of arcsec^2)
     beam_size = ((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)
 
     #find axis sizes
