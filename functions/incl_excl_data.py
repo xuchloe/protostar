@@ -22,7 +22,7 @@ def incl_excl_data(fits_file: str, center: tuple = (float('inf'), float('inf')))
     #extract data array
     info = file[i]
 
-    radius = float(info.header['BMAJ'] * (Angle(info.header['CDELT1'], info.header['CUNIT1'])).to(u.arcsec) / u.arcsec)
+    radius = float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec) + 5) #major axis + 5 arcsec
 
     #get info on inclusion and exclusion regions
     int_info = region_stats(fits_file = fits_file, inclusion = radius, center = center)
