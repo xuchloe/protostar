@@ -4,16 +4,22 @@ from astropy.coordinates import Angle
 import astropy.units as u
 import fits_data_index
 
-def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float('inf'), center: tuple = (float('inf'), float('inf'))):
-    '''Given a FITS file, exclusion radius in units of arcsec (exclude area within this radius),
-    inclusion radius in units of arcsec (include area within this radius),
-    and center coordinates in units of arcsec,
-    return a dictionary with floats of the maximum flux (in Jy), rms (in Jy), beam size (in arcsec^2),
+def region_stats(fits_file: str, exclusion: list = [], inclusion: list = [], \
+                 center: list = []):
+    '''Given a FITS file, list of exclusion radii in units of arcsec (exclude area within this radius),
+    list of inclusion radii in units of arcsec (include area within this radius),
+    and list of tuples of center coordinates in units of arcsec,
+    return a dictionary with floats of the maximum flux (in Jy), coordinates of field center (in pixels),
+    coordinates of maximum flux (in pixels), rms (in Jy), beam size (in arcsec^2),
     x axis length (in arcsec), and y axis length (in arcsec) in the specified region.
-    If no exclusion radius given, default to 0.
-    If no inclusion radius given, default to infinity.
     If no center given, will eventually default to center of ((length of x-axis)/2, (length of y-axis)/2), rounded up.
     '''
+
+    if len(exclusion) != len(inclusion):
+        raise IndexError ('Exclusion and inclusion lists must be of same length')
+
+    if center != [] and len(center) != len(exclusion):
+        raise IndexError ('Center list and exclusion list lengths do not match')
 
     i = fits_data_index(fits_file)
 
@@ -40,8 +46,11 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
 
     #keep center pixel coordinates if specified, set to default if unspecified
     center_pix = center
-    if center == (float('inf'), float('inf')):
-        center_pix = (round(x_dim/2), round(y_dim/2))
+    field_center = (round(x_dim/2), round(y_dim/2))
+    if center == []:
+        center_pix = [field_center]
+        if len(exclusion) > 1:
+            center_pix = center_pix * len(exclusion)
 
     #find units of axes
     x_unit = info.header['CUNIT1']
@@ -60,11 +69,15 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
     y_axis_size = info.header['NAXIS2'] * y_cell_size
 
     #distance from center array
-    dist_from_center =((((x_dist_array - center_pix[0])*x_cell_size)**2 + \
-                        ((y_dist_array - center_pix[1])*y_cell_size)**2)**0.5) #array of each pixel's distance from center_pix
+    dist_from_center =((((x_dist_array - center_pix[0][0])*x_cell_size)**2 + ((y_dist_array - center_pix[0][1])*y_cell_size)**2)**0.5)
 
     #boolean mask and apply
-    mask = (dist_from_center >= exclusion * u.arcsec) & (dist_from_center <= inclusion * u.arcsec)
+    mask = ((dist_from_center >= exclusion[0] * u.arcsec) & (dist_from_center <= inclusion[0] * u.arcsec))
+    if len(center) > 1:
+        for j in range(1, len(center)):
+            dist_from_center = ((((x_dist_array - center_pix[j][0])*x_cell_size)**2 + ((y_dist_array - center_pix[j][1])*y_cell_size)**2)**0.5)
+            mask = np.logical_or(mask, ((dist_from_center >= exclusion[j] * u.arcsec) & (dist_from_center <= inclusion[j] * u.arcsec)))
+            j += 1
     masked_data = data[0][mask]
 
     #get peak, rms, beam_size values
@@ -73,9 +86,15 @@ def region_stats(fits_file: str, exclusion: float = 0, inclusion: float = float(
     except ValueError:
         print('No values after mask applied. Check inclusion and exclusion radii.')
 
+    #find coordinates of peak
+    peak_pix = np.where(data[0] == peak)
+    x = peak_pix[0][0]
+    y = peak_pix[1][0]
+    peak_coord = (int(x_dist_array[0][x]), int(y_dist_array[y][0]))
+
     rms = float((np.var(masked_data))**0.5)
 
-    stats = {'peak': peak, 'rms': rms, 'beam_size': float(beam_size / (u.arcsec**2)),\
+    stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': float(beam_size / (u.arcsec**2)),\
               'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec)}
 
     return stats

@@ -3,32 +3,46 @@ import scipy.stats
 from scipy.stats import norm
 import incl_excl_data
 
-def meas_rms_prob(fits_file: str, center: tuple = (float('inf'), float('inf'))):
-    '''Given a FITS file and (optional) center coordinates in units of arcsec,
-    return a dictionary with the probability of the peak to noise ratio of the interior of the specified circle
-    and the probability of peak to noise ratio of the exterior of the specified circle,
+def meas_rms_prob(fits_file: str, center: list = [], max_reps : int = 2):
+    '''Given a FITS file, (optional) list of tuples of center coordinates in units of arcsec,
+    and (optional) maximum number of repetitions, return a list of dictionaries.
+    The first dictionary contains the probability of the peak to noise ratio of the interior of the specified region
+    and the probability of peak to noise ratio of the exterior of the specified region,
     with noise being the measured rms in the exclusion area.
+    If the external probability is less than 0.001, there will be subsequent dictionaries
+    that contain the probability of the peak to noise ratio of the interior of the specified region
+    and the probability of peak to noise ratio of the exterior of the specified region,
+    with noise being the measured rms in the exclusion area,
+    but the included region is expanded to include the highest excluded peak of the previous excluded region
+    and the excluded region now excludes that highest peak.
     '''
-
     info = incl_excl_data(fits_file, center)
 
-    int_peak_val = info['int_peak_val']
-    ext_peak_val = info['ext_peak_val']
-    rms_val = info['rms_val']
-    n_incl_meas = info['n_incl_meas']
-    n_excl_meas = info['n_excl_meas']
-
-    prob_dict = {}
+    int_peak = info['int_peak_val']
+    ext_peak = info['ext_peak_val']
+    rms = info['rms_val']
+    n_incl = info['n_incl_meas']
+    n_excl = info['n_excl_meas']
 
     #calculate error for rms
-    rms_err = rms_val * (n_excl_meas)**(-1/2)
+    rms_err = rms * (n_excl)**(-1/2)
 
     #create normal distributions from rms and error for rms
     uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)
     uncert_pdf = norm.pdf(uncert, loc = 0, scale = rms_err)
 
     #sum and normalize to find probabilities
-    prob_dict['int_prob'] = float(sum((norm.cdf((-1 * int_peak_val)/(rms_val + uncert)) * n_incl_meas) * uncert_pdf) / sum(uncert_pdf))
-    prob_dict['ext_prob'] = float(sum((norm.cdf((-1 * ext_peak_val)/(rms_val + uncert)) * n_excl_meas) * uncert_pdf) / sum(uncert_pdf))
+    prob_dict = info
+    prob_dict['int_prob'] = float(sum((norm.cdf((-1 * int_peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
+    prob_dict['ext_prob'] = float(sum((norm.cdf((-1 * ext_peak)/(rms + uncert)) * n_excl) * uncert_pdf) / sum(uncert_pdf))
+    prob_dict['int_snr'] = float(int_peak / rms)
+    prob_dict['ext_snr'] = float(ext_peak / rms)
 
-    return prob_dict
+    prob_list = [prob_dict]
+
+    if max_reps > 1 and prob_dict['ext_prob'] < 0.001:
+        n = max_reps - 1
+        new_list = meas_rms_prob(fits_file, center = [info['field_center'], info['ext_peak_coord']], max_reps = n)
+        prob_list.extend(new_list)
+
+    return prob_list

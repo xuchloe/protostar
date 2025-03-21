@@ -12,15 +12,14 @@ def fits_data_index(fits_file: str):
     except:
         print(f'Unable to open {fits_file}')
 
-    while True:
+    info = file[file_index]
+    data = info.data
+    while data is None:
         #going through the indices of file to find the array
         try:
+            file_index += 1
             info = file[file_index]
             data = info.data
-            if isinstance(data, np.ndarray):
-                break
-            else:
-                file_index += 1
         except:
             print(f'Error in locating data index of {fits_file}')
 
