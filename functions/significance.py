@@ -3,7 +3,8 @@ import calc_rms_prob
 
 def significance(fits_file: str, version: str, threshold: float):
     '''Given a FITS file, version ('meas_rms_prob' or 'calc_rms_prob'), and threshold probability,
-    return a list of Booleans of whether source emission is considered significant for the given threshold.
+    return a list of Booleans (if version = 'meas_rms_prob') or Boolean (if version = 'calc_rms_prob')
+    of whether source emission is considered significant for the given threshold.
     Each entry of the list corresponds to the external probabilities using different regions.
     There will be more than one entry in the list if the first external probability is less than 0.001.
     '''
@@ -18,16 +19,12 @@ def significance(fits_file: str, version: str, threshold: float):
     if version == 'meas_rms_prob':
         for i in range(len(meas_rms_prob(fits_file))):
             dict = meas_rms_prob(fits_file)[i]
-            print(type(dict))
             prob = dict['int_prob']
             bool_list.append(prob <= threshold)
-            i += 1
         return bool_list
 
     else:
-        for i in range(len(calc_rms_prob(fits_file))):
-            dict = calc_rms_prob(fits_file)[i]
-            prob = dict['int_prob']
-            bool_list.append(prob <= threshold)
-            i += 1
-        return bool_list
+        dict = calc_rms_prob(fits_file)
+        prob = dict['int_prob']
+        bool = prob <= threshold
+        return bool

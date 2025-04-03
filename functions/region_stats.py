@@ -4,22 +4,18 @@ from astropy.coordinates import Angle
 import astropy.units as u
 import fits_data_index
 
-def region_stats(fits_file: str, exclusion: list = [], inclusion: list = [], \
-                 center: list = []):
-    '''Given a FITS file, list of exclusion radii in units of arcsec (exclude area within this radius),
-    list of inclusion radii in units of arcsec (include area within this radius),
-    and list of tuples of center coordinates in units of arcsec,
+def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False):
+    '''Given a FITS file, list of center coordinates in units of pixels,
+    list of radii in units of arcsec (include measurements within this radius of the center),
+    and Boolean of whether to invert (if True, becomes exclude instead of include),
     return a dictionary with floats of the maximum flux (in Jy), coordinates of field center (in pixels),
     coordinates of maximum flux (in pixels), rms (in Jy), beam size (in arcsec^2),
     x axis length (in arcsec), and y axis length (in arcsec) in the specified region.
     If no center given, will eventually default to center of ((length of x-axis)/2, (length of y-axis)/2), rounded up.
     '''
 
-    if len(exclusion) != len(inclusion):
-        raise IndexError ('Exclusion and inclusion lists must be of same length')
-
-    if center != [] and len(center) != len(exclusion):
-        raise IndexError ('Center list and exclusion list lengths do not match')
+    if center != [] and len(center) != len(radius):
+        raise IndexError ('Center list and radius list lengths do not match')
 
     i = fits_data_index(fits_file)
 
@@ -49,8 +45,8 @@ def region_stats(fits_file: str, exclusion: list = [], inclusion: list = [], \
     field_center = (round(x_dim/2), round(y_dim/2))
     if center == []:
         center_pix = [field_center]
-        if len(exclusion) > 1:
-            center_pix = center_pix * len(exclusion)
+        if len(radius) > 1:
+            center_pix = center_pix * len(radius)
 
     #find units of axes
     x_unit = info.header['CUNIT1']
@@ -72,12 +68,15 @@ def region_stats(fits_file: str, exclusion: list = [], inclusion: list = [], \
     dist_from_center =((((x_dist_array - center_pix[0][0])*x_cell_size)**2 + ((y_dist_array - center_pix[0][1])*y_cell_size)**2)**0.5)
 
     #boolean mask and apply
-    mask = ((dist_from_center >= exclusion[0] * u.arcsec) & (dist_from_center <= inclusion[0] * u.arcsec))
+    mask = (dist_from_center <= radius[0] * u.arcsec)
     if len(center) > 1:
         for j in range(1, len(center)):
             dist_from_center = ((((x_dist_array - center_pix[j][0])*x_cell_size)**2 + ((y_dist_array - center_pix[j][1])*y_cell_size)**2)**0.5)
-            mask = np.logical_or(mask, ((dist_from_center >= exclusion[j] * u.arcsec) & (dist_from_center <= inclusion[j] * u.arcsec)))
-            j += 1
+            mask = np.logical_or(mask, (dist_from_center <= radius[j] * u.arcsec))
+
+    if invert:
+        mask = np.logical_not(mask)
+
     masked_data = data[0][mask]
 
     #get peak, rms, beam_size values
@@ -88,8 +87,8 @@ def region_stats(fits_file: str, exclusion: list = [], inclusion: list = [], \
 
     #find coordinates of peak
     peak_pix = np.where(data[0] == peak)
-    x = peak_pix[0][0]
-    y = peak_pix[1][0]
+    x = peak_pix[1][0]
+    y = peak_pix[0][0]
     peak_coord = (int(x_dist_array[0][x]), int(y_dist_array[y][0]))
 
     rms = float((np.var(masked_data))**0.5)

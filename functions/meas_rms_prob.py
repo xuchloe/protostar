@@ -3,7 +3,7 @@ import scipy.stats
 from scipy.stats import norm
 import incl_excl_data
 
-def meas_rms_prob(fits_file: str, center: list = [], max_reps : int = 2):
+def meas_rms_prob(fits_file: str, center: list = []):
     '''Given a FITS file, (optional) list of tuples of center coordinates in units of arcsec,
     and (optional) maximum number of repetitions, return a list of dictionaries.
     The first dictionary contains the probability of the peak to noise ratio of the interior of the specified region
@@ -40,9 +40,13 @@ def meas_rms_prob(fits_file: str, center: list = [], max_reps : int = 2):
 
     prob_list = [prob_dict]
 
-    if max_reps > 1 and prob_dict['ext_prob'] < 0.001:
-        n = max_reps - 1
-        new_list = meas_rms_prob(fits_file, center = [info['field_center'], info['ext_peak_coord']], max_reps = n)
+    if prob_dict['ext_prob'] < 0.001:
+        if center == []:
+            new_center = [info['field_center'], info['ext_peak_coord']]
+        else:
+            center.append(info['ext_peak_coord'])
+            new_center = center
+        new_list = meas_rms_prob(fits_file, new_center)
         prob_list.extend(new_list)
 
     return prob_list

@@ -25,16 +25,12 @@ def incl_excl_data(fits_file: str, center: list = []):
 
     #get radius, inclusion, exclusion lists for interior and exterior
     radius = [float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec) + 5)] #major axis + 5 arcsec
-    int_excl = [0]
-    ext_incl = [float('inf')]
     if len(center) > 1:
-        radius = radius * len(center)
-        int_excl = int_excl * len(center)
-        ext_incl = ext_incl * len(center)
+        radius = radius + ([radius[0] - 5.0] * (len(center) - 1))
 
     #get info on inclusion and exclusion regions
-    int_info = region_stats(fits_file = fits_file, inclusion = radius, exclusion = int_excl, center = center)
-    ext_info = region_stats(fits_file = fits_file, inclusion = ext_incl, exclusion = radius, center = center)
+    int_info = region_stats(fits_file = fits_file, radius = radius, center = center)
+    ext_info = region_stats(fits_file = fits_file, radius = radius, center = center, invert=True)
 
     #getting values for peak, rms, axis lengths, beam size
     info_dict = {}
