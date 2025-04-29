@@ -6,7 +6,6 @@ from astropy.coordinates import Angle
 import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import glob
 
 
 def fits_data_index(fits_file: str):
