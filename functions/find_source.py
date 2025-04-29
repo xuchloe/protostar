@@ -5,6 +5,9 @@ from scipy.stats import norm
 from astropy.coordinates import Angle
 import astropy.units as u
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import glob
+
 
 def fits_data_index(fits_file: str):
     '''Given a FITS file, return the index of the file where the data array is'''
@@ -29,6 +32,7 @@ def fits_data_index(fits_file: str):
             print(f'Error in locating data index of {fits_file}')
 
     return file_index
+
 
 def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False):
     '''Given a FITS file, list of center coordinates in units of pixels,
@@ -81,7 +85,6 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     #find cell size (units of arcsec)
     x_cell_size = (Angle(info.header['CDELT1'], x_unit)).to(u.arcsec)
     y_cell_size = (Angle(info.header['CDELT2'], y_unit)).to(u.arcsec)
-    y_cell_size.to(u.arcsec)
 
     #find major axis (units of arcsec), minor axis (units of arcsec), beam size (units of arcsec^2)
     beam_size = ((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)
@@ -124,6 +127,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     return stats
 
+
 def incl_excl_data(fits_file: str, center: list = []):
     '''Given a FITS file and (optional) list of tuples of center coordinates in units of arcsec,
     return a dictionary with the field center coordinates as tuple, peak flux value of the inclusion area, coordinates of this peak as tuple,
@@ -151,7 +155,7 @@ def incl_excl_data(fits_file: str, center: list = []):
     int_info = region_stats(fits_file = fits_file, radius = radius, center = center)
     ext_info = region_stats(fits_file = fits_file, radius = radius, center = center, invert=True)
 
-    #getting values for peak, rms, axis lengths, beam size
+    #getting values for peak, rms, axis lengths, beam size, distance list
     info_dict = {}
     info_dict['int_peak_val'] = int_info['peak']
     info_dict['field_center'] = int_info['field_center']
@@ -169,7 +173,14 @@ def incl_excl_data(fits_file: str, center: list = []):
     info_dict['n_incl_meas'] = incl_area / beam_size
     info_dict['n_excl_meas'] = excl_area / beam_size
 
+    pix_radius = [] #list of radii in pixels
+    for r in range(len(radius)):
+        pix_rad = (Angle(radius[r], u.arcsec).to(info.header['CUNIT1']) / info.header['CDELT1']) / info.header['CUNIT1']
+        pix_radius.append(float(pix_rad))
+    info_dict['radius'] = pix_radius
+
     return info_dict
+
 
 def meas_rms_prob(fits_file: str, center: list = [], rms: float = None, reps: bool = False, recursion: bool = True):
     '''Given a FITS file, (optional) list of tuples of center coordinates in units of arcsec,
@@ -234,6 +245,7 @@ def meas_rms_prob(fits_file: str, center: list = [], rms: float = None, reps: bo
 
     return prob_list
 
+
 def calc_rms_prob(prob_list: list):
     '''Given a list output from meas_rms_prob(), return the list output with an appended dictionary
     that contains the probability of the peak to noise ratio of the interior of the specified region
@@ -263,33 +275,136 @@ def calc_rms_prob(prob_list: list):
 
     return prob_list
 
-def summary(fits_file: str, info_list: bool = True, plot: bool = True):
-    '''Given a FITS file, (optional) choice to return a list of information, and (optional) choice to show a plot,
-    return a list of source information if requested and a plot of source information if requested.
+
+def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, plot: bool = True, save_path: str = ''):
+    '''Given a FITS file, (optional) choice to return a list of information, (optional) choice to show a plot,
+    and (optional) path of where to save a png of the plot,
+    return a list of source information if requested and a plot of source information if requested
+    and save a png of the plot to the path if requested.
     '''
     m_info = meas_rms_prob(fits_file)
+
     info = (calc_rms_prob(meas_rms_prob(fits_file)))
 
+    center = m_info[0]['field_center']
+
+    int_x_coord = np.array([m_info[0]['int_peak_coord'][0]])
+    int_y_coord = np.array([m_info[0]['int_peak_coord'][1]])
+
+    int_radius = m_info[0]['radius'][0]
+
+    if len(m_info) > 1:
+        x_coords = []
+        y_coords = []
+
+        for i in range(len(m_info)-1):
+            x_coords.append(m_info[i]['ext_peak_coord'][0])
+            y_coords.append(m_info[i]['ext_peak_coord'][1])
+        ext_radius = m_info[-1]['radius'][1]
+
+        x_coords = np.array(x_coords)
+        y_coords = np.array(y_coords)
+
     if plot:
+        header_data = fits.getheader(fits_file)
+        pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
 
         if len(shape) > 2:
             image_data = image_data[0]
 
-        x_coords = [m_info[0]['int_peak_coord'][0]]
-        y_coords = [m_info[0]['int_peak_coord'][1]]
+        plt.set_cmap('jet')
+        fig, ax = plt.subplots(figsize=(7,7))
+        int_x_coord = (int_x_coord - center[0]) * pixel_scale
+        int_y_coord = (int_y_coord - center[1]) * pixel_scale
 
-        print(len(m_info))
-        print(m_info)
+        plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
+        plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
+
+        int_circle = patches.Circle((0, 0), int_radius * pixel_scale, edgecolor='r', fill=False)
+        ax.add_artist(int_circle)
+
         if len(m_info) > 1:
-            for i in range(len(m_info)-1):
-                x_coords.append(m_info[i]['ext_peak_coord'][0])
-                y_coords.append(m_info[i]['ext_peak_coord'][1])
+            x_coords = (x_coords - center[0]) * pixel_scale
+            y_coords = (y_coords - center[1]) * pixel_scale
+            plt.plot(x_coords, y_coords, 'ko', fillstyle='none', markersize=15)
+            plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
 
-        plt.plot(x_coords, y_coords, 'o')
-        plt.imshow(image_data)
-        plt.colorbar()
+            for i in range(len(x_coords)):
+                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='hotpink', fill=False)
+                ax.add_artist(ext_circle)
+        int_snr = m_info[-1]['int_snr']
 
-    if info_list:
+        x_min = ((0 - center[0]) - 0.5) * pixel_scale
+        y_min = ((0 - center[1]) - 0.5) * pixel_scale
+        x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
+        y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
+
+        ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', fontsize=8, horizontalalignment='left', verticalalignment='top', bbox=dict(facecolor='w'))
+
+        plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
+        plt.title(fits_file)
+        plt.colorbar(shrink=0.4)
+
+        if save_path != '':
+            try:
+                file = fits_file
+                while '/' in file:
+                    file = file[file.index('/')+1:]
+                file = file.replace('.fits', '')
+                if save_path[-1] != '/':
+                    save_path = save_path + '/'
+                plt.savefig(f'{save_path}{file}.png')
+            except:
+                print('Error saving figure. Double check path entered.')
+
+
+    ext_peaks = 'No significant external peak'
+    ext_vals = 'No significant external peak'
+    ext_snrs = 'No significant external peak'
+    ext_probs = 'No significant external peak'
+
+    for i in range(len(m_info)-1):
+        ext_peaks = []
+        ext_vals = []
+        ext_snrs = []
+        ext_probs = []
+        ext_peaks.append(m_info[i]['ext_peak_coord'])
+        ext_vals.append(m_info[i]['ext_peak_val'])
+        ext_snrs.append(m_info[i]['ext_snr'])
+        ext_probs.append(m_info[i]['ext_prob'])
+
+    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (int(int_x_coord[0]), int(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
+                  'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
+                  'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
+                  'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
+                  'field_center': center, 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
+                  'n_incl_meas': m_info[-1]['n_incl_meas'], 'n_excl_meas': m_info[-1]['n_excl_meas'], 'radius': m_info[-1]['radius']}
+
+    if short_dict and full_dict:
+        return info, short_info
+
+    elif full_dict:
         return info
+
+    elif short_dict:
+        return short_info
+
+    else:
+        return
+
+
+def significant(fits_file: str, threshold: float = 0.05):
+    '''Given a fits file and (optional) threshold probability,
+    return a Boolean of whether a significant detection occurred.
+    Significant detection entails both the internal probability based on the measured rms
+    and the internal probability based on the calculated rms
+    being less than the threshold probability'''
+
+    #make sure reasonable input
+    if not (threshold >= 0 or threshold <= 1):
+        raise Exception('Threshold must be between 0 and 1, inclusive.')
+
+    summ = summary(fits_file, True, False, False)
+    return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
