@@ -9,7 +9,19 @@ import matplotlib.patches as patches
 
 
 def fits_data_index(fits_file: str):
-    '''Given a FITS file, return the index of the file where the data array is'''
+    '''
+    Finds the location of a FITS file's data array.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file to be searched.
+
+    Returns
+    -------
+    int
+        The index of the data array in the FITS file.
+    '''
 
     file_index = 0
 
@@ -34,17 +46,56 @@ def fits_data_index(fits_file: str):
 
 
 def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False):
-    '''Given a FITS file, list of center coordinates in units of pixels,
-    list of radii in units of arcsec (include measurements within this radius of the center),
-    and Boolean of whether to invert (if True, becomes exclude instead of include),
-    return a dictionary with floats of the maximum flux (in Jy), coordinates of field center (in pixels),
-    coordinates of maximum flux (in pixels), rms (in Jy), beam size (in arcsec^2),
-    x axis length (in arcsec), and y axis length (in arcsec) in the specified region.
-    If no center given, will eventually default to center of ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+    '''
+    Finds the statistics of a region of an image.
+
+    The region can be the union of circles or the complement of such a region.
+
+    The statistics are the region's maximum flux in Jy and its coordinates in pixels, the region's rms in Jy,
+    the coordinates in pixels of the image's center, the image's beam size in arcseconds squared,
+    and the image's x- and y-axis lengths in arcseconds.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    center : list (optional)
+        A list of center coordinates in units of pixels.
+        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+    radius : list (optional)
+        A list of search radii in units of arcsec.
+        If no radius list is given, defaults to an empty list.
+    invert : bool (optional)
+        Whether to swap the inclusion and exclusion regions.
+        If no value is given, defaults to False.
+
+    Returns
+    -------
+    dict
+        A dictionary with:
+            float
+                The region's maximum flux in Jy.
+            tuple (int, int)
+                The coordinates in pixels of the region's maximum flux.
+            float
+                The region's rms in Jy.
+            tuple (int, int)
+                The coordinates in pixels of the image's center.
+            float
+                The image's beam size in arcseconds squared.
+            float
+                The image's x-axis length in arcsec.
+            float
+                The image's y-axis length in arcsec.
+
+    Raises
+    ------
+    IndexError
+        If center list and radius list are of different lengths.
     '''
 
     if center != [] and len(center) != len(radius):
-        raise IndexError ('Center list and radius list lengths do not match')
+        raise IndexError ('Center list and radius list are of different lengths')
 
     i = fits_data_index(fits_file)
 
@@ -128,10 +179,48 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
 
 def incl_excl_data(fits_file: str, center: list = []):
-    '''Given a FITS file and (optional) list of tuples of center coordinates in units of arcsec,
-    return a dictionary with the field center coordinates as tuple, peak flux value of the inclusion area, coordinates of this peak as tuple,
-    peak flux value of the exclusion area, coordinates of this peak as tuple, rms value of the exclusion area,
-    number of measurements in the inclusion area, and number of measurements in the exclusion area of the specified circle.
+    '''
+    Finds statistics of an inclusion region and its complement, the exclusion region.
+
+    The inclusion region can be the union of circles or the complement of such a region.
+
+    The statistics are the inclusion region's maximum flux in Jy and its coordinates in pixels,
+    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
+    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
+    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    center : list
+        A list of center coordinates in units of pixels.
+        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+
+    Returns
+    -------
+    dict
+        A dictionary with:
+            float
+                The inclusion region's maximum flux in Jy.
+            tuple (int, int)
+                The coordinates in pixels of the inclusion region's maximum flux.
+            float
+                The exclusion region's maximum flux in Jy.
+            tuple (int, int)
+                The coordinates in pixels of the exclusion region's maximum flux.
+            float
+                The exclusion region's rms in Jy.
+            float
+                The number of measurements in the inclusion region.
+            float
+                The number of measurements in the exclusion region.
+            tuple (int, int)
+                The coordinates in pixels of the image's center.
+            list
+                A list with:
+                    float(s)
+                        The radii in pixels of inclusion zones.
     '''
 
     i = fits_data_index(fits_file)
@@ -181,27 +270,77 @@ def incl_excl_data(fits_file: str, center: list = []):
     return info_dict
 
 
-def meas_rms_prob(fits_file: str, center: list = [], rms: float = None, reps: bool = False, recursion: bool = True):
-    '''Given a FITS file, (optional) list of tuples of center coordinates in units of arcsec,
-    (optional) rms value, and (optional) choice to use recursion, return a list of dictionaries.
-    The first dictionary contains the probability of the peak to noise ratio of the interior of the specified region
-    and the probability of peak to noise ratio of the exterior of the specified region,
-    with noise being the measured rms in the exclusion area.
-    If the external probability is less than 0.001, there will be subsequent dictionaries
-    that contain the probability of the peak to noise ratio of the interior of the specified region
-    and the probability of peak to noise ratio of the exterior of the specified region,
-    with noise being the measured rms in the exclusion area,
-    but the included region is expanded to include the highest excluded peak of the previous excluded region
-    and the excluded region now excludes that highest peak.
+def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, recursion: bool = True):
+    '''
+    Using the exclusion region's rms taken directly from the image,
+    finds the probability of detecting the inclusion region's maximum flux if there were no source in the image,
+    the probability of detecting the exclusion region's maximum flux if there were no source in the image, and other statistics.
+
+    If the external probability is less than 0.001, updates the inclusion region to include a circle around the external peak.
+
+    The other statisitcs are the inclusion region's maximum flux in Jy and its coordinates in pixels,
+    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
+    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
+    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones,
+    the inclusion region's signal to noise ratio, and the external region's signal to noise ratio.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    center : list (optional)
+        A list of center coordinates in units of pixels.
+        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+    rms : float (optional)
+        An rms value in Jy.
+        If no value is given, defaults to None.
+    recursion : bool (optional)
+        Whether to use recursion to find significant external peaks, if any.
+        If no value is given, defaults to True.
+
+    Returns
+    -------
+    list
+        A list with:
+            dict (possibly multiple)
+                A dictionary with:
+                    float
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                    float
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                    float
+                        The inclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the inclusion region's maximum flux.
+                    float
+                        The exclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the exclusion region's maximum flux.
+                    float
+                        The exclusion region's rms in Jy.
+                    float
+                        The number of measurements in the inclusion region.
+                    float
+                        The number of measurements in the exclusion region.
+                    tuple (int, int)
+                        The coordinates in pixels of the image's center.
+                    list
+                        A list with:
+                            float(s)
+                                The radii in pixels of inclusion zones.
+                    float
+                        The inclusion region's signal to noise ratio.
+                    float
+                        The exclusion region's signal to noise ratio.
     '''
     info = incl_excl_data(fits_file, center)
     if rms is not None:
         info['rms_val'] = rms
 
-    if reps: #keeping int_peak_val and int_peak coord in the original search area
-        initial_info = incl_excl_data(fits_file, [center[0]])
-        info['int_peak_val'] = initial_info['int_peak_val']
-        info['int_peak_coord'] = initial_info['int_peak_coord']
+    #keeping int_peak_val and int_peak coord in the original search area
+    initial_info = incl_excl_data(fits_file, [])
+    info['int_peak_val'] = initial_info['int_peak_val']
+    info['int_peak_coord'] = initial_info['int_peak_coord']
 
     int_peak = info['int_peak_val']
     ext_peak = info['ext_peak_val']
@@ -226,31 +365,96 @@ def meas_rms_prob(fits_file: str, center: list = [], rms: float = None, reps: bo
     prob_list = [prob_dict]
 
     if prob_dict['ext_prob'] < 0.001 and recursion:
-        reps = True
         if center == []:
             new_center = [info['field_center'], info['ext_peak_coord']]
         else:
             center.append(info['ext_peak_coord'])
             new_center = center
-        new_list = meas_rms_prob(fits_file, new_center, rms = None, reps = reps, recursion = True)
+        new_list = get_prob_image_rms(fits_file, new_center, rms = None, recursion = True)
         prob_list.extend(new_list)
 
     #using better rms value for calculating probability of peak when just looking in initial area
     elif len(prob_list) > 1:
-        new_list = meas_rms_prob(fits_file, center = [prob_list[0]['field_center']], rms = prob_list[-1]['rms_val'], \
-                                     reps = False, recursion = False)
+        new_list = get_prob_image_rms(fits_file, center = [prob_list[0]['field_center']], rms = prob_list[-1]['rms_val'], \
+                                     recursion = False)
         new_list.extend(prob_list[1:])
         prob_list = new_list
 
     return prob_list
 
 
-def calc_rms_prob(prob_list: list):
-    '''Given a list output from meas_rms_prob(), return the list output with an appended dictionary
-    that contains the probability of the peak to noise ratio of the interior of the specified region
-    and the probability of peak to noise ratio of the exterior of the specified region,
-    calculated rms, calculated interior peak to noise ratio, and calculated exterior peak to noise ratio
-    with noise being the calculated rms in the exclusion area based on the expected probability of the peak value in the exclusion area.
+def get_prob_rms_est_from_ext(prob_list: list):
+    '''
+    Using the rms estimated from the value of the exclusion region's maximum flux,
+    finds the probability of detecting the inclusion region's maximum flux if there were no source in the image,
+    the probability of detecting the exclusion region's maximum flux if there were no source in the image, and other statistics.
+
+    The estimated rms is that the probability of finding such an external peak,
+    assuming no source in the exclusion region, is 1.
+    Note: this implies that the external probability will always be 1.
+
+    The other statistics include the following as calculated using the rms estimated as described above:
+    the exclusion region's rms in Jy, the inclusion region's signal to noise ratio,
+    and the external region's signal to noise ratio.
+
+    The remaining statisitcs include the following as calculated using the rms taken directly from the image:
+    the inclusion region's maximum flux in Jy and its coordinates in pixels,
+    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
+    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
+    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones,
+    the inclusion region's signal to noise ratio, and the external region's signal to noise ratio.
+
+    Parameters
+    ----------
+    prob_list : list
+        The list of statistics, as outputted by get_prob_image_rms(), for an image.
+
+    Returns
+    -------
+    list
+        A list with:
+            dict(s)
+                A dictionary with the following, found using the rms taken directly from the image:
+                    float
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                    float
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                    float
+                        The inclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the inclusion region's maximum flux.
+                    float
+                        The exclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the exclusion region's maximum flux.
+                    float
+                        The exclusion region's rms in Jy.
+                    float
+                        The number of measurements in the inclusion region.
+                    float
+                        The number of measurements in the exclusion region.
+                    tuple (int, int)
+                        The coordinates in pixels of the image's center.
+                    list
+                        A list with:
+                            float(s)
+                                The radii in pixels of inclusion zones.
+                    float
+                        The inclusion region's signal to noise ratio.
+                    float
+                        The exclusion region's signal to noise ratio.
+            dict
+                A dictionary with the following, found using the rms estimated as described above:
+                    float
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                    float
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                    float
+                        The exclusion region's rms in Jy.
+                    float
+                        The inclusion region's signal to noise ratio.
+                    float
+                        The exclusion region's signal to noise ratio.
     '''
     info = prob_list[-1]
 
@@ -262,7 +466,7 @@ def calc_rms_prob(prob_list: list):
     excl_sigma = -1 * norm.ppf(1/n_excl_meas)
     rms_val = ext_peak_val / excl_sigma
 
-    prob_dict= {}
+    prob_dict = {}
 
     prob_dict['calc_rms_val'] = float(rms_val)
     prob_dict['calc_int_prob'] = float(norm.cdf((-1 * int_peak_val)/(rms_val))) * n_incl_meas
@@ -275,15 +479,141 @@ def calc_rms_prob(prob_list: list):
     return prob_list
 
 
-def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, plot: bool = True, save_path: str = ''):
-    '''Given a FITS file, (optional) choice to return a list of information, (optional) choice to show a plot,
-    and (optional) path of where to save a png of the plot,
-    return a list of source information if requested and a plot of source information if requested
-    and save a png of the plot to the path if requested.
+def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, plot: bool = True, save_path: str = ''):
     '''
-    m_info = meas_rms_prob(fits_file)
+    Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
+    with an option to save the plot as a png.
 
-    info = (calc_rms_prob(meas_rms_prob(fits_file)))
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    short_dict : bool (optional)
+        Whether to return the short dictionary of statistics.
+        If no value is given, defaults to True.
+    full_list : bool (optional)
+        Whether to return the more detailed list of statistics.
+        If no value is given, defaults to False.
+    plot : bool (optional)
+        Whether to plot the image and statistics.
+        If no value is given, defaults to True.
+    save_path : str (optional)
+        The path to which the plot will be saved.
+        If no value is given, defaults to '' and no image is saved.
+
+    Returns
+    -------
+    dict (if requested)
+        A shorter dictionary with:
+            float
+                The probability, found using the rms taken directly from the image,
+                of detecting the inclusion region's maximum flux if there were no source in the image.
+            list
+                A list with:
+                    float(s)
+                        The probabilities, found using the rms taken directly from the image,
+                        of detecting the exclusion regions' maximum flux if there were no source in the image.
+                        If there are multiple entries in this list,
+                        they are the probabilities as the exclusion region becomes increasingly small
+                        as external peaks deemed significant are added to the inclusion region.
+            float
+                The inclusion region's maximum flux in Jy.
+            tuple (int, int)
+                The coordinates in pixels of the inclusion region's maximum flux.
+            list
+                A list of with:
+                    float(s)
+                        The exclusion regions' maximum fluxes in Jy.
+                        If there are multiple entries in this list,
+                        they are the maxmimum fluxes as the exclusion region becomes increasingly small
+                        as external peaks deemed significant are added to the inclusion region.
+            list
+                A list with:
+                    tuple(s) (int, int)
+                        The coordinates in pixels of the exclusion regions' maximum fluxes.
+                        If there are multiple entires in this list,
+                        they are the coordinates as the exclusion region becomes increasingly small
+                        as external peaks deemed significant are added to the inclusion region.
+            float
+                The exclusion region's rms in Jy. This uses the final (smallest) exclusion region.
+            float
+                The number of measurements in the inclusion region.
+            float
+                The number of measurements in the exclusion region.
+            tuple (int, int)
+                The coordinates in pixels of the image's center.
+            list
+                A list with:
+                    float(s):
+                        The radii in pixels of inclusion zones.
+            float
+                The inclusion region's signal to noise ratio.
+            list
+                A list with:
+                    float(s)
+                        The exclusion regions' signal to noise ratios.
+            float
+                The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
+                of detecting the inclusion region's maximum flux if there were no source in the image.
+            float
+                The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
+                of detecting the exclusion region's maximum flux if there were no source in the image.
+            float
+                The rms in Jy estimated from the value of the exclusion region's maximum flux.
+            float
+                The inclusion region's signal to noise ratio,
+                found using the rms estimated from the value of the exclusion region's maximum flux.
+            float
+                The exclusion region's signal to noise ratio,
+                found using the rms estimated from the value of the exclusion region's maximum flux.
+    list (if requested)
+        A more detailed list with:
+            dict(s)
+                A dictionary with the following, found using the rms taken directly from the image:
+                    float
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                    float
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                    float
+                        The inclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the inclusion region's maximum flux.
+                    float
+                        The exclusion region's maximum flux in Jy.
+                    tuple (int, int)
+                        The coordinates in pixels of the exclusion region's maximum flux.
+                    float
+                        The exclusion region's rms in Jy.
+                    float
+                        The number of measurements in the inclusion region.
+                    float
+                        The number of measurements in the exclusion region.
+                    tuple (int, int)
+                        The coordinates in pixels of the image's center.
+                    list
+                        A list with:
+                            float(s)
+                                The radii in pixels of inclusion zones.
+                    float
+                        The inclusion region's signal to noise ratio.
+                    float
+                        The exclusion region's signal to noise ratio.
+            dict
+                A dictionary with the following, found using the rms estimated as described above:
+                    float
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                    float
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                    float
+                        The exclusion region's rms in Jy.
+                    float
+                        The inclusion region's signal to noise ratio.
+                    float
+                        The exclusion region's signal to noise ratio.
+    '''
+    m_info = get_prob_image_rms(fits_file)
+
+    info = (get_prob_rms_est_from_ext(get_prob_image_rms(fits_file)))
 
     center = m_info[0]['field_center']
 
@@ -291,6 +621,9 @@ def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, pl
     int_y_coord = np.array([m_info[0]['int_peak_coord'][1]])
 
     int_radius = m_info[0]['radius'][0]
+
+    header_data = fits.getheader(fits_file)
+    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
 
     if len(m_info) > 1:
         x_coords = []
@@ -305,8 +638,6 @@ def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, pl
         y_coords = np.array(y_coords)
 
     if plot:
-        header_data = fits.getheader(fits_file)
-        pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
 
@@ -358,18 +689,20 @@ def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, pl
             except:
                 print('Error saving figure. Double check path entered.')
 
-
     ext_peaks = 'No significant external peak'
     ext_vals = 'No significant external peak'
     ext_snrs = 'No significant external peak'
     ext_probs = 'No significant external peak'
 
-    for i in range(len(m_info)-1):
+    if len(m_info) > 1:
         ext_peaks = []
         ext_vals = []
         ext_snrs = []
         ext_probs = []
-        ext_peaks.append(m_info[i]['ext_peak_coord'])
+    for i in range(len(m_info)-1):
+        ext_peak_x = int((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
+        ext_peak_y = int((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
+        ext_peaks.append((ext_peak_x, ext_peak_y))
         ext_vals.append(m_info[i]['ext_peak_val'])
         ext_snrs.append(m_info[i]['ext_snr'])
         ext_probs.append(m_info[i]['ext_prob'])
@@ -381,10 +714,10 @@ def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, pl
                   'field_center': center, 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
                   'n_incl_meas': m_info[-1]['n_incl_meas'], 'n_excl_meas': m_info[-1]['n_excl_meas'], 'radius': m_info[-1]['radius']}
 
-    if short_dict and full_dict:
-        return info, short_info
+    if short_dict and full_list:
+        return short_info, info
 
-    elif full_dict:
+    elif full_list:
         return info
 
     elif short_dict:
@@ -394,16 +727,33 @@ def summary(fits_file: str, short_dict: bool = True, full_dict: bool = False, pl
         return
 
 
-def significant(fits_file: str, threshold: float = 0.05):
-    '''Given a fits file and (optional) threshold probability,
-    return a Boolean of whether a significant detection occurred.
-    Significant detection entails both the internal probability based on the measured rms
-    and the internal probability based on the calculated rms
-    being less than the threshold probability'''
+def significant(fits_file: str, threshold: float = 0.01):
+    '''
+    Finds whether a significant source was detected in a field's center region.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    threshold : float (optional)
+        The threshold for a significant detection.
+        If the probability of detecting the center region's maximum flux assuming no source in the image
+        is less than this threshold, then the detection is deemed significant.
+        If no value is given, defaults to 0.01.
+
+    Returns
+    -------
+    bool : Whether a significant source was detected in the field's center region.
+
+    Raises
+    ------
+    ValueError
+        If threshold is not between 0 and 1, inclusive.
+    '''
 
     #make sure reasonable input
-    if not (threshold >= 0 or threshold <= 1):
-        raise Exception('Threshold must be between 0 and 1, inclusive.')
+    if not (threshold >= 0 and threshold <= 1):
+        raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
     summ = summary(fits_file, True, False, False)
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
