@@ -674,8 +674,13 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', fontsize=8, horizontalalignment='left', verticalalignment='top', bbox=dict(facecolor='w'))
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
-        plt.title(fits_file)
-        plt.colorbar(shrink=0.4)
+
+        title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
+        plt.title(title)
+        plt.xlabel('Arcsec')
+        plt.ylabel('Arcsec')
+        cbar = plt.colorbar(shrink=0.4)
+        cbar.ax.set_ylabel('Jy', rotation=0, labelpad=15)
 
         if save_path != '':
             try:
