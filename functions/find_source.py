@@ -256,7 +256,7 @@ def incl_excl_data(fits_file: str, center: list = []):
     beam_size = int_info['beam_size']
 
     #calculating number of measurements in inclusion and exclusion regions
-    incl_area = np.pi * ((radius[0]**2) + ((radius[0] - 5.0)**2) * (len(center)- 1))
+    incl_area = np.pi * ((radius[0]**2) + ((radius[0] - 5.0)**2) * (len(center)- 1)) #assumption: circles don't overlap
     excl_area = x_axis * y_axis - incl_area
     info_dict['n_incl_meas'] = incl_area / beam_size
     info_dict['n_excl_meas'] = excl_area / beam_size
