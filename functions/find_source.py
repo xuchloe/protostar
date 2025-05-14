@@ -700,19 +700,31 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ext_snrs = []
         ext_probs = []
     for i in range(len(m_info)-1):
-        ext_peak_x = int((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
-        ext_peak_y = int((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
+        #normalizing external peak coordinates in short dictionary
+        ext_peak_x = round((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
+        ext_peak_y = round((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
+
         ext_peaks.append((ext_peak_x, ext_peak_y))
         ext_vals.append(m_info[i]['ext_peak_val'])
         ext_snrs.append(m_info[i]['ext_snr'])
         ext_probs.append(m_info[i]['ext_prob'])
 
-    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (int(int_x_coord[0]), int(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
+    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (round(int_x_coord[0]), round(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
                   'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
                   'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
                   'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
                   'field_center': center, 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
                   'n_incl_meas': m_info[-1]['n_incl_meas'], 'n_excl_meas': m_info[-1]['n_excl_meas'], 'radius': m_info[-1]['radius']}
+
+    #normalizing coordinates in the full list
+    if full_list:
+        for d in info:
+            for key, value in d.items():
+                if type(value) == tuple:
+                    new_coords = (round((value[0] - center[0]) * pixel_scale), round((value[1] - center[1]) * pixel_scale))
+                    d[key] = new_coords
+
+    center = (0,0) #normalizing center coordinates
 
     if short_dict and full_list:
         return short_info, info
