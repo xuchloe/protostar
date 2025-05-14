@@ -243,7 +243,7 @@ def incl_excl_data(fits_file: str, center: list = []):
     int_info = region_stats(fits_file = fits_file, radius = radius, center = center)
     ext_info = region_stats(fits_file = fits_file, radius = radius, center = center, invert=True)
 
-    #getting values for peak, rms, axis lengths, beam size, distance list
+    #getting values for peak, rms, axis lengths, beam size
     info_dict = {}
     info_dict['int_peak_val'] = int_info['peak']
     info_dict['field_center'] = int_info['field_center']
@@ -273,8 +273,8 @@ def incl_excl_data(fits_file: str, center: list = []):
 def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, recursion: bool = True):
     '''
     Using the exclusion region's rms taken directly from the image,
-    finds the probability of detecting the inclusion region's maximum flux if there were no source in the image,
-    the probability of detecting the exclusion region's maximum flux if there were no source in the image, and other statistics.
+    finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
+    the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
 
     If the external probability is less than 0.001, updates the inclusion region to include a circle around the external peak.
 
@@ -293,7 +293,7 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
         If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
     rms : float (optional)
         An rms value in Jy.
-        If no value is given, defaults to None.
+        If no value is given, eventually defaults to the rms calculated by incl_excl_data.
     recursion : bool (optional)
         Whether to use recursion to find significant external peaks, if any.
         If no value is given, defaults to True.
@@ -305,9 +305,9 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
             dict (possibly multiple)
                 A dictionary with:
                     float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The inclusion region's maximum flux in Jy.
                     tuple (int, int)
@@ -386,8 +386,8 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
 def get_prob_rms_est_from_ext(prob_list: list):
     '''
     Using the rms estimated from the value of the exclusion region's maximum flux,
-    finds the probability of detecting the inclusion region's maximum flux if there were no source in the image,
-    the probability of detecting the exclusion region's maximum flux if there were no source in the image, and other statistics.
+    finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
+    the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
 
     The estimated rms is that the probability of finding such an external peak,
     assuming no source in the exclusion region, is 1.
@@ -416,9 +416,9 @@ def get_prob_rms_est_from_ext(prob_list: list):
             dict(s)
                 A dictionary with the following, found using the rms taken directly from the image:
                     float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The inclusion region's maximum flux in Jy.
                     tuple (int, int)
@@ -446,9 +446,9 @@ def get_prob_rms_est_from_ext(prob_list: list):
             dict
                 A dictionary with the following, found using the rms estimated as described above:
                     float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The exclusion region's rms in Jy.
                     float
@@ -507,12 +507,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         A shorter dictionary with:
             float
                 The probability, found using the rms taken directly from the image,
-                of detecting the inclusion region's maximum flux if there were no source in the image.
+                of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
             list
                 A list with:
                     float(s)
                         The probabilities, found using the rms taken directly from the image,
-                        of detecting the exclusion regions' maximum flux if there were no source in the image.
+                        of detecting the exclusion regions' maximum flux if there were no source in the exclusion regions.
                         If there are multiple entries in this list,
                         they are the probabilities as the exclusion region becomes increasingly small
                         as external peaks deemed significant are added to the inclusion region.
@@ -554,10 +554,10 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                         The exclusion regions' signal to noise ratios.
             float
                 The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
-                of detecting the inclusion region's maximum flux if there were no source in the image.
+                of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
             float
                 The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
-                of detecting the exclusion region's maximum flux if there were no source in the image.
+                of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
             float
                 The rms in Jy estimated from the value of the exclusion region's maximum flux.
             float
@@ -571,9 +571,9 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             dict(s)
                 A dictionary with the following, found using the rms taken directly from the image:
                     float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The inclusion region's maximum flux in Jy.
                     tuple (int, int)
@@ -601,9 +601,9 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             dict
                 A dictionary with the following, found using the rms estimated as described above:
                     float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the image.
+                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The exclusion region's rms in Jy.
                     float
