@@ -617,21 +617,26 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
 
     center = m_info[0]['field_center']
 
+    header_data = fits.getheader(fits_file)
+    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+
     int_x_coord = np.array([m_info[0]['int_peak_coord'][0]])
     int_y_coord = np.array([m_info[0]['int_peak_coord'][1]])
 
-    int_radius = m_info[0]['radius'][0]
+    #normalize internal peak coordinates
+    int_x_coord = (int_x_coord - center[0]) * pixel_scale
+    int_y_coord = (int_y_coord - center[1]) * pixel_scale
 
-    header_data = fits.getheader(fits_file)
-    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    int_radius = m_info[0]['radius'][0]
 
     if len(m_info) > 1:
         x_coords = []
         y_coords = []
 
         for i in range(len(m_info)-1):
-            x_coords.append(m_info[i]['ext_peak_coord'][0])
-            y_coords.append(m_info[i]['ext_peak_coord'][1])
+            #normalized external peak coordinates
+            x_coords.append((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
+            y_coords.append((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
         ext_radius = m_info[-1]['radius'][1]
 
         x_coords = np.array(x_coords)
@@ -641,13 +646,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
 
-        if len(shape) > 2:
+        while len(shape) > 2:
             image_data = image_data[0]
+            shape = image_data.shape
 
         plt.set_cmap('jet')
         fig, ax = plt.subplots(figsize=(7,7))
-        int_x_coord = (int_x_coord - center[0]) * pixel_scale
-        int_y_coord = (int_y_coord - center[1]) * pixel_scale
 
         plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
         plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
@@ -656,8 +660,6 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ax.add_artist(int_circle)
 
         if len(m_info) > 1:
-            x_coords = (x_coords - center[0]) * pixel_scale
-            y_coords = (y_coords - center[1]) * pixel_scale
             plt.plot(x_coords, y_coords, 'ko', fillstyle='none', markersize=15)
             plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
 
@@ -705,11 +707,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ext_snrs = []
         ext_probs = []
     for i in range(len(m_info)-1):
-        #normalizing external peak coordinates in short dictionary
-        ext_peak_x = round((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
-        ext_peak_y = round((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
-
-        ext_peaks.append((ext_peak_x, ext_peak_y))
+        ext_peaks.append((round(x_coords[i]), round(y_coords[i])))
         ext_vals.append(m_info[i]['ext_peak_val'])
         ext_snrs.append(m_info[i]['ext_snr'])
         ext_probs.append(m_info[i]['ext_prob'])
@@ -718,7 +716,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                   'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
                   'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
                   'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
-                  'field_center': center, 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
+                  'field_center': (0,0), 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
                   'n_incl_meas': m_info[-1]['n_incl_meas'], 'n_excl_meas': m_info[-1]['n_excl_meas'], 'radius': m_info[-1]['radius']}
 
     #normalizing coordinates in the full list
