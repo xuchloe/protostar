@@ -645,7 +645,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
     if plot:
         plt.rcParams['font.family'] = 'serif'
         plt.rcParams['font.serif'] = ['Times New Roman']
-        plt.rcParams['font.size'] = 12
+        plt.rcParams['font.size'] = 10
 
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
@@ -655,12 +655,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             shape = image_data.shape
 
         plt.set_cmap('inferno')
-        fig, ax = plt.subplots(figsize=(7,7))
+        fig, ax = plt.subplots(figsize=(5.5,5.5))
 
         plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
         plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
 
-        int_circle = patches.Circle((0, 0), int_radius * pixel_scale, edgecolor='r', fill=False)
+        int_circle = patches.Circle((0, 0), int_radius * pixel_scale, edgecolor='c', fill=False)
         ax.add_artist(int_circle)
 
         if len(m_info) > 1:
@@ -668,7 +668,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
 
             for i in range(len(x_coords)):
-                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='hotpink', fill=False)
+                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='skyblue', fill=False)
                 ax.add_artist(ext_circle)
         int_snr = m_info[-1]['int_snr']
 
@@ -677,16 +677,22 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
         y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
 
-        ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', horizontalalignment='left', verticalalignment='top', bbox=dict(facecolor='w'))
+        beam = patches.Ellipse((x_min*0.9, y_min*0.9), Angle(header_data['BMIN'], header_data['CUNIT1']).to_value('arcsec'),\
+                               Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec'), fill=True, facecolor='w',\
+                                edgecolor='k', angle=header_data['BPA'], hatch='//////', lw=0.5)
+        ax.add_artist(beam)
+
+        ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', horizontalalignment='left', verticalalignment='top',\
+                fontsize=12, bbox=dict(facecolor='w'))
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
 
         title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
-        plt.title(title, fontsize=18)
-        plt.xlabel('Arcsec')
-        plt.ylabel('Arcsec')
-        cbar = plt.colorbar(shrink=0.4)
-        cbar.ax.set_ylabel('Jy', rotation=0, labelpad=15)
+        plt.title(title, fontsize=16)
+        plt.xlabel('Relative Dec Offset [arcsec]', fontsize=16)
+        plt.ylabel('Relative RA Offset [arcsec]', fontsize=16)
+        cbar = plt.colorbar(shrink=0.8)
+        cbar.ax.set_ylabel('Intensity [Jy/Beam]', fontsize=16, rotation=270, labelpad=15)
 
         if save_path != '':
             try:
