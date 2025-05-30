@@ -643,6 +643,10 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         y_coords = np.array(y_coords)
 
     if plot:
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['font.serif'] = ['Times New Roman']
+        plt.rcParams['font.size'] = 12
+
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
 
@@ -650,7 +654,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             image_data = image_data[0]
             shape = image_data.shape
 
-        plt.set_cmap('jet')
+        plt.set_cmap('inferno')
         fig, ax = plt.subplots(figsize=(7,7))
 
         plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
@@ -673,12 +677,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
         y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
 
-        ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', fontsize=8, horizontalalignment='left', verticalalignment='top', bbox=dict(facecolor='w'))
+        ax.text(x_min*0.9, y_max*0.9, f'Internal Candidate SNR:\n{int_snr}', horizontalalignment='left', verticalalignment='top', bbox=dict(facecolor='w'))
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
 
         title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
-        plt.title(title)
+        plt.title(title, fontsize=18)
         plt.xlabel('Arcsec')
         plt.ylabel('Arcsec')
         cbar = plt.colorbar(shrink=0.4)
