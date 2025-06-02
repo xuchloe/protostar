@@ -54,7 +54,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     The statistics are the region's maximum flux in Jy and its coordinates in pixels, the region's rms in Jy,
     the coordinates in pixels of the image's center, the image's beam size in arcseconds squared,
-    and the image's x- and y-axis lengths in arcseconds.
+    the image's x- and y-axis lengths in arcseconds, and the area included in the mask in arcseconds squared.
 
     Parameters
     ----------
@@ -88,6 +88,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
                 The image's x-axis length in arcsec.
             float
                 The image's y-axis length in arcsec.
+            float
+                The area included in the mask in arcseconds squared.
 
     Raises
     ------
@@ -157,6 +159,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     if invert:
         mask = np.logical_not(mask)
 
+    incl_area = float(mask.sum() * x_cell_size * y_cell_size / (u.arcsec)**2)
+
     masked_data = data[0][mask]
 
     #get peak, rms, beam_size values
@@ -174,7 +178,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     rms = float((np.var(masked_data))**0.5)
 
     stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': float(beam_size / (u.arcsec**2)),\
-              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec)}
+              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area}
 
     return stats
 
@@ -257,8 +261,8 @@ def incl_excl_data(fits_file: str, center: list = []):
     beam_size = int_info['beam_size']
 
     #calculating number of measurements in inclusion and exclusion regions
-    incl_area = np.pi * ((radius[0]**2) + ((radius[0] - 5.0)**2) * (len(center)- 1)) #assumption: circles don't overlap
-    excl_area = x_axis * y_axis - incl_area
+    incl_area = int_info['incl_area']
+    excl_area = ext_info['incl_area']
     info_dict['n_incl_meas'] = incl_area / beam_size
     info_dict['n_excl_meas'] = excl_area / beam_size
 
@@ -693,7 +697,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         plt.xlabel('Relative Dec Offset [arcsec]', fontsize=32)
         plt.ylabel('Relative RA Offset [arcsec]', fontsize=32)
 
-        jy_to_mjy = lambda x, pos: '{}'.format(x*1000)
+        jy_to_mjy = lambda x, pos: '{}'.format(round(x*1000, 1))
         fmt = ticker.FuncFormatter(jy_to_mjy)
 
         cbar = plt.colorbar(shrink=0.8, format=fmt)
