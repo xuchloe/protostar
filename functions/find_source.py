@@ -694,14 +694,14 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
 
-        plt.xlabel('Relative Dec Offset [arcsec]', fontsize=32)
-        plt.ylabel('Relative RA Offset [arcsec]', fontsize=32)
+        plt.xlabel('Relative RA Offset [arcsec]', fontsize=32)
+        plt.ylabel('Relative Dec Offset [arcsec]', fontsize=32)
 
         jy_to_mjy = lambda x, pos: '{}'.format(round(x*1000, 1))
         fmt = ticker.FuncFormatter(jy_to_mjy)
 
         cbar = plt.colorbar(shrink=0.8, format=fmt)
-        cbar.ax.set_ylabel('Intensity [mJy/Beam]', fontsize=32, rotation=270, labelpad=36)
+        cbar.ax.set_ylabel('Intensity [mJy/beam]', fontsize=32, rotation=270, labelpad=36)
 
         if save_path != '':
             try:
