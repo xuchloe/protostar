@@ -674,7 +674,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
 
             for i in range(len(x_coords)):
-                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='skyblue', fill=False)
+                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='lime', fill=False)
                 ax.add_artist(ext_circle)
         int_snr = m_info[-1]['int_snr']
 
