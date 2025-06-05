@@ -546,7 +546,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             float
                 The number of measurements in the exclusion region.
             tuple (int, int)
-                The coordinates in relative arcsec of the image's center. Should be (0,0).
+                The coordinates in relative arcsec of the image's center. Should be (0, 0).
             list
                 A list with:
                     float(s):
@@ -593,8 +593,8 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                         The number of measurements in the inclusion region.
                     float
                         The number of measurements in the exclusion region.
-                    tuple (int, int)
-                        The coordinates in relative arcsec of the image's center. Should be (0,0).
+                    tuple (float, float)
+                        The coordinates in relative arcsec of the image's center. Should be (0.0, 0.0).
                     list
                         A list with:
                             float(s)
