@@ -523,8 +523,8 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                         as external peaks deemed significant are added to the inclusion region.
             float
                 The inclusion region's maximum flux in Jy.
-            tuple (int, int)
-                The coordinates in pixels of the inclusion region's maximum flux.
+            tuple (float, float)
+                The coordinates in relative arcsec of the inclusion region's maximum flux.
             list
                 A list of with:
                     float(s)
@@ -534,7 +534,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                         as external peaks deemed significant are added to the inclusion region.
             list
                 A list with:
-                    tuple(s) (int, int)
+                    tuple(s) (float, float)
                         The coordinates in pixels of the exclusion regions' maximum fluxes.
                         If there are multiple entires in this list,
                         they are the coordinates as the exclusion region becomes increasingly small
@@ -546,7 +546,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
             float
                 The number of measurements in the exclusion region.
             tuple (int, int)
-                The coordinates in pixels of the image's center.
+                The coordinates in relative arcsec of the image's center. Should be (0, 0).
             list
                 A list with:
                     float(s):
@@ -581,20 +581,20 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                         The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
                     float
                         The inclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the inclusion region's maximum flux.
+                    tuple (float, float)
+                        The coordinates in relative arcsec of the inclusion region's maximum flux.
                     float
                         The exclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the exclusion region's maximum flux.
+                    tuple (float, float)
+                        The coordinates in relative arcsec of the exclusion region's maximum flux.
                     float
                         The exclusion region's rms in Jy.
                     float
                         The number of measurements in the inclusion region.
                     float
                         The number of measurements in the exclusion region.
-                    tuple (int, int)
-                        The coordinates in pixels of the image's center.
+                    tuple (float, float)
+                        The coordinates in relative arcsec of the image's center. Should be (0.0, 0.0).
                     list
                         A list with:
                             float(s)
@@ -726,12 +726,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ext_snrs = []
         ext_probs = []
     for i in range(len(m_info)-1):
-        ext_peaks.append((round(x_coords[i]), round(y_coords[i])))
+        ext_peaks.append((float(x_coords[i]), float(y_coords[i])))
         ext_vals.append(m_info[i]['ext_peak_val'])
         ext_snrs.append(m_info[i]['ext_snr'])
         ext_probs.append(m_info[i]['ext_prob'])
 
-    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (round(int_x_coord[0]), round(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
+    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (float(int_x_coord[0]), float(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
                   'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
                   'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
                   'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
@@ -743,7 +743,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         for d in info:
             for key, value in d.items():
                 if type(value) == tuple:
-                    new_coords = (round((value[0] - center[0]) * pixel_scale), round((value[1] - center[1]) * pixel_scale))
+                    new_coords = (float((value[0] - center[0]) * pixel_scale), float((value[1] - center[1]) * pixel_scale))
                     d[key] = new_coords
 
     center = (0,0) #normalizing center coordinates
