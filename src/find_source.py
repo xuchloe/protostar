@@ -726,12 +726,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         ext_snrs = []
         ext_probs = []
     for i in range(len(m_info)-1):
-        ext_peaks.append((x_coords[i], y_coords[i]))
+        ext_peaks.append((float(x_coords[i]), float(y_coords[i])))
         ext_vals.append(m_info[i]['ext_peak_val'])
         ext_snrs.append(m_info[i]['ext_snr'])
         ext_probs.append(m_info[i]['ext_prob'])
 
-    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (int_x_coord[0], int_y_coord[0]), 'int_snr': m_info[-1]['int_snr'],\
+    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (float(int_x_coord[0]), float(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
                   'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
                   'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
                   'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
@@ -743,7 +743,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
         for d in info:
             for key, value in d.items():
                 if type(value) == tuple:
-                    new_coords = ((value[0] - center[0]) * pixel_scale, (value[1] - center[1]) * pixel_scale)
+                    new_coords = (float((value[0] - center[0]) * pixel_scale), float((value[1] - center[1]) * pixel_scale))
                     d[key] = new_coords
 
     center = (0,0) #normalizing center coordinates
