@@ -791,3 +791,108 @@ def significant(fits_file: str, threshold: float = 0.01):
 
     summ = summary(fits_file, True, False, False)
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
+
+
+def get_info_for_catalog(fits_file: str):
+    '''
+    Summarizes information on any significant point sources detected in an image.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+
+    Returns
+    -------
+    dict
+        A dictionary with:
+            str
+                The name of the target object of the observation.
+            str
+                The name of the FITS file with the image.
+            float
+                The uncertainty in flux density measurements.
+            dict(s)
+                A dictionary with:
+                    float
+                        The flux density of the detected point source.
+                    SkyCoord
+                        The location of the detected point source.
+                    bool
+                        Whether the detected point source is in the initial search region.
+    '''
+
+    summ = summary(fits_file, True, False, False)
+
+    header_data = fits.getheader(fits_file)
+    ctype1 = header_data['CTYPE1']
+    crval1 = header_data['CRVAL1']
+    cunit1 = header_data['CUNIT1']
+    ctype2 = header_data['CTYPE2']
+    crval2 = header_data['CRVAL2']
+    cunit2 = header_data['CUNIT2']
+    name = header_data['OBJECT']
+
+    interesting_sources = {'name': name, 'file': fits_file[fits_file.rindex('/')+1:], 'uncertainty': summ['rms']}
+
+    n_ext_sources = 0
+    if type(summ['ext_peak_val']) == list:
+        n_ext_sources += len(summ['ext_peak_val'])
+
+    ra_index = 0
+    dec_index = 1
+
+    if 'RA' in ctype1:
+        ra = crval1
+    elif 'RA' in ctype2:
+        ra = crval2
+        ra_index = 1
+    else:
+        raise ValueError('No RA in image')
+
+    if 'DEC' in ctype1:
+        dec = crval1
+        dec_index = 0
+    elif 'DEC' in ctype2:
+        dec = crval2
+    else:
+        raise ValueError('No dec in image')
+
+    if cunit1 != cunit2:
+        raise ValueError('Axes have different units')
+
+    center = SkyCoord(ra, dec, unit=cunit1)
+
+    pt_source_count = 1
+
+    if significant(fits_file):
+        int_info = {}
+        int_info['flux_density'] = summ['int_peak_val']
+
+        int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
+        int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
+        int_info['coord'] = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
+
+        int_info['internal'] = True
+
+        interesting_sources[f'source_{pt_source_count}'] = int_info
+        pt_source_count +=1
+
+
+    for i in range(n_ext_sources):
+        ext_info = {}
+        ext_info['flux_density'] = summ['ext_peak_val'][i]
+
+        ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
+        ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
+        ext_info['coord'] = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
+
+        ext_info['internal'] = False
+
+        interesting_sources[f'source_{pt_source_count}'] = ext_info
+        pt_source_count += 1
+
+    if len(interesting_sources) == 3:
+        return
+    else:
+        return interesting_sources
