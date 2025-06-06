@@ -2,7 +2,7 @@ from astropy.io import fits
 import numpy as np
 import scipy.stats
 from scipy.stats import norm
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord
 import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
