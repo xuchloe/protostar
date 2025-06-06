@@ -809,7 +809,15 @@ def get_info_for_catalog(fits_file: str):
             str
                 The name of the target object of the observation.
             str
+                The date and time of the observation.
+            str
                 The name of the FITS file with the image.
+            Angle
+                The restoring beam major axis.
+            Angle
+                The restoring beam minor axis.
+            Angle
+                The restoring beam position angle.
             float
                 The uncertainty in flux density measurements.
             dict(s)
@@ -825,15 +833,26 @@ def get_info_for_catalog(fits_file: str):
     summ = summary(fits_file, True, False, False)
 
     header_data = fits.getheader(fits_file)
+    name = header_data['OBJECT']
+    obs_date_time = header_data['DATE-OBS']
+    bmaj = header_data['BMAJ']
+    bmin = header_data['BMIN']
+    bpa = header_data['BPA']
     ctype1 = header_data['CTYPE1']
     crval1 = header_data['CRVAL1']
     cunit1 = header_data['CUNIT1']
     ctype2 = header_data['CTYPE2']
     crval2 = header_data['CRVAL2']
     cunit2 = header_data['CUNIT2']
-    name = header_data['OBJECT']
 
-    interesting_sources = {'name': name, 'file': fits_file[fits_file.rindex('/')+1:], 'uncertainty': summ['rms']}
+    #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
+    beam_maj_axis = Angle(bmaj, cunit1)
+    beam_min_axis = Angle(bmin, cunit1)
+    beam_pos_angle = Angle(bpa, u.degree)
+
+    interesting_sources = {'name': name, 'obs_date_time': obs_date_time, 'file': fits_file[fits_file.rindex('/')+1:],\
+                           'beam_maj_axis': beam_maj_axis, 'beam_min_axis': beam_min_axis, 'beam_pos_angle': beam_pos_angle,\
+                           'flux_uncertainty': summ['rms']}
 
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
@@ -892,7 +911,7 @@ def get_info_for_catalog(fits_file: str):
         interesting_sources[f'source_{pt_source_count}'] = ext_info
         pt_source_count += 1
 
-    if len(interesting_sources) == 3:
+    if 'source_1' not in interesting_sources:
         return
     else:
         return interesting_sources
