@@ -183,7 +183,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     return stats
 
 
-def incl_excl_data(fits_file: str, center: list = []):
+def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0):
     '''
     Finds statistics of an inclusion region and its complement, the exclusion region.
 
@@ -198,9 +198,11 @@ def incl_excl_data(fits_file: str, center: list = []):
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    center : list
+    center : list (optional)
         A list of center coordinates in units of pixels.
         If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
 
     Returns
     -------
@@ -240,9 +242,10 @@ def incl_excl_data(fits_file: str, center: list = []):
     info = file[i]
 
     #get radius, inclusion, exclusion lists for interior and exterior
-    radius = [float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec) + 5)] #major axis + 5 arcsec
+    beam_fwhm = float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec)) #in arcsec
+    radius = [beam_fwhm + radius_buffer]
     if len(center) > 1:
-        radius = radius + ([radius[0] - 5.0] * (len(center) - 1))
+        radius = radius + ([beam_fwhm] * (len(center) - 1))
 
     #get info on inclusion and exclusion regions
     int_info = region_stats(fits_file = fits_file, radius = radius, center = center)
@@ -275,7 +278,8 @@ def incl_excl_data(fits_file: str, center: list = []):
     return info_dict
 
 
-def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, recursion: bool = True):
+def get_prob_image_rms(fits_file: str, center: list = [], radius_buffer: float = 5.0, ext_threshold: float = 0.001,\
+                       rms: float = None, recursion: bool = True):
     '''
     Using the exclusion region's rms taken directly from the image,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
@@ -296,6 +300,12 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
     center : list (optional)
         A list of center coordinates in units of pixels.
         If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
+        If no value is given, defaults to 5 arcsec.
+    ext_threshold : float (optional)
+        The probability that an external peak must be below for it to be considered an external source.
+        If no value is given, defaults to 0.001.
     rms : float (optional)
         An rms value in Jy.
         If no value is given, eventually defaults to the rms calculated by incl_excl_data.
@@ -338,12 +348,12 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    info = incl_excl_data(fits_file, center)
+    info = incl_excl_data(fits_file, center, radius_buffer)
     if rms is not None:
         info['rms_val'] = rms
 
     #keeping int_peak_val and int_peak coord in the original search area
-    initial_info = incl_excl_data(fits_file, [])
+    initial_info = incl_excl_data(fits_file, [], radius_buffer)
     info['int_peak_val'] = initial_info['int_peak_val']
     info['int_peak_coord'] = initial_info['int_peak_coord']
 
@@ -369,7 +379,7 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
 
     prob_list = [prob_dict]
 
-    if prob_dict['ext_prob'] < 0.001 and recursion:
+    if prob_dict['ext_prob'] < ext_threshold and recursion:
         if center == []:
             new_center = [info['field_center'], info['ext_peak_coord']]
         else:
@@ -484,7 +494,8 @@ def get_prob_rms_est_from_ext(prob_list: list):
     return prob_list
 
 
-def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, plot: bool = True, save_path: str = ''):
+def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001,\
+            short_dict: bool = True, full_list: bool = False, plot: bool = True, save_path: str = ''):
     '''
     Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
     with an option to save the plot as a png.
@@ -493,6 +504,12 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
+        If no value is given, defaults to 5 arcsec.
+    ext_threshold : float (optional)
+        The probability that an external peak must be below for it to be considered an external source.
+        If no value is given, defaults to 0.001.
     short_dict : bool (optional)
         Whether to return the short dictionary of statistics.
         If no value is given, defaults to True.
@@ -616,7 +633,7 @@ def summary(fits_file: str, short_dict: bool = True, full_list: bool = False, pl
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    m_info = get_prob_image_rms(fits_file)
+    m_info = get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
     info = (get_prob_rms_est_from_ext(get_prob_image_rms(fits_file)))
 
