@@ -793,7 +793,7 @@ def significant(fits_file: str, threshold: float = 0.01):
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
 
 
-def get_info_for_catalog(fits_file: str):
+def make_catalog(fits_file: str):
     '''
     Summarizes information on any significant point sources detected in an image.
 
@@ -806,22 +806,22 @@ def get_info_for_catalog(fits_file: str):
     -------
     dict
         A dictionary with:
-            str
-                The name of the target object of the observation.
-            str
-                The date and time of the observation.
-            str
-                The name of the FITS file with the image.
-            Angle
-                The restoring beam major axis.
-            Angle
-                The restoring beam minor axis.
-            Angle
-                The restoring beam position angle.
-            float
-                The uncertainty in flux density measurements.
             dict(s)
                 A dictionary with:
+                    str
+                        The name of the target object of the observation.
+                    str
+                        The date and time of the observation.
+                    str
+                        The name of the FITS file with the image.
+                    Angle
+                        The restoring beam major axis.
+                    Angle
+                        The restoring beam minor axis.
+                    Angle
+                        The restoring beam position angle.
+                    float
+                        The uncertainty in flux density measurements. The rms excluding any significant sources and a small circular region around them.
                     float
                         The flux density of the detected point source.
                     SkyCoord
@@ -850,7 +850,8 @@ def get_info_for_catalog(fits_file: str):
     beam_min_axis = Angle(bmin, cunit1)
     beam_pos_angle = Angle(bpa, u.degree)
 
-    interesting_sources = {'name': name, 'obs_date_time': obs_date_time, 'file': fits_file[fits_file.rindex('/')+1:],\
+    interesting_sources = {}
+    field_info = {'field_name': name, 'obs_date_time': obs_date_time, 'file_name': fits_file[fits_file.rindex('/')+1:],\
                            'beam_maj_axis': beam_maj_axis, 'beam_min_axis': beam_min_axis, 'beam_pos_angle': beam_pos_angle,\
                            'flux_uncertainty': summ['rms']}
 
@@ -885,7 +886,7 @@ def get_info_for_catalog(fits_file: str):
     pt_source_count = 1
 
     if significant(fits_file):
-        int_info = {}
+        int_info = field_info.copy()
         int_info['flux_density'] = summ['int_peak_val']
 
         int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
@@ -894,12 +895,12 @@ def get_info_for_catalog(fits_file: str):
 
         int_info['internal'] = True
 
-        interesting_sources[f'source_{pt_source_count}'] = int_info
+        key = f'source_{pt_source_count}'
+        interesting_sources[key] = int_info
         pt_source_count +=1
 
-
     for i in range(n_ext_sources):
-        ext_info = {}
+        ext_info = field_info.copy()
         ext_info['flux_density'] = summ['ext_peak_val'][i]
 
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
@@ -908,10 +909,36 @@ def get_info_for_catalog(fits_file: str):
 
         ext_info['internal'] = False
 
-        interesting_sources[f'source_{pt_source_count}'] = ext_info
+        key = f'source_{pt_source_count}'
+        interesting_sources[key] = ext_info
         pt_source_count += 1
 
     if 'source_1' not in interesting_sources:
         return
     else:
         return interesting_sources
+
+
+def combine_catalogs(catalog_1: dict, catalog_2: dict):
+    '''
+    Combines two catalogs in the format returned by make_catalog() into a single catalog of the same format.
+
+    Parameters
+    ----------
+    catalog_1 : dict
+        The catalog to which the other catalog will be "appended."
+    catalog_2 : dict
+        The catalog to "append" to the other catalog.
+
+    Returns
+    -------
+    dict
+        A dictionary of the combined catalogs in the same catalog format.
+    '''
+
+    shift = len(catalog_1)
+    for key, value in catalog_2.items():
+        new_number = int(key.replace('source_', ''))
+        new_key = f'source_{new_number + shift}'
+        catalog_1[new_key] = value
+    return catalog_1
