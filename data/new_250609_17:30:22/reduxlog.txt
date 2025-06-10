@@ -1,0 +1,735 @@
+Beginning POLARIS SMA redux of 250609_17:30:22/
+Loading data...done!
+Scaling data using sptsys...done!
+Splitting data................done!
+44 new burst-based chan flags added (0.09% of total)
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 564 (7%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Starting cycle 1 of 27...done!
+Starting cycle 2 of 27...done!
+Starting cycle 3 of 27...done!
+Starting cycle 4 of 27...done!
+Starting cycle 5 of 27...done!
+Starting cycle 6 of 27...done!
+Starting cycle 7 of 27...done!
+Starting cycle 8 of 27...done!
+Starting cycle 9 of 27...done!
+Starting cycle 10 of 27...done!
+Starting cycle 11 of 27...done!
+Starting cycle 12 of 27...done!
+Starting cycle 13 of 27...done!
+Starting cycle 14 of 27...done!
+Starting cycle 15 of 27...done!
+Starting cycle 16 of 27...done!
+Starting cycle 17 of 27...done!
+Starting cycle 18 of 27...done!
+Starting cycle 19 of 27...done!
+Starting cycle 20 of 27...done!
+Starting cycle 21 of 27...done!
+Starting cycle 22 of 27...done!
+Starting cycle 23 of 27...done!
+Starting cycle 24 of 27...done!
+Starting cycle 25 of 27...done!
+Starting cycle 26 of 27...done!
+Starting cycle 27 of 27...done!
+Renormalizing gains with aperture eff corrections!
+Beginning gains alignment!
+Window solutions aligned!
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+2 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (1%) Total 138 (8%)
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+12 new burst-based chan flags added (0.15% of total)
+7 new burst-based win flags added (0.52% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 103 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.05% of total)
+1 new burst-based win flags added (0.07% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 97 (7%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (6%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+2 new burst-based chan flags added (0.05% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 42 (6%) Total 90 (13%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+48 new burst-based chan flags added (0.60% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+3 new burst-based chan flags added (0.07% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+8 new burst-based chan flags added (0.20% of total)
+2 new burst-based win flags added (0.30% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 50 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (3%) Total 66 (10%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+9 new burst-based win flags added (1.34% of total)
+Flagging stats:
+Win : Added 17 (3%) Total 74 (11%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 21 (3%) Total 69 (9%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Beginning POLARIS SMA redux of 250609_17:30:22/
+Loading data...done!
+Scaling data using sptsys...done!
+Splitting data................done!
+44 new burst-based chan flags added (0.09% of total)
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 564 (7%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Starting cycle 1 of 27...done!
+Starting cycle 2 of 27...done!
+Starting cycle 3 of 27...done!
+Starting cycle 4 of 27...done!
+Starting cycle 5 of 27...done!
+Starting cycle 6 of 27...done!
+Starting cycle 7 of 27...done!
+Starting cycle 8 of 27...done!
+Starting cycle 9 of 27...done!
+Starting cycle 10 of 27...done!
+Starting cycle 11 of 27...done!
+Starting cycle 12 of 27...done!
+Starting cycle 13 of 27...done!
+Starting cycle 14 of 27...done!
+Starting cycle 15 of 27...done!
+Starting cycle 16 of 27...done!
+Starting cycle 17 of 27...done!
+Starting cycle 18 of 27...done!
+Starting cycle 19 of 27...done!
+Starting cycle 20 of 27...done!
+Starting cycle 21 of 27...done!
+Starting cycle 22 of 27...done!
+Starting cycle 23 of 27...done!
+Starting cycle 24 of 27...done!
+Starting cycle 25 of 27...done!
+Starting cycle 26 of 27...done!
+Starting cycle 27 of 27...done!
+Renormalizing gains with aperture eff corrections!
+Beginning gains alignment!
+Window solutions aligned!
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+2 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (1%) Total 138 (8%)
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+12 new burst-based chan flags added (0.15% of total)
+7 new burst-based win flags added (0.52% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 103 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.05% of total)
+1 new burst-based win flags added (0.07% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 97 (7%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (6%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+2 new burst-based chan flags added (0.05% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 42 (6%) Total 90 (13%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+48 new burst-based chan flags added (0.60% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+3 new burst-based chan flags added (0.07% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+8 new burst-based chan flags added (0.20% of total)
+2 new burst-based win flags added (0.30% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 50 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (3%) Total 66 (10%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+9 new burst-based win flags added (1.34% of total)
+Flagging stats:
+Win : Added 17 (3%) Total 74 (11%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 21 (3%) Total 69 (9%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Beginning POLARIS SMA redux of 250609_17:30:22/
+Loading data...done!
+Scaling data using sptsys...done!
+Splitting data................done!
+44 new burst-based chan flags added (0.09% of total)
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 564 (7%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Starting cycle 1 of 27...done!
+Starting cycle 2 of 27...done!
+Starting cycle 3 of 27...done!
+Starting cycle 4 of 27...done!
+Starting cycle 5 of 27...done!
+Starting cycle 6 of 27...done!
+Starting cycle 7 of 27...done!
+Starting cycle 8 of 27...done!
+Starting cycle 9 of 27...done!
+Starting cycle 10 of 27...done!
+Starting cycle 11 of 27...done!
+Starting cycle 12 of 27...done!
+Starting cycle 13 of 27...done!
+Starting cycle 14 of 27...done!
+Starting cycle 15 of 27...done!
+Starting cycle 16 of 27...done!
+Starting cycle 17 of 27...done!
+Starting cycle 18 of 27...done!
+Starting cycle 19 of 27...done!
+Starting cycle 20 of 27...done!
+Starting cycle 21 of 27...done!
+Starting cycle 22 of 27...done!
+Starting cycle 23 of 27...done!
+Starting cycle 24 of 27...done!
+Starting cycle 25 of 27...done!
+Starting cycle 26 of 27...done!
+Starting cycle 27 of 27...done!
+Renormalizing gains with aperture eff corrections!
+Beginning gains alignment!
+Window solutions aligned!
+Performing initial wideband gains fit...done!
+Starting bandpass solutions!
+Starting cycle 1 of 1...done!
+No alignment needed for chanCal gains table.
+Starting wideband gains solutions!
+Beginning gains alignment!
+No alignment needed for chanCal gains table.
+Window solutions aligned!
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+84 flags now in meta table (44%)
+2 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (1%) Total 138 (8%)
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 3...done!
+Starting cycle 2 of 3...done!
+Starting cycle 3 of 3...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+12 new burst-based chan flags added (0.15% of total)
+7 new burst-based win flags added (0.52% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 103 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.05% of total)
+1 new burst-based win flags added (0.07% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 97 (7%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (6%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+2 new burst-based chan flags added (0.05% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 42 (6%) Total 90 (13%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+48 new burst-based chan flags added (0.60% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+3 new burst-based chan flags added (0.07% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+0 new burst-based chan flags added (0.00% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 12 (1%) Total 108 (8%)
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 2...done!
+Starting cycle 2 of 2...done!
+Beginning gains alignment!
+Window solutions aligned!
+8 new burst-based chan flags added (0.20% of total)
+2 new burst-based win flags added (0.30% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 50 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 18 (3%) Total 66 (10%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 48 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+9 new burst-based win flags added (1.34% of total)
+Flagging stats:
+Win : Added 17 (3%) Total 74 (11%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+1 new burst-based chan flags added (0.02% of total)
+0 new burst-based win flags added (0.00% of total)
+Flagging stats:
+Win : Added 21 (3%) Total 69 (9%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+4 new burst-based chan flags added (0.10% of total)
+1 new burst-based win flags added (0.15% of total)
+Flagging stats:
+Win : Added 0 (0%) Total 49 (7%)
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
+Starting cycle 1 of 1...done!
+Beginning gains alignment!
+Window solutions aligned!
