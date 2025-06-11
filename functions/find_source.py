@@ -7,7 +7,7 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
-import glob
+import pandas as pd
 
 
 def fits_data_index(fits_file: str):
@@ -987,3 +987,96 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
         new_key = f'source_{new_number + shift}'
         catalog_1[new_key] = value
     return catalog_1
+
+
+def start_html():
+    '''
+    Starts source_info.html, in which source information can be stored.
+    '''
+
+    html_file = open('../html/source_info.html', 'w')
+    start = '''
+    <!DOCTYPE html>
+    <html>
+    <style>
+    img {
+    width: 50%;
+    height: 50%
+    }
+    </style>
+    <body>
+    '''
+    html_file.write(start)
+    html_file.close()
+
+
+def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+    '''
+    Appends source figures to source_info.html, in which source information can be stored.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
+        If no value is given, defaults to 5 arcsec.
+    ext_threshold : float (optional)
+        The probability that an external peak must be below for it to be considered an external source.
+        If no value is given, defaults to 0.001.
+    '''
+
+    html_file = open('../html/source_info.html', 'a')
+
+    summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
+            short_dict=False, full_list=False, plot=True, save_path='../html/figs_html/')
+
+    #getting full path
+    file = fits_file
+    while '/' in file:
+        file = file[file.index('/')+1:]
+    file = file.replace('.fits', '')
+    file += f'_rb{radius_buffer}_et{ext_threshold}'
+    full_path = f'./figs_html/{file}.png'
+
+    html_figure = f'''
+    <img src=\'{full_path}\'>
+    <br>
+    '''
+
+    html_file.write(html_figure)
+    html_file.close()
+
+
+def catalog_to_html(catalog: dict):
+    '''
+    Appends source information table to source_info.html, in which source information can be stored.
+
+    Parameters
+    ----------
+    catalog : dict
+        A catalog in the format returned by make_catalog().
+    '''
+
+    df = pd.DataFrame.from_dict(catalog)
+    html_table = df.to_html()
+
+    html_file = open('../html/source_info.html', 'a')
+    html_file.write(html_table)
+    html_file.close()
+
+
+def end_html():
+    '''
+    Ends source_info.html, in which source information can be stored.
+    '''
+
+    html_file = open('../html/source_info.html', 'a')
+
+    end = '''
+    </body>
+    </html>
+    '''
+
+    html_file.write(end)
+    html_file.close()
