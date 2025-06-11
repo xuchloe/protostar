@@ -899,8 +899,10 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
 
     interesting_sources = {}
     field_info = {'field_name': name, 'obs_date_time': obs_date_time, 'file_name': fits_file[fits_file.rindex('/')+1:],\
-                           'beam_maj_axis': beam_maj_axis, 'beam_min_axis': beam_min_axis, 'beam_pos_angle': beam_pos_angle,\
-                           'flux_uncertainty': summ['rms']}
+                    'beam_maj_axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                    'beam_min_axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                    'beam_pos_angle': round(float(beam_pos_angle.to(u.arcsec)/u.arcsec)) * u.arcsec,\
+                    'flux_uncertainty': round(summ['rms'] * 1000, 3) * u.mJy}
 
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
@@ -934,11 +936,13 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
 
     if significant(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold):
         int_info = field_info.copy()
-        int_info['flux_density'] = summ['int_peak_val']
+        int_info['flux_density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
 
         int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
         int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
-        int_info['coord'] = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
+        coord = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
+        int_info['coord_ra'] = round(coord.ra.arcsec, 3) * u.arcsec
+        int_info['coord_dec'] = round(coord.dec.arcsec, 3) * u.arcsec
 
         int_info['internal'] = True
 
@@ -948,11 +952,13 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
 
     for i in range(n_ext_sources):
         ext_info = field_info.copy()
-        ext_info['flux_density'] = summ['ext_peak_val'][i]
+        ext_info['flux_density'] = round(summ['ext_peak_val'][i] * 1000, 3) * u.mJy
 
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
         ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
-        ext_info['coord'] = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
+        coord = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
+        ext_info['coord_ra'] = round(coord.ra.arcsec, 3) * u.arcsec
+        ext_info['coord_dec'] = round(coord.dec.arcsec, 3) * u.arcsec
 
         ext_info['internal'] = False
 
