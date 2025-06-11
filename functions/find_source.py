@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
 import pandas as pd
+import json
+import glob
 
 
 def fits_data_index(fits_file: str):
@@ -1000,8 +1002,12 @@ def start_html():
     <html>
     <style>
     img {
-    width: 50%;
-    height: 50%
+    width: 70%;
+    height: 70%
+    }
+    .centered-large-text {
+      text-align: center;
+      font-size: 36px;
     }
     </style>
     <body>
@@ -1010,9 +1016,40 @@ def start_html():
     html_file.close()
 
 
+def obs_info_to_html(json_file: str):
+    '''
+    Appends observation information table to source_info.html using information from a .json file.
+
+    Parameters
+    ----------
+    json_file : str
+        The path of the .json file that contains the observation information.
+    '''
+    file = open(json_file, 'r')
+    obs_dict = json.load(file)
+
+    #cleaning up obs_dict
+    for key, value in obs_dict.items():
+        if type(value) == list:
+            string = ', '.join(value)
+            obs_dict[key] = [string]
+    obs_id = obs_dict.pop('obsID')
+    base_name = obs_dict.pop('basename')
+
+    df = pd.DataFrame(obs_dict)
+    df_transposed = df.T
+
+    html_table = df_transposed.to_html()
+
+    html_file = open('../html/source_info.html', 'a')
+    html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+    html_file.write(html_table)
+    html_file.close()
+
+
 def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
-    Appends source figures to source_info.html, in which source information can be stored.
+    Appends source figures to source_info.html.
 
     Parameters
     ----------
@@ -1050,7 +1087,7 @@ def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float
 
 def catalog_to_html(catalog: dict):
     '''
-    Appends source information table to source_info.html, in which source information can be stored.
+    Appends source information table to source_info.html.
 
     Parameters
     ----------
@@ -1059,7 +1096,8 @@ def catalog_to_html(catalog: dict):
     '''
 
     df = pd.DataFrame.from_dict(catalog)
-    html_table = df.to_html()
+    df_transposed = df.T
+    html_table = df_transposed.to_html()
 
     html_file = open('../html/source_info.html', 'a')
     html_file.write(html_table)
@@ -1080,3 +1118,44 @@ def end_html():
 
     html_file.write(end)
     html_file.close()
+
+
+def full_html_and_txt(folder: str, json_file: str):
+    '''
+    From a folder of FITS files, creates source_info.html with observation information table, source figures, and source information table
+    and creates interesting_field.txt with names of objects with any (possibly) interesting detections.
+
+    Parameters
+    ----------
+    folder : str
+        The path of the folder containing the FITS files to be analyzed.
+    json_file : str
+        The path of the .json file that contains the observation information.
+    '''
+    start_html()
+
+    obs_info_to_html(json_file)
+
+    final_catalog = {}
+    file = open(json_file, 'r')
+    obs_dict = json.load(file)
+    sci_targs = obs_dict['sciTargs']
+
+    txt = open('../html/txt_html/interesting_fields.txt', 'w')
+
+    for file in glob.glob(folder):
+        try:
+            fig_to_html(file)
+            catalog = make_catalog(file)
+            if catalog != None:
+                obj = fits.getheader(file)['OBJECT']
+                txt.write(f'{obj}\n')
+            if obj in sci_targs:
+                final_catalog = combine_catalogs(final_catalog, catalog)
+        except:
+            print(f'Try again for {file}')
+
+    txt.close()
+
+    catalog_to_html(final_catalog)
+    end_html()
