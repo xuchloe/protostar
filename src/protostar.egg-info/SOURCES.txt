@@ -1,0 +1,8 @@
+README.md
+pyproject.toml
+src/find_source.py
+src/protostar.egg-info/PKG-INFO
+src/protostar.egg-info/SOURCES.txt
+src/protostar.egg-info/dependency_links.txt
+src/protostar.egg-info/requires.txt
+src/protostar.egg-info/top_level.txt
