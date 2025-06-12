@@ -7,9 +7,9 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
+import glob
 import pandas as pd
 import json
-import glob
 
 
 def fits_data_index(fits_file: str):
@@ -275,7 +275,7 @@ def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0
 
     pix_radius = [] #list of radii in pixels
     for r in range(len(radius)):
-        pix_rad = (Angle(radius[r], u.arcsec).to(info.header['CUNIT1']) / info.header['CDELT1']) / info.header['CUNIT1']
+        pix_rad = (Angle(radius[r], u.arcsec).to(info.header['CUNIT1']) / info.header['CDELT1']) / u.Unit(info.header['CUNIT1'])
         pix_radius.append(float(pix_rad))
     info_dict['radius'] = pix_radius
 
@@ -640,7 +640,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
     '''
     m_info = get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
-    info = (get_prob_rms_est_from_ext(get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)))
+    info = (get_prob_rms_est_from_ext(m_info.copy()))
 
     center = m_info[0]['field_center']
 
@@ -670,10 +670,11 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
         y_coords = np.array(y_coords)
 
     if plot:
-        plt.rcParams['font.family'] = 'serif'
-        plt.rcParams['font.serif'] = ['Times New Roman']
-        plt.rcParams['font.size'] = 24
+        #plt.rcParams['font.family'] = 'serif'
+        #plt.rcParams['font.serif'] = ['Times New Roman']
+        plt.rcParams['font.size'] = 15
         plt.rcParams['hatch.linewidth'] = 0.5
+        plt.rcParams['figure.dpi'] = 60
 
         image_data = fits.getdata(fits_file)
         shape = image_data.shape
@@ -683,7 +684,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
             shape = image_data.shape
 
         plt.set_cmap('inferno')
-        fig, ax = plt.subplots(figsize=(10,10))
+        fig, ax = plt.subplots(figsize=(6.5,5.2))
 
         plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
         plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
@@ -712,18 +713,18 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
 
         title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
         ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {int_snr:.2f}', horizontalalignment='left', verticalalignment='top',\
-                fontsize=24, bbox=dict(facecolor='w'))
+                fontsize=10, bbox=dict(facecolor='w'))
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
 
-        plt.xlabel('Relative RA Offset [arcsec]', fontsize=32)
-        plt.ylabel('Relative Dec Offset [arcsec]', fontsize=32)
+        plt.xlabel('Relative RA Offset [arcsec]', fontsize=15)
+        plt.ylabel('Relative Dec Offset [arcsec]', fontsize=15)
 
         jy_to_mjy = lambda x, pos: '{}'.format(round(x*1000, 1))
         fmt = ticker.FuncFormatter(jy_to_mjy)
 
         cbar = plt.colorbar(shrink=0.8, format=fmt)
-        cbar.ax.set_ylabel('Intensity [mJy/beam]', fontsize=32, rotation=270, labelpad=36)
+        cbar.ax.set_ylabel('Intensity [mJy/beam]', fontsize=15, rotation=270, labelpad=24)
 
         if save_path != '':
             try:
@@ -731,9 +732,10 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
                 while '/' in file:
                     file = file[file.index('/')+1:]
                 file = file.replace('.fits', '')
+                file += f'_rb{radius_buffer}_et{ext_threshold}'
                 if save_path[-1] != '/':
                     save_path = save_path + '/'
-                plt.savefig(f'{save_path}{file}.pdf')
+                plt.savefig(f'{save_path}{file}.jpg')
             except:
                 print('Error saving figure. Double check path entered.')
 
@@ -834,7 +836,7 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
 
 
-def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     Summarizes information on any significant point sources detected in an image.
 
@@ -842,6 +844,11 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
+    threshold : float (optional)
+        The threshold for a significant detection.
+        If the probability of detecting the center region's maximum flux assuming no source in the image
+        is less than this threshold, then the detection is deemed significant.
+        If no value is given, defaults to 0.01.
     radius_buffer : float (optional)
         The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
         If no value is given, defaults to 5 arcsec.
@@ -893,6 +900,7 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
     cunit2 = header_data['CUNIT2']
 
     #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
+
     beam_maj_axis = Angle(bmaj, cunit1)
     beam_min_axis = Angle(bmin, cunit1)
     beam_pos_angle = Angle(bpa, u.degree)
@@ -934,7 +942,7 @@ def make_catalog(fits_file: str, radius_buffer: float = 5.0, ext_threshold: floa
 
     pt_source_count = 1
 
-    if significant(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold):
+    if significant(fits_file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold):
         int_info = field_info.copy()
         int_info['flux_density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
 
@@ -1008,8 +1016,8 @@ def start_html():
     <html>
     <style>
     img {
-    width: 70%;
-    height: 70%
+    width: 40%;
+    height: 40%
     }
     .centered-large-text {
       text-align: center;
@@ -1072,7 +1080,7 @@ def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float
     html_file = open('../html/source_info.html', 'a')
 
     summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-            short_dict=False, full_list=False, plot=True, save_path='../html/figs_html/')
+            short_dict=False, full_list=False, plot=True, save_path='../html')
 
     #getting full path
     file = fits_file
@@ -1080,7 +1088,7 @@ def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float
         file = file[file.index('/')+1:]
     file = file.replace('.fits', '')
     file += f'_rb{radius_buffer}_et{ext_threshold}'
-    full_path = f'./figs_html/{file}.png'
+    full_path = f'./{file}.jpg'
 
     html_figure = f'''
     <img src=\'{full_path}\'>
@@ -1126,7 +1134,7 @@ def end_html():
     html_file.close()
 
 
-def full_html_and_txt(folder: str, json_file: str):
+def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     From a folder of FITS files, creates source_info.html with observation information table, source figures, and source information table
     and creates interesting_field.txt with names of objects with any (possibly) interesting detections.
@@ -1135,10 +1143,25 @@ def full_html_and_txt(folder: str, json_file: str):
     ----------
     folder : str
         The path of the folder containing the FITS files to be analyzed.
-    json_file : str
-        The path of the .json file that contains the observation information.
+    threshold : float (optional)
+        The threshold for a significant detection.
+        If the probability of detecting the center region's maximum flux assuming no source in the image
+        is less than this threshold, then the detection is deemed significant.
+        If no value is given, defaults to 0.01.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
+        If no value is given, defaults to 5 arcsec.
+    ext_threshold : float (optional)
+        The probability that an external peak must be below for it to be considered an external source.
+        If no value is given, defaults to 0.001.
     '''
+
     start_html()
+
+    if folder[-1] != '/':
+        folder += '/'
+
+    json_file = f'{folder}polaris.json'
 
     obs_info_to_html(json_file)
 
@@ -1147,16 +1170,20 @@ def full_html_and_txt(folder: str, json_file: str):
     obs_dict = json.load(file)
     sci_targs = obs_dict['sciTargs']
 
-    txt = open('../html/txt_html/interesting_fields.txt', 'w')
+    txt = open('../html/interesting_fields.txt', 'w')
 
-    for file in glob.glob(folder):
+    for file in glob.glob(f'{folder}*.fits'):
         try:
-            fig_to_html(file)
-            catalog = make_catalog(file)
-            if catalog != None:
-                obj = fits.getheader(file)['OBJECT']
-                txt.write(f'{obj}\n')
+            fig_to_html(file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+            obj = fits.getheader(file)['OBJECT']
             if obj in sci_targs:
+                catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+
+                #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
+                if catalog != None:
+                    for key, value in catalog.items():
+                        if value['internal'] == True:
+                            txt.write(f'{obj}\n')
                 final_catalog = combine_catalogs(final_catalog, catalog)
         except:
             print(f'Try again for {file}')
@@ -1165,3 +1192,5 @@ def full_html_and_txt(folder: str, json_file: str):
 
     catalog_to_html(final_catalog)
     end_html()
+
+    plt.close('all')
