@@ -6,4 +6,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "astropy",
+    "pandas",
+    "json",
+    "glob"
 ]
