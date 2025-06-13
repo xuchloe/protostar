@@ -1183,20 +1183,17 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     txt = open('../html/interesting_fields.txt', 'w')
 
     for file in glob.glob(f'{folder}*.fits'):
-        try:
-            fig_to_html(file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
-            obj = fits.getheader(file)['OBJECT']
-            if obj in sci_targs:
-                catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+        fig_to_html(file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+        obj = fits.getheader(file)['OBJECT']
+        if obj in sci_targs:
+            catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
-                #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
-                if catalog != None:
-                    for key, value in catalog.items():
-                        if value['internal'] == True:
-                            txt.write(f'{obj}\n')
-                final_catalog = combine_catalogs(final_catalog, catalog)
-        except:
-            print(f'Try again for {file}')
+            #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
+            if catalog != None:
+                for key, value in catalog.items():
+                    if value['internal'] == True:
+                        txt.write(f'{obj}\n')
+            final_catalog = combine_catalogs(final_catalog, catalog)
 
     txt.close()
 
