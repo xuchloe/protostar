@@ -684,7 +684,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
             shape = image_data.shape
 
         plt.set_cmap('inferno')
-        fig, ax = plt.subplots(figsize=(6.7,5.2))
+        fig, ax = plt.subplots(figsize=(6.7,5.1))
 
         plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
         plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
@@ -706,7 +706,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
         x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
         y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
 
-        beam = patches.Ellipse((x_min*0.90, y_min*0.90), Angle(header_data['BMIN'], header_data['CUNIT1']).to_value('arcsec'),\
+        beam = patches.Ellipse((x_min*0.88, y_min*0.92), Angle(header_data['BMIN'], header_data['CUNIT1']).to_value('arcsec'),\
                                Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec'), fill=True, facecolor='w',\
                                 edgecolor='k', angle=header_data['BPA'], hatch='/////', lw=1)
         ax.add_artist(beam)
