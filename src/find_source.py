@@ -1039,25 +1039,31 @@ def obs_info_to_html(json_file: str):
     json_file : str
         The path of the .json file that contains the observation information.
     '''
-    file = open(json_file, 'r')
-    obs_dict = json.load(file)
-
-    #cleaning up obs_dict
-    for key, value in obs_dict.items():
-        if type(value) == list:
-            string = ', '.join(value)
-            obs_dict[key] = [string]
-    obs_id = obs_dict.pop('obsID')
-    base_name = obs_dict.pop('basename')
-
-    df = pd.DataFrame(obs_dict)
-    df_transposed = df.T
-
-    html_table = df_transposed.to_html()
 
     html_file = open('../html/source_info.html', 'a')
-    html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
-    html_file.write(html_table)
+
+    try:
+        file = open(json_file, 'r')
+        obs_dict = json.load(file)
+
+        #cleaning up obs_dict
+        for key, value in obs_dict.items():
+            if type(value) == list:
+                string = ', '.join(value)
+                obs_dict[key] = [string]
+        obs_id = obs_dict.pop('obsID')
+        base_name = obs_dict.pop('basename')
+
+        df = pd.DataFrame(obs_dict)
+        df_transposed = df.T
+
+        html_table = df_transposed.to_html()
+
+        html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+        html_file.write(html_table)
+    except:
+        html_file.write('<p> Error generating observation information table. </p>')
+
     html_file.close()
 
 
@@ -1079,23 +1085,27 @@ def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float
 
     html_file = open('../html/source_info.html', 'a')
 
-    summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-            short_dict=False, full_list=False, plot=True, save_path='../html')
+    try:
+        summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
+                short_dict=False, full_list=False, plot=True, save_path='../html')
 
-    #getting full path
-    file = fits_file
-    while '/' in file:
-        file = file[file.index('/')+1:]
-    file = file.replace('.fits', '')
-    file += f'_rb{radius_buffer}_et{ext_threshold}'
-    full_path = f'./{file}.jpg'
+        #getting full path
+        file = fits_file
+        while '/' in file:
+            file = file[file.index('/')+1:]
+        file = file.replace('.fits', '')
+        file += f'_rb{radius_buffer}_et{ext_threshold}'
+        full_path = f'./{file}.jpg'
 
-    html_figure = f'''
-    <img src=\'{full_path}\'>
-    <br>
-    '''
+        html_figure = f'''
+        <img src=\'{full_path}\'>
+        <br>
+        '''
 
-    html_file.write(html_figure)
+        html_file.write(html_figure)
+    except:
+        html_file.write(f'<p> Error generating figure for {fits_file}. </p>')
+
     html_file.close()
 
 
