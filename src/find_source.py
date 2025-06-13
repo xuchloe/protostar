@@ -1178,14 +1178,14 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     final_catalog = {}
     file = open(json_file, 'r')
     obs_dict = json.load(file)
-    sci_targs = obs_dict['sciTargs']
+    sci_targs = [targ.lower() for targ in obs_dict[ 'sciTargs']]
 
     txt = open('../html/interesting_fields.txt', 'w')
 
     for file in glob.glob(f'{folder}*.fits'):
         fig_to_html(file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
         obj = fits.getheader(file)['OBJECT']
-        if obj in sci_targs:
+        if obj.lower() in sci_targs:
             catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
             #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
