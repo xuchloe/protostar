@@ -5,3 +5,4 @@ Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: matplotlib
 Requires-Dist: astropy
+Requires-Dist: pandas
