@@ -1193,7 +1193,7 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
                 for key, value in catalog.items():
                     if value['internal'] == True:
                         txt.write(f'{obj}\n')
-            final_catalog = combine_catalogs(final_catalog, catalog)
+                final_catalog = combine_catalogs(final_catalog, catalog)
 
     txt.close()
 
