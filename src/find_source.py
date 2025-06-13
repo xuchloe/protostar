@@ -909,7 +909,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     field_info = {'field_name': name, 'obs_date_time': obs_date_time, 'file_name': fits_file[fits_file.rindex('/')+1:],\
                     'beam_maj_axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'beam_min_axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                    'beam_pos_angle': round(float(beam_pos_angle.to(u.arcsec)/u.arcsec)) * u.arcsec,\
+                    'beam_pos_angle': round(float(beam_pos_angle.to(u.deg)/u.deg)) * u.deg,\
                     'flux_uncertainty': round(summ['rms'] * 1000, 3) * u.mJy}
 
     n_ext_sources = 0
@@ -949,8 +949,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
         int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
-        int_info['coord_ra'] = round(coord.ra.arcsec, 3) * u.arcsec
-        int_info['coord_dec'] = round(coord.dec.arcsec, 3) * u.arcsec
+        int_info['coord_ra'] = round(coord.ra.deg, 3) * u.deg
+        int_info['coord_dec'] = round(coord.dec.deg, 3) * u.deg
 
         int_info['internal'] = True
 
@@ -965,8 +965,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
         ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
-        ext_info['coord_ra'] = round(coord.ra.arcsec, 3) * u.arcsec
-        ext_info['coord_dec'] = round(coord.dec.arcsec, 3) * u.arcsec
+        ext_info['coord_ra'] = round(coord.ra.deg, 3) * u.deg
+        ext_info['coord_dec'] = round(coord.dec.deg, 3) * u.deg
 
         ext_info['internal'] = False
 
