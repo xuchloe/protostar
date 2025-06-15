@@ -10,7 +10,7 @@ import matplotlib.ticker as ticker
 import glob
 import pandas as pd
 import json
-
+import os
 
 def fits_data_index(fits_file: str):
     '''
@@ -1005,32 +1005,32 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
     return catalog_1
 
 
-def start_html():
+def start_html(html_path):
     '''
     Starts source_info.html, in which source information can be stored.
     '''
 
-    html_file = open('../html/source_info.html', 'w')
-    start = '''
-    <!DOCTYPE html>
-    <html>
-    <style>
-    img {
-    width: 40%;
-    height: 40%
-    }
-    .centered-large-text {
-      text-align: center;
-      font-size: 36px;
-    }
-    </style>
-    <body>
-    '''
-    html_file.write(start)
-    html_file.close()
+    with open(html_path, 'w') as html_file:
+        start = '''
+        <!DOCTYPE html>
+        <html>
+        <style>
+        img {
+        width: 40%;
+        height: 40%
+        }
+        .centered-large-text {
+        text-align: center;
+        font-size: 36px;
+        }
+        </style>
+        <body>
+        '''
+        html_file.write(start)
+        html_file.close()
 
 
-def obs_info_to_html(json_file: str):
+def obs_info_to_html(json_file: str, html_path: str):
     '''
     Appends observation information table to source_info.html using information from a .json file.
 
@@ -1040,34 +1040,31 @@ def obs_info_to_html(json_file: str):
         The path of the .json file that contains the observation information.
     '''
 
-    html_file = open('../html/source_info.html', 'a')
+    with open(html_path, 'a') as html_file:
+        try:
+            with open(json_file, 'r') as file:
+                obs_dict = json.load(file)
 
-    try:
-        file = open(json_file, 'r')
-        obs_dict = json.load(file)
+            #cleaning up obs_dict
+            for key, value in obs_dict.items():
+                if type(value) == list:
+                    string = ', '.join(value)
+                    obs_dict[key] = [string]
+            obs_id = obs_dict.pop('obsID')
+            base_name = obs_dict.pop('basename')
 
-        #cleaning up obs_dict
-        for key, value in obs_dict.items():
-            if type(value) == list:
-                string = ', '.join(value)
-                obs_dict[key] = [string]
-        obs_id = obs_dict.pop('obsID')
-        base_name = obs_dict.pop('basename')
+            df = pd.DataFrame(obs_dict)
+            df_transposed = df.T
 
-        df = pd.DataFrame(obs_dict)
-        df_transposed = df.T
+            html_table = df_transposed.to_html()
 
-        html_table = df_transposed.to_html()
-
-        html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
-        html_file.write(html_table)
-    except:
-        html_file.write('<p> Error generating observation information table. </p>')
-
-    html_file.close()
+            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+            html_file.write(html_table)
+        except:
+            html_file.write('<p> Error generating observation information table. </p>')
 
 
-def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     Appends source figures to source_info.html.
 
@@ -1083,33 +1080,30 @@ def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float
         If no value is given, defaults to 0.001.
     '''
 
-    html_file = open('../html/source_info.html', 'a')
+    with open(html_path, 'a') as html_file:
+        try:
+            summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
+                    short_dict=False, full_list=False, plot=True, save_path=os.path.dirname(html_path))
 
-    try:
-        summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-                short_dict=False, full_list=False, plot=True, save_path='../html')
+            #getting full path
+            file = fits_file
+            while '/' in file:
+                file = file[file.index('/')+1:]
+            file = file.replace('.fits', '')
+            file += f'_rb{radius_buffer}_et{ext_threshold}'
+            full_path = f'./{file}.jpg'
 
-        #getting full path
-        file = fits_file
-        while '/' in file:
-            file = file[file.index('/')+1:]
-        file = file.replace('.fits', '')
-        file += f'_rb{radius_buffer}_et{ext_threshold}'
-        full_path = f'./{file}.jpg'
+            html_figure = f'''
+            <img src=\'{full_path}\'>
+            <br>
+            '''
 
-        html_figure = f'''
-        <img src=\'{full_path}\'>
-        <br>
-        '''
-
-        html_file.write(html_figure)
-    except:
-        html_file.write(f'<p> Error generating figure for {fits_file}. </p>')
-
-    html_file.close()
+            html_file.write(html_figure)
+        except:
+            html_file.write(f'<p> Error generating figure for {fits_file}. </p>')
 
 
-def catalog_to_html(catalog: dict):
+def catalog_to_html(catalog: dict, html_path):
     '''
     Appends source information table to source_info.html.
 
@@ -1123,25 +1117,23 @@ def catalog_to_html(catalog: dict):
     df_transposed = df.T
     html_table = df_transposed.to_html()
 
-    html_file = open('../html/source_info.html', 'a')
-    html_file.write(html_table)
-    html_file.close()
+    with open(html_path, 'a') as html_file:
+        html_file.write(html_table)
 
 
-def end_html():
+def end_html(html_path: str):
     '''
     Ends source_info.html, in which source information can be stored.
     '''
 
-    html_file = open('../html/source_info.html', 'a')
+    with open(html_path, 'a') as html_file:
 
-    end = '''
-    </body>
-    </html>
-    '''
+        end = '''
+        </body>
+        </html>
+        '''
 
-    html_file.write(end)
-    html_file.close()
+        html_file.write(end)
 
 
 def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
@@ -1166,38 +1158,34 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
         If no value is given, defaults to 0.001.
     '''
 
-    start_html()
+    html_path = os.path.join(folder, 'index.html')
 
-    if folder[-1] != '/':
-        folder += '/'
+    start_html(html_path)
 
-    json_file = f'{folder}polaris.json'
+    json_file = os.path.join(folder, 'polaris.json')
 
-    obs_info_to_html(json_file)
+    obs_info_to_html(json_file, html_path)
 
     final_catalog = {}
-    file = open(json_file, 'r')
-    obs_dict = json.load(file)
+    with open(json_file, 'r') as file:
+        obs_dict = json.load(file)
+
     sci_targs = [targ.lower() for targ in obs_dict[ 'sciTargs']]
+    with open(os.path.join(folder, 'interesting_fields.txt'), 'w') as txt:
+        for file in glob.glob(os.path.join(folder, '*.fits')):
+            fig_to_html(html_path, file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+            obj = fits.getheader(file)['OBJECT']
+            if obj.lower() in sci_targs:
+                catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
-    txt = open('../html/interesting_fields.txt', 'w')
+                #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
+                if catalog != None:
+                    for key, value in catalog.items():
+                        if value['internal'] == True:
+                            txt.write(f'{obj}\n')
+                    final_catalog = combine_catalogs(final_catalog, catalog)
 
-    for file in glob.glob(f'{folder}*.fits'):
-        fig_to_html(file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
-        obj = fits.getheader(file)['OBJECT']
-        if obj.lower() in sci_targs:
-            catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
-
-            #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
-            if catalog != None:
-                for key, value in catalog.items():
-                    if value['internal'] == True:
-                        txt.write(f'{obj}\n')
-                final_catalog = combine_catalogs(final_catalog, catalog)
-
-    txt.close()
-
-    catalog_to_html(final_catalog)
-    end_html()
+    catalog_to_html(final_catalog, html_path)
+    end_html(html_path)
 
     plt.close('all')
