@@ -902,6 +902,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     ctype2 = header_data['CTYPE2']
     crval2 = header_data['CRVAL2']
     cunit2 = header_data['CUNIT2']
+    beam_size = header_data['BEAMSIZE']
+    snr = summ['int_snr']
 
     #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
 
@@ -910,11 +912,12 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     beam_pos_angle = Angle(bpa, u.degree)
 
     interesting_sources = {}
-    field_info = {'field_name': name, 'obs_date_time': obs_date_time, 'file_name': fits_file[fits_file.rindex('/')+1:],\
-                    'beam_maj_axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                    'beam_min_axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                    'beam_pos_angle': round(float(beam_pos_angle.to(u.deg)/u.deg)) * u.deg,\
-                    'flux_uncertainty': round(summ['rms'] * 1000, 3) * u.mJy}
+    field_info = {'Field Name': name, 'Obs Date Time': obs_date_time, 'File Name': fits_file[fits_file.rindex('/')+1:],\
+                    'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                    'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                    'Beam Pos Angle': round(float(beam_pos_angle.to(u.deg)/u.deg), 3) * u.deg,\
+                    'Flux Uncertainty': round(summ['rms'] * 1000, 3) * u.mJy,\
+                    'Pos Uncertainty': round(float(beam_size/snr * (Angle(1, u.deg).to(u.arcsec))**2/(u.arcsec**2)), 3) * u.arcsec**2}
 
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
@@ -948,37 +951,38 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     if significant(fits_file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold):
         int_info = field_info.copy()
-        int_info['flux_density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
+        int_info['Flux Density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
 
         int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
         int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
-        int_info['coord_ra'] = round(coord.ra.deg, 3) * u.deg
-        int_info['coord_dec'] = round(coord.dec.deg, 3) * u.deg
 
-        int_info['internal'] = True
+        int_info['Coord RA'] = coord.ra
+        int_info['Coord Dec'] = coord.dec
 
-        key = f'source_{pt_source_count}'
+        int_info['Internal'] = True
+
+        key = f'Source {pt_source_count}'
         interesting_sources[key] = int_info
         pt_source_count +=1
 
     for i in range(n_ext_sources):
         ext_info = field_info.copy()
-        ext_info['flux_density'] = round(summ['ext_peak_val'][i] * 1000, 3) * u.mJy
+        ext_info['Flux Density'] = round(summ['ext_peak_val'][i] * 1000, 3) * u.mJy
 
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
         ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
-        ext_info['coord_ra'] = round(coord.ra.deg, 3) * u.deg
-        ext_info['coord_dec'] = round(coord.dec.deg, 3) * u.deg
+        ext_info['Coord RA'] = coord.ra
+        ext_info['Coord Dec'] = coord.dec
 
-        ext_info['internal'] = False
+        ext_info['Internal'] = False
 
-        key = f'source_{pt_source_count}'
+        key = f'Source {pt_source_count}'
         interesting_sources[key] = ext_info
         pt_source_count += 1
 
-    if 'source_1' not in interesting_sources:
+    if 'Source 1' not in interesting_sources:
         return
     else:
         return interesting_sources
@@ -1003,7 +1007,7 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
 
     shift = len(catalog_1)
     for key, value in catalog_2.items():
-        new_number = int(key.replace('source_', ''))
+        new_number = int(key.replace('Source ', ''))
         new_key = f'source_{new_number + shift}'
         catalog_1[new_key] = value
     return catalog_1
@@ -1399,7 +1403,7 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
                 #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
                 if catalog != None:
                     for key, value in catalog.items():
-                        if value['internal'] == True:
+                        if value['Internal'] == True:
                             txt.write(f'{obj}\n')
                     final_catalog = combine_catalogs(final_catalog, catalog)
 
