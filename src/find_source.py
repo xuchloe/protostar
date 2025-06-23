@@ -15,7 +15,6 @@ import json
 import os
 import math
 
-
 def fits_data_index(fits_file: str):
     '''
     Finds the location of a FITS file's data array.
@@ -1009,6 +1008,65 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
     return catalog_1
 
 
+def start_html(html_path):
+    '''
+    Starts source_info.html, in which source information can be stored.
+    '''
+
+    with open(html_path, 'w') as html_file:
+        start = '''
+        <!DOCTYPE html>
+        <html>
+        <style>
+        img {
+        width: 40%;
+        height: 40%
+        }
+        .centered-large-text {
+        text-align: center;
+        font-size: 36px;
+        }
+        </style>
+        <body>
+        '''
+        html_file.write(start)
+        html_file.close()
+
+
+def obs_info_to_html(json_file: str, html_path: str):
+    '''
+    Appends observation information table to source_info.html using information from a .json file.
+
+    Parameters
+    ----------
+    json_file : str
+        The path of the .json file that contains the observation information.
+    '''
+
+    with open(html_path, 'a') as html_file:
+        try:
+            with open(json_file, 'r') as file:
+                obs_dict = json.load(file)
+
+            #cleaning up obs_dict
+            for key, value in obs_dict.items():
+                if type(value) == list:
+                    string = ', '.join(value)
+                    obs_dict[key] = [string]
+            obs_id = obs_dict.pop('obsID')
+            base_name = obs_dict.pop('basename')
+
+            df = pd.DataFrame(obs_dict)
+            df_transposed = df.T
+
+            html_table = df_transposed.to_html()
+
+            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+            html_file.write(html_table)
+        except:
+            html_file.write('<p> Error generating observation information table. </p>')
+
+
 def calibration_plots(matlab: str):
 
     plt.rcdefaults()
@@ -1165,66 +1223,7 @@ def calibration_plots(matlab: str):
     fig2.savefig('../html/g_pha.jpg')
 
     plt.close()
-
-
-def start_html(html_path):
-    '''
-    Starts source_info.html, in which source information can be stored.
-    '''
-
-    with open(html_path, 'w') as html_file:
-        start = '''
-        <!DOCTYPE html>
-        <html>
-        <style>
-        img {
-        width: 40%;
-        height: 40%
-        }
-        .centered-large-text {
-        text-align: center;
-        font-size: 36px;
-        }
-        </style>
-        <body>
-        '''
-        html_file.write(start)
-        html_file.close()
-
-
-def obs_info_to_html(json_file: str, html_path: str):
-    '''
-    Appends observation information table to source_info.html using information from a .json file.
-
-    Parameters
-    ----------
-    json_file : str
-        The path of the .json file that contains the observation information.
-    '''
-
-    with open(html_path, 'a') as html_file:
-        try:
-            with open(json_file, 'r') as file:
-                obs_dict = json.load(file)
-
-            #cleaning up obs_dict
-            for key, value in obs_dict.items():
-                if type(value) == list:
-                    string = ', '.join(value)
-                    obs_dict[key] = [string]
-            obs_id = obs_dict.pop('obsID')
-            base_name = obs_dict.pop('basename')
-
-            df = pd.DataFrame(obs_dict)
-            df_transposed = df.T
-
-            html_table = df_transposed.to_html()
-
-            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
-            html_file.write(html_table)
-        except:
-            html_file.write('<p> Error generating observation information table. </p>')
-    html_file.close()
+    
 
 def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
@@ -1264,10 +1263,8 @@ def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_
         except:
             html_file.write(f'<p> Error generating figure for {fits_file}. </p>')
 
-    html_file.close()
 
-
-def catalog_to_html(catalog: dict):
+def catalog_to_html(catalog: dict, html_path):
     '''
     Appends source information table to source_info.html.
 
@@ -1281,25 +1278,23 @@ def catalog_to_html(catalog: dict):
     df_transposed = df.T
     html_table = df_transposed.to_html()
 
-    html_file = open('../html/source_info.html', 'a')
-    html_file.write(html_table)
-    html_file.close()
+    with open(html_path, 'a') as html_file:
+        html_file.write(html_table)
 
 
-def end_html():
+def end_html(html_path: str):
     '''
     Ends source_info.html, in which source information can be stored.
     '''
 
-    html_file = open('../html/source_info.html', 'a')
+    with open(html_path, 'a') as html_file:
 
-    end = '''
-    </body>
-    </html>
-    '''
+        end = '''
+        </body>
+        </html>
+        '''
 
-    html_file.write(end)
-    html_file.close()
+        html_file.write(end)
 
 
 def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
