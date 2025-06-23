@@ -909,7 +909,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     beam_maj_axis = Angle(bmaj, cunit1)
     beam_min_axis = Angle(bmin, cunit1)
     beam_pos_angle = Angle(bpa, u.degree)
-    bpa_rad = beam_pos_angle.to(u.rad) / u.rad
+    bpa_rad = abs(beam_pos_angle.to(u.rad) / u.rad)
 
     b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
     b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
@@ -1396,10 +1396,12 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
         obs_dict = json.load(file)
 
     sci_targs = [targ.lower() for targ in obs_dict[ 'sciTargs']]
+    pol_cals = [cal.lower() for cal in obs_dict['polCals']]
     with open(os.path.join(folder, 'interesting_fields.txt'), 'w') as txt:
         for file in glob.glob(os.path.join(folder, '*.fits')):
-            fig_to_html(html_path, file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
             obj = fits.getheader(file)['OBJECT']
+            if obj.lower() not in pol_cals:
+                fig_to_html(html_path, file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
             if obj.lower() in sci_targs:
                 catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
