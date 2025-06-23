@@ -1223,7 +1223,7 @@ def calibration_plots(matlab: str):
     fig2.savefig('../html/g_pha.jpg')
 
     plt.close()
-    
+
 
 def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
@@ -1328,7 +1328,8 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     obs_info_to_html(json_file, html_path)
 
     try:
-        calibration_plots(f'{folder}gains.mat')
+        matlab_file = os.path.join(folder, 'gains.mat')
+        calibration_plots(matlab_file)
 
         html_file = open('../html/source_info.html', 'a')
         html_gain_info = '''
@@ -1340,7 +1341,6 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
         <br>
         '''
         html_file.write(html_gain_info)
-        html_file.close()
     except:
         print('Error with gain calibration information.')
 
