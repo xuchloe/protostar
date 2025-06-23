@@ -840,7 +840,6 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
 
 
-
 def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     Summarizes information on any significant point sources detected in an image.
@@ -1010,6 +1009,100 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
     return catalog_1
 
 
+def start_html(html_path):
+    '''
+    Starts source_info.html, in which source information can be stored.
+    '''
+
+    with open(html_path, 'w') as html_file:
+        start = '''
+        <!DOCTYPE html>
+        <html>
+        <style>
+        img.field {
+        width: 40%;
+        height: 40%
+        }
+        img.bp {
+        width: 20%;
+        height: 20%
+        }
+        img.gain {
+        width: 45%;
+        height: 45%
+        }
+        .centered-large-text {
+        text-align: center;
+        font-size: 36px;
+        }
+        </style>
+        <body>
+        '''
+        html_file.write(start)
+        html_file.close()
+
+
+def obs_info_to_html(json_file: str, html_path: str):
+    '''
+    Appends observation information table to source_info.html using information from a .json file.
+
+    Parameters
+    ----------
+    json_file : str
+        The path of the .json file that contains the observation information.
+    '''
+
+    with open(html_path, 'a') as html_file:
+        try:
+            with open(json_file, 'r') as file:
+                obs_dict = json.load(file)
+
+            #cleaning up obs_dict
+            for key, value in obs_dict.items():
+                if type(value) == list:
+                    string = ', '.join(value)
+                    obs_dict[key] = [string]
+            obs_id = obs_dict.pop('obsID')
+            base_name = obs_dict.pop('basename')
+
+            df = pd.DataFrame(obs_dict)
+            df_transposed = df.T
+
+            html_table = df_transposed.to_html()
+
+            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+            html_file.write(html_table)
+        except:
+            html_file.write('<p> Error generating observation information table. </p>')
+
+
+def ap_eff_to_html(html_path, matlab: str):
+
+    try:
+        data = loadmat(matlab)
+        ap_eff_array = data['apEffCorr']
+
+        n_ants = len(ap_eff_array)
+        panda_dict = {}
+
+        for ant in range(n_ants):
+            ant_eff = {}
+            ant_eff['RxA LSB'] = float(ap_eff_array[ant][0])
+            ant_eff['RxA USB'] = float(ap_eff_array[ant][1])
+            ant_eff['RxB LSB'] = float(ap_eff_array[ant][2])
+            ant_eff['RxB USB'] = float(ap_eff_array[ant][3])
+            panda_dict[f'Ant {ant+1}'] = ant_eff
+
+        df = pd.DataFrame.from_dict(panda_dict)
+        df_transposed = df.T
+        html_table = df_transposed.to_html()
+
+        with open(html_path, 'a') as html_file:
+            html_file.write(html_table)
+    except:
+        print('Error with aperture efficiency data.')
+
+
 def calibration_plots(html_path, matlab: str):
 
     plt.rcdefaults()
@@ -1170,73 +1263,6 @@ def calibration_plots(html_path, matlab: str):
     plt.close()
 
 
-def start_html(html_path):
-    '''
-    Starts source_info.html, in which source information can be stored.
-    '''
-
-    with open(html_path, 'w') as html_file:
-        start = '''
-        <!DOCTYPE html>
-        <html>
-        <style>
-        img.field {
-        width: 40%;
-        height: 40%
-        }
-        img.bp {
-        width: 20%;
-        height: 20%
-        }
-        img.gain {
-        width: 45%;
-        height: 45%
-        }
-        .centered-large-text {
-        text-align: center;
-        font-size: 36px;
-        }
-        </style>
-        <body>
-        '''
-        html_file.write(start)
-        html_file.close()
-
-
-def obs_info_to_html(json_file: str, html_path: str):
-    '''
-    Appends observation information table to source_info.html using information from a .json file.
-
-    Parameters
-    ----------
-    json_file : str
-        The path of the .json file that contains the observation information.
-    '''
-
-    with open(html_path, 'a') as html_file:
-        try:
-            with open(json_file, 'r') as file:
-                obs_dict = json.load(file)
-
-            #cleaning up obs_dict
-            for key, value in obs_dict.items():
-                if type(value) == list:
-                    string = ', '.join(value)
-                    obs_dict[key] = [string]
-            obs_id = obs_dict.pop('obsID')
-            base_name = obs_dict.pop('basename')
-
-            df = pd.DataFrame(obs_dict)
-            df_transposed = df.T
-
-            html_table = df_transposed.to_html()
-
-            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
-            html_file.write(html_table)
-        except:
-            html_file.write('<p> Error generating observation information table. </p>')
-
-
 def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     Appends source figures to source_info.html.
@@ -1332,6 +1358,7 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     '''
 
     html_path = os.path.join(folder, 'index.html')
+    matlab_file = os.path.join(folder, 'gains.mat')
 
     start_html(html_path)
 
@@ -1339,22 +1366,23 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
 
     obs_info_to_html(json_file, html_path)
 
-    #try:
-    matlab_file = os.path.join(folder, 'gains.mat')
-    calibration_plots(html_path, matlab_file)
+    ap_eff_to_html(html_path, matlab_file)
 
-    with open(html_path, 'a') as html_file:
-        html_gain_info = f'''
-        <img class=\'bp\' src=\'./bp_amp.jpg'\'>
-        <img class=\'bp\' src=\'./bp_pha.jpg'\'>
-        <br>
-        <img class=\'gain\' src=\'./g_amp.jpg'\'>
-        <img class=\'gain\' src=\'./g_pha.jpg'\'>
-        <br>
-        '''
-        html_file.write(html_gain_info)
-    #except:
-        #print('Error with gain calibration information.')
+    try:
+        calibration_plots(html_path, matlab_file)
+
+        with open(html_path, 'a') as html_file:
+            html_gain_info = f'''
+            <img class=\'bp\' src=\'./bp_amp.jpg'\'>
+            <img class=\'bp\' src=\'./bp_pha.jpg'\'>
+            <br>
+            <img class=\'gain\' src=\'./g_amp.jpg'\'>
+            <img class=\'gain\' src=\'./g_pha.jpg'\'>
+            <br>
+            '''
+            html_file.write(html_gain_info)
+    except:
+        print('Error with gain calibration information.')
 
     final_catalog = {}
     with open(json_file, 'r') as file:
