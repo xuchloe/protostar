@@ -1226,7 +1226,7 @@ def obs_info_to_html(json_file: str, html_path: str):
             html_file.write('<p> Error generating observation information table. </p>')
     html_file.close()
 
-def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
     Appends source figures to source_info.html.
 
