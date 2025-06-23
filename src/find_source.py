@@ -1192,7 +1192,7 @@ def start_html(html_path):
         html_file.close()
 
 
-def obs_info_to_html(json_file: str):
+def obs_info_to_html(json_file: str, html_path: str):
     '''
     Appends observation information table to source_info.html using information from a .json file.
 
@@ -1202,32 +1202,29 @@ def obs_info_to_html(json_file: str):
         The path of the .json file that contains the observation information.
     '''
 
-    html_file = open('../html/source_info.html', 'a')
+    with open(html_path, 'a') as html_file:
+        try:
+            with open(json_file, 'r') as file:
+                obs_dict = json.load(file)
 
-    try:
-        file = open(json_file, 'r')
-        obs_dict = json.load(file)
+            #cleaning up obs_dict
+            for key, value in obs_dict.items():
+                if type(value) == list:
+                    string = ', '.join(value)
+                    obs_dict[key] = [string]
+            obs_id = obs_dict.pop('obsID')
+            base_name = obs_dict.pop('basename')
 
-        #cleaning up obs_dict
-        for key, value in obs_dict.items():
-            if type(value) == list:
-                string = ', '.join(value)
-                obs_dict[key] = [string]
-        obs_id = obs_dict.pop('obsID')
-        base_name = obs_dict.pop('basename')
+            df = pd.DataFrame(obs_dict)
+            df_transposed = df.T
 
-        df = pd.DataFrame(obs_dict)
-        df_transposed = df.T
+            html_table = df_transposed.to_html()
 
-        html_table = df_transposed.to_html()
-
-        html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
-        html_file.write(html_table)
-    except:
-        html_file.write('<p> Error generating observation information table. </p>')
-
+            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+            html_file.write(html_table)
+        except:
+            html_file.write('<p> Error generating observation information table. </p>')
     html_file.close()
-
 
 def fig_to_html(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
     '''
