@@ -909,7 +909,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     beam_maj_axis = Angle(bmaj, cunit1)
     beam_min_axis = Angle(bmin, cunit1)
     beam_pos_angle = Angle(bpa, u.degree)
-    bpa_rad = abs(beam_pos_angle.to(u.rad) / u.rad)
+    bpa_rad = beam_pos_angle.to(u.rad) / u.rad
 
     b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
     b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
@@ -920,8 +920,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                     'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Pos Angle': round(float(beam_pos_angle.to(u.deg)/u.deg), 3) * u.deg,\
                     'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,\
-                    'RA Uncert': round(b_min_uncert*math.sin(bpa_rad) + b_maj_uncert*math.cos(bpa_rad), 3) * u.arcsec,\
-                    'Dec Uncert': round(b_maj_uncert*math.sin(bpa_rad) + b_min_uncert*math.cos(bpa_rad), 3) * u.arcsec}
+                    'RA Uncert': round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad), 3)) * u.arcsec,\
+                    'Dec Uncert': round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad), 3)) * u.arcsec}
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
         n_ext_sources += len(summ['ext_peak_val'])
