@@ -1071,8 +1071,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         snr = summ['ext_snr'][i]
         b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
         b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
-        int_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
-        int_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+        ext_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+        ext_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
 
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
         ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
