@@ -1,8 +1,7 @@
 from astropy.io import fits
 import numpy as np
-import scipy.stats
+from scipy.optimize import curve_fit
 from scipy.stats import norm
-import scipy.io
 from scipy.io import loadmat
 from astropy.coordinates import Angle, SkyCoord
 import astropy.units as u
@@ -53,7 +52,12 @@ def fits_data_index(fits_file: str):
     return file_index
 
 
-def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False):
+def gaussian_theta(coord, amp, sigma, theta, mu_x, mu_y):
+    x, y = coord
+    return amp * np.exp(-(((x-mu_x)*math.cos(theta)+(y-mu_y)*math.sin(theta))**2+(-(x-mu_x)*math.sin(theta)+(y-mu_y)*math.cos(theta))**2)/(2*sigma**2))
+
+
+def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True):
     '''
     Finds the statistics of a region of an image.
 
@@ -178,9 +182,74 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #find coordinates of peak
     peak_pix = np.where(data[0] == peak)
-    x = peak_pix[1][0]
-    y = peak_pix[0][0]
-    peak_coord = (int(x_dist_array[0][x]), int(y_dist_array[y][0]))
+    peak_x = peak_pix[1][0]
+    peak_y = peak_pix[0][0]
+    peak_coord = (peak_x, peak_y)
+
+    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) <= x_dim and (peak_y - 2) >= 0 and (peak_y + 2) <= y_dim:
+        neg2_2 = data[0][peak_x - 2][peak_y + 2]
+        neg2_1 = data[0][peak_x - 2][peak_y + 1]
+        neg2_0 = data[0][peak_x - 2][peak_y]
+        neg2_neg1 = data[0][peak_x - 2][peak_y - 1]
+        neg2_neg2 = data[0][peak_x - 2][peak_y - 2]
+        neg1_2 = data[0][peak_x - 1][peak_y + 2]
+        neg1_1 = data[0][peak_x - 1][peak_y + 1]
+        neg1_0 = data[0][peak_x - 1][peak_y]
+        neg1_neg1 = data[0][peak_x - 1][peak_y - 1]
+        neg1_neg2 = data[0][peak_x - 1][peak_y - 2]
+        zero_2 = data[0][peak_x][peak_y + 2]
+        zero_1 = data[0][peak_x][peak_y + 1]
+        zero_neg1 = data[0][peak_x][peak_y - 1]
+        zero_neg2 = data[0][peak_x][peak_y - 2]
+        pos1_2 = data[0][peak_x + 1][peak_y + 2]
+        pos1_1 = data[0][peak_x + 1][peak_y + 1]
+        pos1_0 = data[0][peak_x + 1][peak_y]
+        pos1_neg1 = data[0][peak_x + 1][peak_y - 1]
+        pos1_neg2 = data[0][peak_x + 1][peak_y - 2]
+        pos2_2 = data[0][peak_x + 2][peak_y + 2]
+        pos2_1 = data[0][peak_x + 2][peak_y + 1]
+        pos2_0 = data[0][peak_x + 2][peak_y]
+        pos2_neg1 = data[0][peak_x + 2][peak_y - 1]
+        pos2_neg2 = data[0][peak_x + 2][peak_y - 2]
+
+        z_data = [neg2_2, neg2_1, neg2_0, neg2_neg1, neg2_neg2,\
+                neg1_2, neg1_1, neg1_0, neg1_neg1, neg1_neg2,\
+                zero_2, zero_1, peak, zero_neg1, zero_neg2,\
+                pos1_2, pos1_1, pos1_0, pos1_neg1, pos1_neg2,\
+                pos2_2, pos2_1, pos2_0, pos2_neg1, pos2_neg2]
+        x_data = [-2]*5 + [-1]*5 + [0]*5 + [1]*5 + [2]*5
+        y_data = [2, 1, 0, -1, -2]*5
+
+        try:
+            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([0,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            amp, sigma, theta, mu_x, mu_y = popt
+            peak = float(amp)
+            peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
+        except RuntimeError:
+            pass
+
+    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) <= x_dim and (peak_y - 1) >= 0 and (peak_y + 1) <= y_dim:
+        left_top = data[0][peak_x - 1][peak_y + 1]
+        left_middle = data[0][peak_x - 1][peak_y]
+        left_bottom = data[0][peak_x - 1][peak_y - 1]
+        middle_top = data[0][peak_x][peak_y + 1]
+        middle_bottom = data[0][peak_x][peak_y - 1]
+        right_top = data[0][peak_x + 1][peak_y + 1]
+        right_middle = data[0][peak_x + 1][peak_y]
+        right_bottom = data[0][peak_x + 1][peak_y - 1]
+
+        z_data = [left_top, left_middle, left_bottom, middle_top, peak, middle_bottom, right_top, right_middle, right_bottom]
+        x_data = [-1]*3 + [0]*3 + [1]*3
+        y_data = [1, 0, -1] * 3
+
+        try:
+            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([0,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            amp, sigma, theta, mu_x, mu_y = popt
+            peak = float(amp)
+            peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
+        except RuntimeError:
+            pass
+
 
     rms = float((np.var(masked_data))**0.5)
 
@@ -190,7 +259,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     return stats
 
 
-def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0):
+def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0, Gaussian: bool = True, internal: bool = True):
     '''
     Finds statistics of an inclusion region and its complement, the exclusion region.
 
@@ -256,8 +325,8 @@ def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0
         radius = radius + ([beam_fwhm] * (len(center) - 1))
 
     #get info on inclusion and exclusion regions
-    int_info = region_stats(fits_file=fits_file, radius=radius, center=center)
-    ext_info = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True)
+    int_info = region_stats(fits_file=fits_file, radius=radius, center=center, Gaussian=Gaussian, internal=internal)
+    ext_info = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
 
     #getting values for peak, rms, axis lengths, beam size
     info_dict = {}
@@ -287,7 +356,7 @@ def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0
 
 
 def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, recursion: bool = True,\
-                       radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+                       radius_buffer: float = 5.0, ext_threshold: float = None, internal: bool = True):
     '''
     Using the exclusion region's rms taken directly from the image,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
@@ -356,12 +425,12 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    info = incl_excl_data(fits_file, center, radius_buffer)
+    info = incl_excl_data(fits_file, center, radius_buffer, Gaussian=True, internal=internal)
     if rms is not None:
         info['rms_val'] = rms
 
     #keeping int_peak_val and int_peak coord in the original search area
-    initial_info = incl_excl_data(fits_file, [], radius_buffer)
+    initial_info = incl_excl_data(fits_file, [], radius_buffer, Gaussian=True, internal=True)
     info['int_peak_val'] = initial_info['int_peak_val']
     info['int_peak_coord'] = initial_info['int_peak_coord']
 
@@ -385,6 +454,12 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
     prob_dict['int_snr'] = float(int_peak / rms)
     prob_dict['ext_snr'] = float(ext_peak / rms)
 
+    if ext_threshold == None:
+        if prob_dict['int_snr'] < 20:
+            ext_threshold = 1e-3
+        else:
+            ext_threshold = 1e-6
+
     prob_list = [prob_dict]
 
     if prob_dict['ext_prob'] < ext_threshold and recursion:
@@ -394,13 +469,13 @@ def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, rec
             center.append(info['ext_peak_coord'])
             new_center = center
         new_list = get_prob_image_rms(fits_file, new_center, rms=None, recursion=True, \
-                                      radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+                                      radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=False)
         prob_list.extend(new_list)
 
     #using better rms value for calculating probability of peak when just looking in initial area
     elif len(prob_list) > 1:
         new_list = get_prob_image_rms(fits_file, center=[prob_list[0]['field_center']], rms=prob_list[-1]['rms_val'], \
-                                     recursion=False, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+                                     recursion=False, radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=True)
         new_list.extend(prob_list[1:])
         prob_list = new_list
 
@@ -503,7 +578,7 @@ def get_prob_rms_est_from_ext(prob_list: list):
     return prob_list
 
 
-def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001,\
+def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = None,\
             short_dict: bool = True, full_list: bool = False, plot: bool = True, save_path: str = ''):
     '''
     Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
@@ -642,7 +717,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    m_info = get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+    m_info = get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=True)
 
     info = (get_prob_rms_est_from_ext(m_info.copy()))
 
@@ -736,6 +811,8 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
                 while '/' in file:
                     file = file[file.index('/')+1:]
                 file = file.replace('.fits', '')
+                if ext_threshold == None:
+                    ext_threshold = 'default'
                 file += f'_rb{radius_buffer}_et{ext_threshold}'
                 if save_path[-1] != '/':
                     save_path = save_path + '/'
@@ -802,7 +879,7 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0
         return
 
 
-def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
     '''
     Finds whether a significant source was detected in a field's center region.
 
@@ -840,7 +917,7 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
 
 
-def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
     '''
     Summarizes information on any significant point sources detected in an image.
 
@@ -902,26 +979,20 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     ctype2 = header_data['CTYPE2']
     crval2 = header_data['CRVAL2']
     cunit2 = header_data['CUNIT2']
-    snr = summ['int_snr']
 
     #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
-
     beam_maj_axis = Angle(bmaj, cunit1)
     beam_min_axis = Angle(bmin, cunit1)
     beam_pos_angle = Angle(bpa, u.degree)
     bpa_rad = beam_pos_angle.to(u.rad) / u.rad
-
-    b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
-    b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
 
     interesting_sources = {}
     field_info = {'Field Name': name, 'Obs Date Time': obs_date_time, 'File Name': fits_file[fits_file.rindex('/')+1:],\
                     'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Pos Angle': round(float(beam_pos_angle.to(u.deg)/u.deg), 3) * u.deg,\
-                    'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,\
-                    'RA Uncert': round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad), 3)) * u.arcsec,\
-                    'Dec Uncert': round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad), 3)) * u.arcsec}
+                    'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,}
+
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
         n_ext_sources += len(summ['ext_peak_val'])
@@ -956,13 +1027,37 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         int_info = field_info.copy()
         int_info['Flux Density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
 
+        snr = summ['int_snr']
+        b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
+        b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
+        int_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+        int_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+
         int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
         int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
 
-        int_info['Coord RA'] = coord.ra
-        int_info['Coord Dec'] = coord.dec
+        ra_str = str(coord.ra)
+        dec_str = str(coord.dec)
 
+        try:
+            m_index = ra_str.index('m')
+            s_index = ra_str.index('s')
+            ra_seconds = ra_str[m_index + 1: s_index]
+            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
+        except:
+            pass
+
+        try:
+            m_index = dec_str.index('m')
+            s_index = dec_str.index('s')
+            dec_seconds = dec_str[m_index + 1: s_index]
+            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
+        except:
+            pass
+
+        int_info['Coord RA'] = ra_str
+        int_info['Coord Dec'] = dec_str
         int_info['Internal'] = True
 
         key = f'Source {pt_source_count}'
@@ -973,12 +1068,37 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         ext_info = field_info.copy()
         ext_info['Flux Density'] = round(summ['ext_peak_val'][i] * 1000, 3) * u.mJy
 
+        snr = summ['ext_snr'][i]
+        b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
+        b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
+        int_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+        int_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+
         ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
         ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
-        ext_info['Coord RA'] = coord.ra
-        ext_info['Coord Dec'] = coord.dec
 
+        ra_str = str(coord.ra)
+        dec_str = str(coord.dec)
+
+        try:
+            m_index = ra_str.index('m')
+            s_index = ra_str.index('s')
+            ra_seconds = ra_str[m_index + 1: s_index]
+            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
+        except:
+            pass
+
+        try:
+            m_index = dec_str.index('m')
+            s_index = dec_str.index('s')
+            dec_seconds = dec_str[m_index + 1: s_index]
+            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
+        except:
+            pass
+
+        ext_info['Coord RA'] = ra_str
+        ext_info['Coord Dec'] = dec_str
         ext_info['Internal'] = False
 
         key = f'Source {pt_source_count}'
@@ -1011,7 +1131,7 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
     shift = len(catalog_1)
     for key, value in catalog_2.items():
         new_number = int(key.replace('Source ', ''))
-        new_key = f'source_{new_number + shift}'
+        new_key = f'Source {new_number + shift}'
         catalog_1[new_key] = value
     return catalog_1
 
@@ -1270,7 +1390,7 @@ def calibration_plots(html_path, matlab: str):
     plt.close()
 
 
-def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = None):
     '''
     Appends source figures to source_info.html.
 
@@ -1296,6 +1416,8 @@ def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_
             while '/' in file:
                 file = file[file.index('/')+1:]
             file = file.replace('.fits', '')
+            if ext_threshold == None:
+                ext_threshold = 'default'
             file += f'_rb{radius_buffer}_et{ext_threshold}'
             full_path = f'./{file}.jpg'
 
@@ -1342,7 +1464,7 @@ def end_html(html_path: str):
         html_file.write(end)
 
 
-def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = 0.001):
+def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
     '''
     From a folder of FITS files, creates source_info.html with observation information table, source figures, and source information table
     and creates interesting_field.txt with names of objects with any (possibly) interesting detections.
