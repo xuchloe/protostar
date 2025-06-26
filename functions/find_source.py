@@ -124,6 +124,9 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     info = file[i]
     data = info.data
 
+    #median absolute deviation
+    mad = float(median_abs_deviation(data[0].flatten()))
+
     #getting dimensions for array
     x_dim = info.header['NAXIS1']
     y_dim = info.header['NAXIS2']
@@ -261,7 +264,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': beam_size,\
              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area, 'excl_area': excl_area,\
-             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size)}
+             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad}
 
     return stats
 
