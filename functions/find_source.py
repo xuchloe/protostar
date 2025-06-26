@@ -1,7 +1,7 @@
 from astropy.io import fits
 import numpy as np
 from scipy.optimize import curve_fit
-from scipy.stats import norm
+from scipy.stats import norm, median_abs_deviation
 from scipy.io import loadmat
 from astropy.coordinates import Angle, SkyCoord
 import astropy.units as u
