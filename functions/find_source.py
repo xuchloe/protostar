@@ -57,7 +57,8 @@ def gaussian_theta(coord, amp, sigma, theta, mu_x, mu_y):
     return amp * np.exp(-(((x-mu_x)*math.cos(theta)+(y-mu_y)*math.sin(theta))**2+(-(x-mu_x)*math.sin(theta)+(y-mu_y)*math.cos(theta))**2)/(2*sigma**2))
 
 
-def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True):
+def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True,\
+                 outer_radius: float = None):
     '''
     Finds the statistics of a region of an image.
 
@@ -124,12 +125,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     data = info.data
 
     #getting dimensions for array
-    try:
-        dims = data.shape
-        x_dim = dims[1]
-        y_dim = dims[2]
-    except:
-        print('Data dimension error')
+    x_dim = info.header['NAXIS1']
+    y_dim = info.header['NAXIS2']
 
     x_dist_array = np.tile(np.arange(x_dim),(y_dim, 1)) #array of each pixel's horizontal distance (in pixels) from y-axis
     y_dist_array = x_dist_array.T #array of each pixel's vertical distance (in pixels) from x-axis
@@ -150,12 +147,13 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     x_cell_size = (Angle(info.header['CDELT1'], x_unit)).to(u.arcsec)
     y_cell_size = (Angle(info.header['CDELT2'], y_unit)).to(u.arcsec)
 
-    #find major axis (units of arcsec), minor axis (units of arcsec), beam size (units of arcsec^2)
-    beam_size = ((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)
+    #find beam size (unitless but in arcsec^2)
+    beam_size = float(((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)\
+                / (u.arcsec**2))
 
     #find axis sizes
-    x_axis_size = info.header['NAXIS1'] * x_cell_size
-    y_axis_size = info.header['NAXIS2'] * y_cell_size
+    x_axis_size = x_dim * x_cell_size
+    y_axis_size = y_dim * y_cell_size
 
     #distance from center array
     dist_from_center =((((x_dist_array - center_pix[0][0])*x_cell_size)**2 + ((y_dist_array - center_pix[0][1])*y_cell_size)**2)**0.5)
@@ -170,11 +168,17 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     if invert:
         mask = np.logical_not(mask)
 
+    if outer_radius is not None:
+        dist_from_field_center =((((x_dist_array - field_center[0])*x_cell_size)**2 + ((y_dist_array - field_center[1])*y_cell_size)**2)**0.5)
+        outer_mask = (dist_from_field_center <= outer_radius * u.arcsec)
+        mask = np.logical_and(mask, outer_mask)
+
     incl_area = float(mask.sum() * x_cell_size * y_cell_size / (u.arcsec)**2)
+    excl_area = float(np.logical_not(mask).sum() * x_cell_size * y_cell_size / (u.arcsec)**2)
 
     masked_data = data[0][mask]
 
-    #get peak, rms, beam_size values
+    #get peak
     try:
         peak = float(max(masked_data))
     except ValueError:
@@ -186,6 +190,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     peak_y = peak_pix[0][0]
     peak_coord = (peak_x, peak_y)
 
+    #fit for peak and coordinates assuming Gaussian
+    #use data from 5x5 region if internal peak
     if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) <= x_dim and (peak_y - 2) >= 0 and (peak_y + 2) <= y_dim:
         neg2_2 = data[0][peak_x - 2][peak_y + 2]
         neg2_1 = data[0][peak_x - 2][peak_y + 1]
@@ -228,6 +234,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         except RuntimeError:
             pass
 
+    #use data from 3x3 region if external peak
     elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) <= x_dim and (peak_y - 1) >= 0 and (peak_y + 1) <= y_dim:
         left_top = data[0][peak_x - 1][peak_y + 1]
         left_middle = data[0][peak_x - 1][peak_y]
@@ -250,62 +257,32 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         except RuntimeError:
             pass
 
-
     rms = float((np.var(masked_data))**0.5)
 
-    stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': float(beam_size / (u.arcsec**2)),\
-              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area}
+    stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': beam_size,\
+             'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area, 'excl_area': excl_area,\
+             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size)}
 
     return stats
 
 
-def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0, Gaussian: bool = True, internal: bool = True):
-    '''
-    Finds statistics of an inclusion region and its complement, the exclusion region.
+def calc_prob_from_rms_uncert(peak: float, rms: float, n_excl: float, n_incl: float = None):
 
-    The inclusion region can be the union of circles or the complement of such a region.
+    #calculate error for rms
+    rms_err = rms * (n_excl)**(-1/2)
 
-    The statistics are the inclusion region's maximum flux in Jy and its coordinates in pixels,
-    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
-    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
-    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones.
+    #create normal distributions from rms and error for rms
+    uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)
+    uncert_pdf = norm.pdf(uncert, loc = 0, scale = rms_err)
 
-    Parameters
-    ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
-    center : list (optional)
-        A list of center coordinates in units of pixels.
-        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
+    #sum and normalize to find probabilities
+    if n_incl == None:
+        return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_excl) * uncert_pdf) / sum(uncert_pdf))
+    else:
+        return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
 
-    Returns
-    -------
-    dict
-        A dictionary with:
-            float
-                The inclusion region's maximum flux in Jy.
-            tuple (int, int)
-                The coordinates in pixels of the inclusion region's maximum flux.
-            float
-                The exclusion region's maximum flux in Jy.
-            tuple (int, int)
-                The coordinates in pixels of the exclusion region's maximum flux.
-            float
-                The exclusion region's rms in Jy.
-            float
-                The number of measurements in the inclusion region.
-            float
-                The number of measurements in the exclusion region.
-            tuple (int, int)
-                The coordinates in pixels of the image's center.
-            list
-                A list with:
-                    float(s)
-                        The radii in pixels of inclusion zones.
-    '''
+
+def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = None, radius_buffer: float = 5.0, ext_threshold: float = None):
 
     i = fits_data_index(fits_file)
 
@@ -318,171 +295,99 @@ def incl_excl_data(fits_file: str, center: list = [], radius_buffer: float = 5.0
     #extract data array
     info = file[i]
 
-    #get radius, inclusion, exclusion lists for interior and exterior
-    beam_fwhm = float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec)) #in arcsec
-    radius = [beam_fwhm + radius_buffer]
-    if len(center) > 1:
-        radius = radius + ([beam_fwhm] * (len(center) - 1))
+    beam_fwhm = float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec)) #unitless but in arcsec
+    search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
 
-    #get info on inclusion and exclusion regions
-    int_info = region_stats(fits_file=fits_file, radius=radius, center=center, Gaussian=Gaussian, internal=internal)
-    ext_info = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
+    #search for brightest internal peak
+    int_stats1 = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=True, internal=True)
+    int_coord1 = int_stats1['peak_coord']
+    int_peak1 = int_stats1['peak']
+    n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
+    field_center = int_stats1['field_center'] #in pixels
 
-    #getting values for peak, rms, axis lengths, beam size
-    info_dict = {}
-    info_dict['int_peak_val'] = int_info['peak']
-    info_dict['field_center'] = int_info['field_center']
-    info_dict['int_peak_coord'] = int_info['peak_coord']
-    info_dict['ext_peak_coord'] = ext_info['peak_coord']
-    info_dict['ext_peak_val'] = ext_info['peak']
-    info_dict['rms_val'] = ext_info['rms']
-    x_axis = int_info['x_axis']
-    y_axis = int_info['y_axis']
-    beam_size = int_info['beam_size']
+    #find external peaks and get their info
+    center = [field_center]
+    radius = [search_radius]
 
-    #calculating number of measurements in inclusion and exclusion regions
-    incl_area = int_info['incl_area']
-    excl_area = ext_info['incl_area']
-    info_dict['n_incl_meas'] = incl_area / beam_size
-    info_dict['n_excl_meas'] = excl_area / beam_size
+    ext_stats1 = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=False)
+    n_excl = ext_stats1['n_excl_meas'] #should be the same for all external peaks
+    ext_peak1 = ext_stats1['peak']
+    rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
+    ext_prob1 = calc_prob_from_rms_uncert(peak=ext_peak1, rms=rms, n_excl=n_excl)
 
-    pix_radius = [] #list of radii in pixels
-    for r in range(len(radius)):
-        pix_rad = (Angle(radius[r], u.arcsec).to(info.header['CUNIT1']) / info.header['CDELT1']) / u.Unit(info.header['CUNIT1'])
-        pix_radius.append(float(pix_rad))
-    info_dict['radius'] = pix_radius
+    prob_dict = {'field_center': field_center, 'rms_val': None, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
+                 'fwhm': beam_fwhm, 'incl_radius': search_radius,\
+                 'int_peak_val': [], 'int_peak_coord': [], 'int_prob': [], 'int_snr': [],\
+                 'ext_peak_val': [], 'ext_peak_coord': [], 'ext_prob': [], 'ext_snr': [], 'next_ext_peak': None}
 
-    return info_dict
-
-
-def get_prob_image_rms(fits_file: str, center: list = [], rms: float = None, recursion: bool = True,\
-                       radius_buffer: float = 5.0, ext_threshold: float = None, internal: bool = True):
-    '''
-    Using the exclusion region's rms taken directly from the image,
-    finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
-    the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
-
-    If the external probability is less than 0.001, updates the inclusion region to include a circle around the external peak.
-
-    The other statisitcs are the inclusion region's maximum flux in Jy and its coordinates in pixels,
-    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
-    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
-    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones,
-    the inclusion region's signal to noise ratio, and the external region's signal to noise ratio.
-
-    Parameters
-    ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
-    center : list (optional)
-        A list of center coordinates in units of pixels.
-        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
-    rms : float (optional)
-        An rms value in Jy.
-        If no value is given, eventually defaults to the rms calculated by incl_excl_data.
-    recursion : bool (optional)
-        Whether to use recursion to find significant external peaks, if any.
-        If no value is given, defaults to True.
-
-    Returns
-    -------
-    list
-        A list with:
-            dict (possibly multiple)
-                A dictionary with:
-                    float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-                    float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-                    float
-                        The inclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the inclusion region's maximum flux.
-                    float
-                        The exclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the exclusion region's maximum flux.
-                    float
-                        The exclusion region's rms in Jy.
-                    float
-                        The number of measurements in the inclusion region.
-                    float
-                        The number of measurements in the exclusion region.
-                    tuple (int, int)
-                        The coordinates in pixels of the image's center.
-                    list
-                        A list with:
-                            float(s)
-                                The radii in pixels of inclusion zones.
-                    float
-                        The inclusion region's signal to noise ratio.
-                    float
-                        The exclusion region's signal to noise ratio.
-    '''
-    info = incl_excl_data(fits_file, center, radius_buffer, Gaussian=True, internal=internal)
-    if rms is not None:
-        info['rms_val'] = rms
-
-    #keeping int_peak_val and int_peak coord in the original search area
-    initial_info = incl_excl_data(fits_file, [], radius_buffer, Gaussian=True, internal=True)
-    info['int_peak_val'] = initial_info['int_peak_val']
-    info['int_peak_coord'] = initial_info['int_peak_coord']
-
-    int_peak = info['int_peak_val']
-    ext_peak = info['ext_peak_val']
-    rms = info['rms_val']
-    n_incl = info['n_incl_meas']
-    n_excl = info['n_excl_meas']
-
-    #calculate error for rms
-    rms_err = rms * (n_excl)**(-1/2)
-
-    #create normal distributions from rms and error for rms
-    uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)
-    uncert_pdf = norm.pdf(uncert, loc = 0, scale = rms_err)
-
-    #sum and normalize to find probabilities
-    prob_dict = info
-    prob_dict['int_prob'] = float(sum((norm.cdf((-1 * int_peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
-    prob_dict['ext_prob'] = float(sum((norm.cdf((-1 * ext_peak)/(rms + uncert)) * n_excl) * uncert_pdf) / sum(uncert_pdf))
-    prob_dict['int_snr'] = float(int_peak / rms)
-    prob_dict['ext_snr'] = float(ext_peak / rms)
-
+    #update ext_threshold if needed
+    int_snr1 = int_peak1 / rms
     if ext_threshold == None:
-        if prob_dict['int_snr'] < 20:
+        if int_snr1 < 20:
             ext_threshold = 1e-3
         else:
             ext_threshold = 1e-6
 
-    prob_list = [prob_dict]
+    if ext_prob1 < ext_threshold:
+        ext_significant = True
+    else:
+        prob_dict['next_ext_peak'] = ext_peak1
+        ext_significant = False
 
-    if prob_dict['ext_prob'] < ext_threshold and recursion:
-        if center == []:
-            new_center = [info['field_center'], info['ext_peak_coord']]
+    while ext_significant:
+        ext_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=False)
+        peak = ext_stats['peak']
+        rms = ext_stats['rms']
+
+        ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
+        if ext_prob < ext_threshold:
+            ext_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=False)
+            coord = ext_stats['peak_coord']
+            prob_dict['ext_peak_val'].append(peak)
+            prob_dict['ext_peak_coord'].append(coord)
+            prob_dict['ext_prob'].append(ext_prob)
+            prob_dict['ext_snr'].append(peak / rms)
+            center.append(coord)
+            radius.append(beam_fwhm)
         else:
-            center.append(info['ext_peak_coord'])
-            new_center = center
-        new_list = get_prob_image_rms(fits_file, new_center, rms=None, recursion=True, \
-                                      radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=False)
-        prob_list.extend(new_list)
+            prob_dict['next_ext_peak'] = peak
+            ext_significant = False
 
-    #using better rms value for calculating probability of peak when just looking in initial area
-    elif len(prob_list) > 1:
-        new_list = get_prob_image_rms(fits_file, center=[prob_list[0]['field_center']], rms=prob_list[-1]['rms_val'], \
-                                     recursion=False, radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=True)
-        new_list.extend(prob_list[1:])
-        prob_list = new_list
+    prob_dict['rms_val'] = rms
 
-    return prob_list
+    #find prob for 1st internal peak using updated rms
+    prob_dict['int_peak_val'].append(int_peak1)
+    prob_dict['int_peak_coord'].append(int_coord1)
+    int_prob1 = calc_prob_from_rms_uncert(peak=int_peak1, rms=rms, n_excl=n_excl, n_incl=n_incl)
+    prob_dict['int_prob'].append(int_prob1)
+    prob_dict['int_snr'].append(int_peak1 / rms)
+
+    int_significant = True
+    #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
+    center = [int_coord1]
+    radius = [beam_fwhm]
+
+    #find internal peaks in addition to 1st internal peak
+    while int_significant:
+        int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
+                                 outer_radius=search_radius)
+        int_peak = int_stats['peak']
+        int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
+        if int_prob < 0.01 and (int_peak > int_snr1 / 100):
+            int_coord = int_stats['peak_coord']
+            prob_dict['int_peak_val'].append(int_peak)
+            prob_dict['int_peak_coord'].append(int_coord)
+            prob_dict['int_prob'].append(int_prob)
+            prob_dict['int_snr'].append(int_peak / rms)
+            center.append(int_coord)
+            radius.append(beam_fwhm)
+        else:
+            int_significant = False
+
+    return prob_dict
 
 
-def get_prob_rms_est_from_ext(prob_list: list):
+def get_prob_rms_est_from_ext(prob_dict: dict):
     '''
     Using the rms estimated from the value of the exclusion region's maximum flux,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
@@ -555,17 +460,13 @@ def get_prob_rms_est_from_ext(prob_list: list):
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    info = prob_list[-1]
-
-    int_peak_val = info['int_peak_val']
-    ext_peak_val = info['ext_peak_val']
-    n_incl_meas = info['n_incl_meas']
-    n_excl_meas = info['n_excl_meas']
+    int_peak_val = prob_dict['int_peak_val'][0]
+    ext_peak_val = prob_dict['next_ext_peak']
+    n_incl_meas = prob_dict['n_incl_meas']
+    n_excl_meas = prob_dict['n_excl_meas']
 
     excl_sigma = -1 * norm.ppf(1/n_excl_meas)
     rms_val = ext_peak_val / excl_sigma
-
-    prob_dict = {}
 
     prob_dict['calc_rms_val'] = float(rms_val)
     prob_dict['calc_int_prob'] = float(norm.cdf((-1 * int_peak_val)/(rms_val))) * n_incl_meas
@@ -573,13 +474,11 @@ def get_prob_rms_est_from_ext(prob_list: list):
     prob_dict['calc_int_snr'] = float(int_peak_val / rms_val)
     prob_dict['calc_ext_snr'] = float(excl_sigma)
 
-    prob_list.append(prob_dict)
-
-    return prob_list
+    return prob_dict
 
 
 def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = None,\
-            short_dict: bool = True, full_list: bool = False, plot: bool = True, save_path: str = ''):
+            short_dict: bool = True, plot: bool = True, save_path: str = ''):
     '''
     Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
     with an option to save the plot as a png.
@@ -717,36 +616,36 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = N
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    m_info = get_prob_image_rms(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, internal=True)
+    info = (get_prob_rms_est_from_ext(prob_dict_from_rms_uncert(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)))
 
-    info = (get_prob_rms_est_from_ext(m_info.copy()))
-
-    center = m_info[0]['field_center']
+    center = info['field_center']
 
     header_data = fits.getheader(fits_file)
     pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
 
-    int_x_coord = np.array([m_info[0]['int_peak_coord'][0]])
-    int_y_coord = np.array([m_info[0]['int_peak_coord'][1]])
+    int_x_coords = []
+    int_y_coords = []
+    int_peak_coords = info['int_peak_coord']
+    n_int_peaks = len(int_peak_coords)
+    for i in range(n_int_peaks):
+        #normalized internal peak coordinates
+        int_x_coords.append((int_peak_coords[i][0] - center[0]) * pixel_scale)
+        int_y_coords.append((int_peak_coords[i][1] - center[1]) * pixel_scale)
+    int_x_coords = np.array(int_x_coords)
+    int_y_coords = np.array(int_y_coords)
 
-    #normalize internal peak coordinates
-    int_x_coord = (int_x_coord - center[0]) * pixel_scale
-    int_y_coord = (int_y_coord - center[1]) * pixel_scale
+    incl_radius = info['incl_radius'] #unitless but in arcsec already
 
-    int_radius = m_info[0]['radius'][0] #in pixels
+    x_coords = []
+    y_coords = []
+    ext_peak_coords = info['ext_peak_coord']
+    n_ext_peaks = len(ext_peak_coords)
+    for i in range(n_ext_peaks):
+        #normalized external peak coordinates
+        x_coords.append((ext_peak_coords[i][0] - center[0]) * pixel_scale)
+        y_coords.append((ext_peak_coords[i][1] - center[1]) * pixel_scale)
 
-    if len(m_info) > 1:
-        x_coords = []
-        y_coords = []
-
-        for i in range(len(m_info)-1):
-            #normalized external peak coordinates
-            x_coords.append((m_info[i]['ext_peak_coord'][0] - center[0]) * pixel_scale)
-            y_coords.append((m_info[i]['ext_peak_coord'][1] - center[1]) * pixel_scale)
-        ext_radius = m_info[-1]['radius'][1]
-
-        x_coords = np.array(x_coords)
-        y_coords = np.array(y_coords)
+    fwhm = info['fwhm']
 
     if plot:
         #plt.rcParams['font.family'] = 'serif'
@@ -765,20 +664,27 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = N
         plt.set_cmap('inferno')
         fig, ax = plt.subplots(figsize=(6.7,5.1))
 
-        plt.plot(int_x_coord, int_y_coord, 'wo', fillstyle='none', markersize=15)
-        plt.plot(int_x_coord, int_y_coord, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
+        plt.plot(int_x_coords, int_y_coords, 'wo', fillstyle='none', markersize=15)
+        plt.plot(int_x_coords, int_y_coords, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
 
-        int_circle = patches.Circle((0, 0), int_radius * pixel_scale, edgecolor='c', fill=False)
+        for i in range(n_int_peaks):
+            int_circle = patches.Circle((int_x_coords[i], int_y_coords[i]), fwhm * pixel_scale, edgecolor='lime', fill=False)
+            ax.add_artist(int_circle)
+
+        int_circle = patches.Circle((0, 0), incl_radius, edgecolor='c', fill=False)
         ax.add_artist(int_circle)
 
-        if len(m_info) > 1:
+        if n_ext_peaks > 0:
+            x_coords = np.array(x_coords)
+            y_coords = np.array(y_coords)
             plt.plot(x_coords, y_coords, 'ko', fillstyle='none', markersize=15)
             plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
 
-            for i in range(len(x_coords)):
-                ext_circle = patches.Circle((x_coords[i], y_coords[i]), ext_radius * pixel_scale, edgecolor='lime', fill=False)
+            for i in range(n_ext_peaks):
+                ext_circle = patches.Circle((x_coords[i], y_coords[i]), fwhm * pixel_scale, edgecolor='lime', fill=False)
                 ax.add_artist(ext_circle)
-        int_snr = m_info[-1]['int_snr']
+
+        int_snr = info['int_snr'][0]
 
         x_min = ((0 - center[0]) - 0.5) * pixel_scale
         y_min = ((0 - center[1]) - 0.5) * pixel_scale
@@ -820,59 +726,28 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = N
             except:
                 print('Error saving figure. Double check path entered.')
 
-    ext_peaks = 'No significant external peak'
-    ext_vals = 'No significant external peak'
-    ext_snrs = 'No significant external peak'
-    ext_probs = 'No significant external peak'
+    if short_dict:
+        short_info = info
 
-    if len(m_info) > 1:
+        int_peaks = []
+        for i in range(n_int_peaks):
+            int_peaks.append((float(int_x_coords[i]), float(int_y_coords[i])))
+
         ext_peaks = []
-        ext_vals = []
-        ext_snrs = []
-        ext_probs = []
-    for i in range(len(m_info)-1):
-        ext_peaks.append((float(x_coords[i]), float(y_coords[i])))
-        ext_vals.append(m_info[i]['ext_peak_val'])
-        ext_snrs.append(m_info[i]['ext_snr'])
-        ext_probs.append(m_info[i]['ext_prob'])
+        for i in range(n_ext_peaks):
+            ext_peaks.append((float(x_coords[i]), float(y_coords[i])))
 
-    #convert radii from pixels to arcsec
-    new_rad = []
-    for j in range(len(m_info[-1]['radius'])):
-        new_rad.append(float(m_info[-1]['radius'][j] * pixel_scale))
+        if n_ext_peaks == 0:
+            ext_peaks = 'No significant external peak'
+            short_info['ext_peak_val'] = 'No significant external peak'
+            short_info['ext_snr'] = 'No significant external peak'
+            short_info['ext_prob'] = 'No significant external peak'
 
-    short_info = {'int_peak_val': m_info[-1]['int_peak_val'], 'int_peak_coord': (float(int_x_coord[0]), float(int_y_coord[0])), 'int_snr': m_info[-1]['int_snr'],\
-                  'calc_int_snr': info[-1]['calc_int_snr'], 'int_prob': m_info[-1]['int_prob'], 'calc_int_prob': info[-1]['calc_int_prob'],\
-                  'ext_peak_val': ext_vals, 'ext_peak_coord': ext_peaks, 'ext_snr': ext_snrs,\
-                  'calc_ext_snr': info[-1]['calc_ext_snr'], 'ext_prob': ext_probs, 'calc_ext_prob': info[-1]['calc_ext_prob'],\
-                  'field_center': (0,0), 'rms': m_info[-1]['rms_val'], 'calc_rms_val': info[-1]['calc_rms_val'],\
-                  'n_incl_meas': m_info[-1]['n_incl_meas'], 'n_excl_meas': m_info[-1]['n_excl_meas'], 'radius': new_rad}
+        short_info = info
+        short_info['int_peak_coord'] = int_peaks
+        short_info['ext_peak_coord'] = ext_peaks
+        short_info['field_center'] = (0,0)
 
-    #normalizing coordinates in the full list
-    if full_list:
-        for d in info:
-            for key, value in d.items():
-                #convert coordinates from pixels to relative arcsec
-                if type(value) == tuple:
-                    new_coords = (float((value[0] - center[0]) * pixel_scale), float((value[1] - center[1]) * pixel_scale))
-                    d[key] = new_coords
-
-                #convert radii from pixels to arcsec
-                new_radius = []
-                if key == 'radius':
-                    for k in range(len(value)):
-                        new_radius.append(float(value[k] * pixel_scale))
-                    d[key] = new_radius
-
-    center = (0,0) #normalizing center coordinates
-
-    if short_dict and full_list:
-        return short_info, info
-
-    elif full_list:
-        return info
-
-    elif short_dict:
         return short_info
 
     else:
@@ -913,8 +788,64 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     if not (threshold >= 0 and threshold <= 1):
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
-    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, full_list=False, plot=False)
-    return (summ['int_prob'] < threshold and summ['calc_int_prob'] < threshold)
+    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
+    return (summ['int_prob'][0] < threshold and summ['calc_int_prob'] < threshold)
+
+
+def catalog_helper(source_type: str, n_sources: int, fits_file: str, field_info: dict, summ: dict, pt_source_count: int,\
+                   b_maj: float, b_min: float, bpa: float, ra_index: int, dec_index: int, center: tuple, interesting_sources: dict,\
+                   threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
+
+    sig = True
+    for i in range(n_sources):
+        if source_type == 'int':
+            sig = significant(fits_file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+        if sig:
+            info = field_info.copy()
+            info['Flux Density'] = round(summ[f'{source_type}_peak_val'][i] * 1000, 3) * u.mJy
+
+            snr = summ[f'{source_type}_snr'][i]
+            b_min_uncert = float(b_maj.to(u.arcsec)/u.arcsec / snr)
+            b_maj_uncert = float(b_min.to(u.arcsec)/u.arcsec / snr)
+            info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+            info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+
+            ra_offset = summ[f'{source_type}_peak_coord'][i][ra_index] * u.arcsec
+            dec_offset = summ[f'{source_type}_peak_coord'][i][dec_index] * u.arcsec
+            coord = center.spherical_offsets_by(ra_offset, dec_offset)
+
+            ra_str = str(coord.ra)
+            dec_str = str(coord.dec)
+
+            try:
+                m_index = ra_str.index('m')
+                s_index = ra_str.index('s')
+                ra_seconds = ra_str[m_index + 1: s_index]
+                ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
+            except:
+                pass
+
+            try:
+                m_index = dec_str.index('m')
+                s_index = dec_str.index('s')
+                dec_seconds = dec_str[m_index + 1: s_index]
+                dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
+            except:
+                pass
+
+            info['Coord RA'] = ra_str
+            info['Coord Dec'] = dec_str
+
+            if source_type == 'int':
+                info['Internal'] = True
+            elif source_type == 'ext':
+                info['Internal'] = False
+            else:
+                info['Internal'] = 'Error'
+
+            key = f'Source {pt_source_count}'
+            interesting_sources[key] = info
+            pt_source_count +=1
 
 
 def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
@@ -965,7 +896,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                         Whether the detected point source is in the initial search region.
     '''
 
-    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, full_list=False, plot=False)
+    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
 
     header_data = fits.getheader(fits_file)
     name = header_data['OBJECT']
@@ -998,11 +929,13 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                     'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Pos Angle': round(float(beam_pos_angle.to(u.deg)/u.deg), 3) * u.deg,\
-                    'Freq': freq, 'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,}
+                    'Freq': freq, 'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,}
 
-    n_ext_sources = 0
-    if type(summ['ext_peak_val']) == list:
-        n_ext_sources += len(summ['ext_peak_val'])
+    n_int_sources = len(summ['int_peak_val'])
+    if type(summ['ext_peak_val']) == str:
+        n_ext_sources = 0
+    else:
+        n_ext_sources = len(summ['ext_peak_val'])
 
     ra_index = 0
     dec_index = 1
@@ -1030,89 +963,17 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     pt_source_count = 1
 
-    if significant(fits_file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold):
-        int_info = field_info.copy()
-        int_info['Flux Density'] = round(summ['int_peak_val'] * 1000, 3) * u.mJy
+    catalog_helper(source_type='int', n_sources=n_int_sources, fits_file=fits_file, field_info=field_info, summ=summ,\
+                   pt_source_count=pt_source_count, b_maj=beam_maj_axis, b_min=beam_min_axis, bpa=bpa_rad, ra_index=ra_index,\
+                   dec_index=dec_index, center=center, interesting_sources=interesting_sources,\
+                   threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
-        snr = summ['int_snr']
-        b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
-        b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
-        int_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
-        int_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
+    catalog_helper(source_type='ext', n_sources=n_ext_sources, fits_file=fits_file, field_info=field_info, summ=summ,\
+                   pt_source_count=pt_source_count, b_maj=beam_maj_axis, b_min=beam_min_axis, bpa=bpa_rad, ra_index=ra_index,\
+                   dec_index=dec_index, center=center, interesting_sources=interesting_sources,\
+                   threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
 
-        int_ra_offset = summ['int_peak_coord'][ra_index] * u.arcsec
-        int_dec_offset = summ['int_peak_coord'][dec_index] * u.arcsec
-        coord = center.spherical_offsets_by(int_ra_offset, int_dec_offset)
-
-        ra_str = str(coord.ra)
-        dec_str = str(coord.dec)
-
-        try:
-            m_index = ra_str.index('m')
-            s_index = ra_str.index('s')
-            ra_seconds = ra_str[m_index + 1: s_index]
-            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
-        except:
-            pass
-
-        try:
-            m_index = dec_str.index('m')
-            s_index = dec_str.index('s')
-            dec_seconds = dec_str[m_index + 1: s_index]
-            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
-        except:
-            pass
-
-        int_info['Coord RA'] = ra_str
-        int_info['Coord Dec'] = dec_str
-        int_info['Internal'] = True
-
-        key = f'Source {pt_source_count}'
-        interesting_sources[key] = int_info
-        pt_source_count +=1
-
-    for i in range(n_ext_sources):
-        ext_info = field_info.copy()
-        ext_info['Flux Density'] = round(summ['ext_peak_val'][i] * 1000, 3) * u.mJy
-
-        snr = summ['ext_snr'][i]
-        b_min_uncert = float(beam_maj_axis.to(u.arcsec)/u.arcsec / snr)
-        b_maj_uncert = float(beam_min_axis.to(u.arcsec)/u.arcsec / snr)
-        ext_info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa_rad)) + b_maj_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
-        ext_info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa_rad)) + b_min_uncert*abs(math.cos(bpa_rad)), 3) * u.arcsec
-
-        ext_ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
-        ext_dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
-        coord = center.spherical_offsets_by(ext_ra_offset, ext_dec_offset)
-
-        ra_str = str(coord.ra)
-        dec_str = str(coord.dec)
-
-        try:
-            m_index = ra_str.index('m')
-            s_index = ra_str.index('s')
-            ra_seconds = ra_str[m_index + 1: s_index]
-            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
-        except:
-            pass
-
-        try:
-            m_index = dec_str.index('m')
-            s_index = dec_str.index('s')
-            dec_seconds = dec_str[m_index + 1: s_index]
-            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
-        except:
-            pass
-
-        ext_info['Coord RA'] = ra_str
-        ext_info['Coord Dec'] = dec_str
-        ext_info['Internal'] = False
-
-        key = f'Source {pt_source_count}'
-        interesting_sources[key] = ext_info
-        pt_source_count += 1
-
-    if 'Source 1' not in interesting_sources:
+    if interesting_sources == {}:
         return
     else:
         return interesting_sources
@@ -1416,7 +1277,7 @@ def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_
     with open(html_path, 'a') as html_file:
         try:
             summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-                    short_dict=False, full_list=False, plot=True, save_path=os.path.dirname(html_path))
+                    short_dict=False, plot=True, save_path=os.path.dirname(html_path))
 
             #getting full path
             file = fits_file
