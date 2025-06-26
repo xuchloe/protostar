@@ -979,6 +979,13 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     ctype2 = header_data['CTYPE2']
     crval2 = header_data['CRVAL2']
     cunit2 = header_data['CUNIT2']
+    ctype3 = header_data['CTYPE3']
+    crval3 = header_data['CRVAL3']
+    cunit3 = header_data['CUNIT3']
+
+    freq = 'Not found'
+    if ctype3 == 'FREQ':
+        freq = str(crval3) + cunit3
 
     #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
     beam_maj_axis = Angle(bmaj, cunit1)
@@ -991,7 +998,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                     'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                     'Beam Pos Angle': round(float(beam_pos_angle.to(u.deg)/u.deg), 3) * u.deg,\
-                    'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,}
+                    'Freq': freq, 'Flux Uncert': round(summ['rms'] * 1000, 3) * u.mJy,}
 
     n_ext_sources = 0
     if type(summ['ext_peak_val']) == list:
