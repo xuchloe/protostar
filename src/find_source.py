@@ -124,8 +124,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     info = file[i]
     data = info.data
 
-    #median absolute deviation
     mad = float(median_abs_deviation(data[0].flatten()))
+    sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad) #estimate standard deviation from MAD
 
     #getting dimensions for array
     x_dim = info.header['NAXIS1']
@@ -264,7 +264,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': beam_size,\
              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area, 'excl_area': excl_area,\
-             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad}
+             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad, 'sd_mad': sd_mad}
 
     return stats
 
@@ -307,6 +307,8 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     int_peak1 = int_stats1['peak']
     n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
     field_center = int_stats1['field_center'] #in pixels
+    mad = int_stats1['mad'] #should be the same for all peaks
+    sd_mad = int_stats1['sd_mad'] #should be the same for all peaks
 
     #find external peaks and get their info
     center = [field_center]
@@ -318,7 +320,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
     ext_prob1 = calc_prob_from_rms_uncert(peak=ext_peak1, rms=rms, n_excl=n_excl)
 
-    prob_dict = {'field_center': field_center, 'rms_val': None, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
+    prob_dict = {'field_center': field_center, 'rms_val': None, 'mad': mad, 'sd_mad': sd_mad, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
                  'fwhm': beam_fwhm, 'incl_radius': search_radius,\
                  'int_peak_val': [], 'int_peak_coord': [], 'int_prob': [], 'int_snr': [],\
                  'ext_peak_val': [], 'ext_peak_coord': [], 'ext_prob': [], 'ext_snr': [], 'next_ext_peak': None}
@@ -750,6 +752,8 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = N
         short_info['int_peak_coord'] = int_peaks
         short_info['ext_peak_coord'] = ext_peaks
         short_info['field_center'] = (0,0)
+
+        del short_info['next_ext_peak']
 
         return short_info
 
