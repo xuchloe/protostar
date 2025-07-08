@@ -10,7 +10,7 @@ Field Name,Obs Date Time,File Name,Beam Maj Axis,Beam Min Axis,Beam Pos Angle,Fr
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,1288.72 mJy,0.088 arcsec,0.064 arcsec,194d02m47.37s,-5d47m21.72s,True
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,730.599 mJy,0.155 arcsec,0.112 arcsec,194d02m47.49s,-5d47m17.96s,True
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,384.93 mJy,0.293 arcsec,0.213 arcsec,194d02m51.09s,-5d47m25.19s,True
-3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,692.662 mJy,0.163 arcsec,0.118 arcsec,194d02m51.28s,-5d47m21.65s,True
+3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,692.674 mJy,0.163 arcsec,0.118 arcsec,194d02m51.28s,-5d47m21.65s,True
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,647.105 mJy,0.174 arcsec,0.127 arcsec,194d02m48.97s,-5d47m19.96s,True
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,563.438 mJy,0.2 arcsec,0.145 arcsec,194d02m45.59s,-5d47m23.3s,True
 3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,308.249 mJy,0.366 arcsec,0.266 arcsec,194d02m49.12s,-5d47m16.29s,True
@@ -29,3 +29,5 @@ mwc349a,6-11-25 3:17:25,mwc349a_full.fits,1.81 arcsec,0.885 arcsec,73.474 deg,22
 1159+292_lr,6-11-25 3:17:25,1159+292_lr_full.fits,2.216 arcsec,0.782 arcsec,102.329 deg,225.538GHz,24.461 mJy,1258.038 mJy,0.045 arcsec,0.024 arcsec,179d52m57.21s,29d14m43.6s,True
 1159+292_lr,6-11-25 3:17:25,1159+292_lr_full.fits,2.216 arcsec,0.782 arcsec,102.329 deg,225.538GHz,24.461 mJy,538.406 mJy,0.106 arcsec,0.056 arcsec,179d52m58.87s,29d14m40.66s,True
 1751+096_lr,6-11-25 3:17:26,1751+096_lr_full.fits,1.418 arcsec,0.8 arcsec,87.187 deg,225.538GHz,9.543 mJy,73.211 mJy,0.191 arcsec,0.114 arcsec,267d53m11.35s,9d38m54.27s,False
+3c279_lr,6-11-25 3:17:23,3c279_lr_full.fits,1.439 arcsec,0.864 arcsec,77.469 deg,225.538GHz,70.91 mJy,692.662 mJy,0.163 arcsec,0.118 arcsec,194d02m51.28s,-5d47m21.65s,True
+1159+292,6-11-25 3:17:24,1159+292_full.fits,1.472 arcsec,0.799 arcsec,90.154 deg,225.538GHz,5.242 mJy,35.509 mJy,0.219 arcsec,0.119 arcsec,179d53m6.02s,29d14m37.53s,False
