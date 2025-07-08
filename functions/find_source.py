@@ -1391,7 +1391,7 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     with open(json_file, 'r') as file:
         obs_dict = json.load(file)
 
-    sci_targs = [targ.lower() for targ in obs_dict[ 'sciTargs']]
+    sci_targs = [targ.lower() for targ in obs_dict['sciTargs']]
     pol_cals = [cal.lower() for cal in obs_dict['polCals']]
     with open(os.path.join(folder, 'interesting_fields.txt'), 'w') as txt:
         for file in glob.glob(os.path.join(folder, '*.fits')):
@@ -1412,3 +1412,98 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
     end_html(html_path)
 
     plt.close('all')
+
+
+def low_level_csv(folder, csv_path = './low_level.csv'):
+
+    for file in glob.glob(os.path.join(folder, '*.fits')):
+        try:
+            catalog = make_catalog(file)
+
+            try:
+                pd.read_csv(csv_path)
+                mode = 'a'
+                header = False
+            except pd.errors.EmptyDataError: #if the file has no header and no data
+                mode = 'w'
+                header = True
+            except FileNotFoundError: #file not found
+                mode = 'w'
+                header = True
+
+            df = pd.DataFrame.from_dict(catalog)
+            df = df.T
+            df.to_csv(csv_path, mode=mode, header=header, index=False)
+
+            new_df = pd.read_csv(csv_path)
+            new_df.dropna(inplace=True)
+            new_df.drop_duplicates(inplace=True)
+            new_df.to_csv(csv_path, index=False)
+
+        except Exception as e:
+            print(f'Error for {file}: {e}')
+
+
+def same_source(df, index1, index2):
+
+    coord1 = SkyCoord(df['Coord RA'].iloc[index1], df['Coord Dec'].iloc[index1])
+    coord2 = SkyCoord(df['Coord RA'].iloc[index2], df['Coord Dec'].iloc[index2])
+    sep = coord1.separation(coord2)
+    fwhm1 = float(df['Beam Maj Axis'].iloc[index1].replace(' arcsec', ''))
+    fwhm2 = float(df['Beam Maj Axis'].iloc[index2].replace(' arcsec', ''))
+    max_sep = (fwhm1 * fwhm2)**(1/2) * u.arcsec
+    if sep <= max_sep:
+        return True
+    else:
+        return False
+
+
+def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high_level.csv'):
+
+    low_df = pd.read_csv(low_level_path)
+    fields = low_df['Field Name']
+    n_rows = len(fields)
+    unique_fields = {}
+
+    for i in range(n_rows):
+        name = (fields[i]).lower() #lower to prevent issues with case sensitivity
+        if name not in unique_fields:
+            unique_fields[name] = [i]
+        else:
+            unique_fields[name].append(i)
+
+    try:
+        high_df = pd.read_csv(high_level_path)
+        source_catalog = (high_df.T).to_dict(orient='list')
+        for key in source_catalog.keys():
+            if type(key) != str:
+                del source_catalog[key]
+    except Exception:
+        source_catalog = {}
+
+    for key, value in unique_fields.items():
+        for i in value:
+            source_count = 1
+            source_name = f'{key}_{source_count}'
+            added = False
+            while (source_name in source_catalog) and (not added):
+                for j in source_catalog[source_name]:
+                    if i == j:
+                        added = True
+                        break
+                    elif same_source(df=low_df, index1=i, index2=j):
+                        source_catalog[source_name].append(i)
+                        added = True
+                        break
+                source_count += 1
+                source_name = f'{key}_{source_count}'
+            if not added:
+                source_catalog[source_name] = [i]
+
+    max_length = max(len(row_list) for row_list in source_catalog.values())
+    for row_list in source_catalog.values():
+        row_list += [None] * (max_length - len(row_list))
+
+    new_high_df = pd.DataFrame.from_dict(source_catalog)
+    new_high_df = new_high_df.T
+    new_high_df.to_csv(high_level_path, mode='w', header=False, index=True, index_label=False)
