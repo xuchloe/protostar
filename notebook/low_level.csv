@@ -1,0 +1,10 @@
+Beam Maj Axis,Beam Min Axis,Beam Pos Angle,Coord Dec,Coord RA,Dec Uncert,Field Name,File Name,Flux Density,Flux Uncert,Freq,Internal,Obs Date Time,Obs ID,RA Uncert,Source ID
+5.829 arcsec,2.647 arcsec,85.196 deg,42d16m39.36s,330d40m48.54s,0.0 arcsec,bllac,bllac_img_RX0.fits,11499.782 mJy,51.084 mJy,235.014737364201GHz,True,6-27-25 12:20:45,Unknown,0.0 arcsec,id0001
+3.486 arcsec,3.091 arcsec,-5.227 deg,39d48m36.99s,250d44m42.15s,0.0 arcsec,1642+398,1642+398_img_RX0.fits,3410.953 mJy,4.325 mJy,Not found,True,7-9-25 14:46:56,Unknown,0.0 arcsec,id0002
+3.48 arcsec,3.156 arcsec,-4.944 deg,39d48m36.99s,250d44m42.15s,0.0 arcsec,1642+398,1642+398_img_RX3.fits,3407.967 mJy,4.924 mJy,Not found,True,7-9-25 14:47:0,Unknown,0.0 arcsec,id0002
+3.478 arcsec,3.043 arcsec,-19.697 deg,34d43m28.4s,254d30m21.29s,0.0 arcsec,1658+347,1658+347_img_RX0.fits,57.202 mJy,3.691 mJy,Not found,True,7-9-25 14:47:12,Unknown,0.0 arcsec,id0003
+3.479 arcsec,3.122 arcsec,-0.136 deg,34d43m28.4s,254d30m21.29s,0.0 arcsec,1658+347,1658+347_img_RX3.fits,48.651 mJy,4.66 mJy,Not found,True,7-9-25 14:47:14,Unknown,0.0 arcsec,id0003
+3.861 arcsec,3.031 arcsec,9.811 deg,-5d47m22.16s,194d02m46.85s,0.0 arcsec,3c279,3c279_img_RX0.fits,5398.918 mJy,4.613 mJy,Not found,True,7-9-25 14:47:24,Unknown,0.0 arcsec,id0004
+4.031 arcsec,2.995 arcsec,13.06 deg,-5d47m22.16s,194d02m46.85s,0.0 arcsec,3c279,3c279_img_RX3.fits,5395.948 mJy,7.701 mJy,Not found,True,7-9-25 14:47:26,Unknown,0.0 arcsec,id0004
+3.44 arcsec,2.572 arcsec,-18.495 deg,16d08m53.56s,343d29m26.22s,0.0 arcsec,3c454.3,3c454.3_img_RX0.fits,5577.13 mJy,4.722 mJy,Not found,True,7-9-25 14:47:44,Unknown,0.0 arcsec,id0005
+3.48 arcsec,2.579 arcsec,-11.489 deg,16d08m53.56s,343d29m26.22s,0.0 arcsec,3c454.3,3c454.3_img_RX3.fits,5575.726 mJy,6.385 mJy,Not found,True,7-9-25 14:47:46,Unknown,0.0 arcsec,id0005
