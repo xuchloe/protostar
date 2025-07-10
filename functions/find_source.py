@@ -465,7 +465,7 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    int_peak_val = prob_dict['int_peak_val'][0]
+    int_peak_val = prob_dict['int_peak_val']
     ext_peak_val = prob_dict['next_ext_peak']
     n_incl_meas = prob_dict['n_incl_meas']
     n_excl_meas = prob_dict['n_excl_meas']
@@ -474,10 +474,15 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
     rms_val = ext_peak_val / excl_sigma
 
     prob_dict['calc_rms_val'] = float(rms_val)
-    prob_dict['calc_int_prob'] = float(norm.cdf((-1 * int_peak_val)/(rms_val))) * n_incl_meas
     prob_dict['calc_ext_prob'] = float(norm.cdf((-1 * ext_peak_val)/(rms_val))) * n_excl_meas
-    prob_dict['calc_int_snr'] = float(int_peak_val / rms_val)
     prob_dict['calc_ext_snr'] = float(excl_sigma)
+    for i in range(len(int_peak_val)):
+        if i == 0:
+            prob_dict['calc_int_prob'] = float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas
+            prob_dict['calc_int_snr'] = float(int_peak_val[i] / rms_val)
+        else:
+            prob_dict['calc_int_prob'].append(float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas)
+            prob_dict['calc_int_snr'].append(float(int_peak_val[i] / rms_val))
 
     return prob_dict
 
@@ -796,63 +801,7 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
     summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
-    return (summ['int_prob'][0] < threshold and summ['calc_int_prob'] < threshold)
-
-
-def catalog_helper(source_type: str, n_sources: int, fits_file: str, field_info: dict, summ: dict, pt_source_count: int,\
-                   b_maj: float, b_min: float, bpa: float, ra_index: int, dec_index: int, center: tuple, interesting_sources: dict,\
-                   threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
-
-    sig = True
-    for i in range(n_sources):
-        if source_type == 'int':
-            sig = significant(fits_file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
-        if sig:
-            info = field_info.copy()
-            info['Flux Density'] = round(summ[f'{source_type}_peak_val'][i] * 1000, 3) * u.mJy
-
-            snr = summ[f'{source_type}_snr'][i]
-            b_min_uncert = float(b_maj.to(u.arcsec)/u.arcsec / snr)
-            b_maj_uncert = float(b_min.to(u.arcsec)/u.arcsec / snr)
-            info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
-            info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
-
-            ra_offset = summ[f'{source_type}_peak_coord'][i][ra_index] * u.arcsec
-            dec_offset = summ[f'{source_type}_peak_coord'][i][dec_index] * u.arcsec
-            coord = center.spherical_offsets_by(ra_offset, dec_offset)
-
-            ra_str = str(coord.ra)
-            dec_str = str(coord.dec)
-
-            try:
-                m_index = ra_str.index('m')
-                s_index = ra_str.index('s')
-                ra_seconds = ra_str[m_index + 1: s_index]
-                ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
-            except:
-                pass
-
-            try:
-                m_index = dec_str.index('m')
-                s_index = dec_str.index('s')
-                dec_seconds = dec_str[m_index + 1: s_index]
-                dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
-            except:
-                pass
-
-            info['Coord RA'] = ra_str
-            info['Coord Dec'] = dec_str
-
-            if source_type == 'int':
-                info['Internal'] = True
-            elif source_type == 'ext':
-                info['Internal'] = False
-            else:
-                info['Internal'] = 'Error'
-
-            key = f'Source {pt_source_count}'
-            interesting_sources[key] = info
-            pt_source_count +=1
+    return (summ['int_prob'][0] < threshold and summ['calc_int_prob'][0] < threshold)
 
 
 def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
@@ -969,15 +918,88 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     pt_source_count = 1
 
-    catalog_helper(source_type='int', n_sources=n_int_sources, fits_file=fits_file, field_info=field_info, summ=summ,\
-                   pt_source_count=pt_source_count, b_maj=beam_maj_axis, b_min=beam_min_axis, bpa=bpa_rad, ra_index=ra_index,\
-                   dec_index=dec_index, center=center, interesting_sources=interesting_sources,\
-                   threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+    for i in range(n_int_sources):
+        if (summ['int_prob'][i] < threshold and summ['calc_int_prob'][i] < threshold):
+            info = field_info.copy()
+            info['Flux Density'] = round(summ[f'int_peak_val'][i] * 1000, 3) * u.mJy
 
-    catalog_helper(source_type='ext', n_sources=n_ext_sources, fits_file=fits_file, field_info=field_info, summ=summ,\
-                   pt_source_count=pt_source_count, b_maj=beam_maj_axis, b_min=beam_min_axis, bpa=bpa_rad, ra_index=ra_index,\
-                   dec_index=dec_index, center=center, interesting_sources=interesting_sources,\
-                   threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+            snr = summ[f'int_snr'][i]
+            b_min_uncert = float(bmaj.to(u.arcsec)/u.arcsec / snr)
+            b_maj_uncert = float(bmin.to(u.arcsec)/u.arcsec / snr)
+            info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+            info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+
+            ra_offset = summ[f'int_peak_coord'][i][ra_index] * u.arcsec
+            dec_offset = summ[f'int_peak_coord'][i][dec_index] * u.arcsec
+            coord = center.spherical_offsets_by(ra_offset, dec_offset)
+
+            ra_str = str(coord.ra)
+            dec_str = str(coord.dec)
+
+            try:
+                m_index = ra_str.index('m')
+                s_index = ra_str.index('s')
+                ra_seconds = ra_str[m_index + 1: s_index]
+                ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
+            except:
+                pass
+
+            try:
+                m_index = dec_str.index('m')
+                s_index = dec_str.index('s')
+                dec_seconds = dec_str[m_index + 1: s_index]
+                dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
+            except:
+                pass
+
+            info['Coord RA'] = ra_str
+            info['Coord Dec'] = dec_str
+            info['Internal'] = True
+
+            key = f'Source {pt_source_count}'
+            interesting_sources[key] = info
+            pt_source_count +=1
+
+    for i in range(n_ext_sources):
+        info = field_info.copy()
+        info['Flux Density'] = round(summ[f'ext_peak_val'][i] * 1000, 3) * u.mJy
+
+        snr = summ[f'ext_snr'][i]
+        b_min_uncert = float(bmaj.to(u.arcsec)/u.arcsec / snr)
+        b_maj_uncert = float(bmin.to(u.arcsec)/u.arcsec / snr)
+        info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+        info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+
+        ra_offset = summ[f'ext_peak_coord'][i][ra_index] * u.arcsec
+        dec_offset = summ[f'ext_peak_coord'][i][dec_index] * u.arcsec
+        coord = center.spherical_offsets_by(ra_offset, dec_offset)
+
+        ra_str = str(coord.ra)
+        dec_str = str(coord.dec)
+
+        try:
+            m_index = ra_str.index('m')
+            s_index = ra_str.index('s')
+            ra_seconds = ra_str[m_index + 1: s_index]
+            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
+        except:
+            pass
+
+        try:
+            m_index = dec_str.index('m')
+            s_index = dec_str.index('s')
+            dec_seconds = dec_str[m_index + 1: s_index]
+            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
+        except:
+            pass
+
+        info['Coord RA'] = ra_str
+        info['Coord Dec'] = dec_str
+        info['Internal'] = False
+
+        key = f'Source {pt_source_count}'
+        interesting_sources[key] = info
+        pt_source_count +=1
 
     if interesting_sources == {}:
         return
