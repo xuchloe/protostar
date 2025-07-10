@@ -478,8 +478,8 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
     prob_dict['calc_ext_snr'] = float(excl_sigma)
     for i in range(len(int_peak_val)):
         if i == 0:
-            prob_dict['calc_int_prob'] = float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas
-            prob_dict['calc_int_snr'] = float(int_peak_val[i] / rms_val)
+            prob_dict['calc_int_prob'] = [float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas]
+            prob_dict['calc_int_snr'] = [float(int_peak_val[i] / rms_val)]
         else:
             prob_dict['calc_int_prob'].append(float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas)
             prob_dict['calc_int_snr'].append(float(int_peak_val[i] / rms_val))
@@ -924,8 +924,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
             info['Flux Density'] = round(summ[f'int_peak_val'][i] * 1000, 3) * u.mJy
 
             snr = summ[f'int_snr'][i]
-            b_min_uncert = float(bmaj.to(u.arcsec)/u.arcsec / snr)
-            b_maj_uncert = float(bmin.to(u.arcsec)/u.arcsec / snr)
+            b_min_uncert = float(bmaj / snr)
+            b_maj_uncert = float(bmin / snr)
             info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
             info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
 
@@ -965,8 +965,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         info['Flux Density'] = round(summ[f'ext_peak_val'][i] * 1000, 3) * u.mJy
 
         snr = summ[f'ext_snr'][i]
-        b_min_uncert = float(bmaj.to(u.arcsec)/u.arcsec / snr)
-        b_maj_uncert = float(bmin.to(u.arcsec)/u.arcsec / snr)
+        b_min_uncert = float(bmaj / snr)
+        b_maj_uncert = float(bmin / snr)
         info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
         info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
 
@@ -1438,94 +1438,103 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
 
 def low_level_csv(folder, csv_path = './low_level.csv'):
 
+    master_catalog = None
+    old_df = None
+    str_obs_id = 'Unknown'
+
+    try:
+        old_df = pd.read_csv(csv_path)
+    except:
+        pass
+
+    try:
+        json_file = os.path.join(folder, 'polaris.json')
+        with open(json_file, 'r') as file:
+            obs_dict = json.load(file)
+
+            #cleaning up obs_dict
+            for key, value in obs_dict.items():
+                if type(value) == list:
+                    string = ', '.join(value)
+                    obs_dict[key] = [string]
+            obs_id = obs_dict.pop('obsID')
+            str_obs_id = f'id{obs_id}'
+        if old_df is not None:
+            old_df = old_df[(old_df['Obs ID']) != str_obs_id] #removing old or outdated entries
+    except Exception as e:
+        print(f'Error with obsID: {e}. WARNING: Old/outdated data may not be deleted.')
+
+    if old_df is not None:
+        master_catalog = (old_df.T).to_dict()
+
     for file in glob.glob(os.path.join(folder, '*.fits')):
         try:
             catalog = make_catalog(file)
-
-            try:
-                pd.read_csv(csv_path)
-                mode = 'a'
-                header = False
-            except pd.errors.EmptyDataError: #if the file has no header and no data
-                mode = 'w'
-                header = True
-            except FileNotFoundError: #file not found
-                mode = 'w'
-                header = True
-
-            df = pd.DataFrame.from_dict(catalog)
-            df = df.T
-            df.to_csv(csv_path, mode=mode, header=header, index=False)
-
-            new_df = pd.read_csv(csv_path)
-            new_df.dropna(inplace=True)
-            new_df.drop_duplicates(inplace=True)
-            new_df.to_csv(csv_path, index=False)
-
+            if catalog is not None:
+                for value in catalog.values():
+                    value['Obs ID'] = str_obs_id
+                    value['Source ID'] = 'Unknown'
+                if master_catalog is None:
+                    master_catalog = catalog
+                elif catalog is not None:
+                    master_catalog = combine_catalogs(master_catalog, catalog)
         except Exception as e:
             print(f'Error for {file}: {e}')
 
-
-def same_source(df, index1, index2):
-
-    coord1 = SkyCoord(df['Coord RA'].iloc[index1], df['Coord Dec'].iloc[index1])
-    coord2 = SkyCoord(df['Coord RA'].iloc[index2], df['Coord Dec'].iloc[index2])
-    sep = coord1.separation(coord2)
-    fwhm1 = float(df['Beam Maj Axis'].iloc[index1].replace(' arcsec', ''))
-    fwhm2 = float(df['Beam Maj Axis'].iloc[index2].replace(' arcsec', ''))
-    max_sep = (fwhm1 * fwhm2)**(1/2) * u.arcsec
-    if sep <= max_sep:
-        return True
-    else:
-        return False
+    df = pd.DataFrame.from_dict(master_catalog)
+    df = df.T
+    df.to_csv(csv_path, mode='w', header=True, index=False)
 
 
 def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high_level.csv'):
 
     low_df = pd.read_csv(low_level_path)
-    fields = low_df['Field Name']
-    n_rows = len(fields)
-    unique_fields = {}
-
-    for i in range(n_rows):
-        name = (fields[i]).lower() #lower to prevent issues with case sensitivity
-        if name not in unique_fields:
-            unique_fields[name] = [i]
-        else:
-            unique_fields[name].append(i)
+    unique_sources = None
 
     try:
-        high_df = pd.read_csv(high_level_path)
-        source_catalog = (high_df.T).to_dict(orient='list')
-        for key in source_catalog.keys():
-            if type(key) != str:
-                del source_catalog[key]
-    except Exception:
-        source_catalog = {}
+        unique_sources = pd.read_csv(high_level_path).to_dict(orient='list')
 
-    for key, value in unique_fields.items():
-        for i in value:
-            source_count = 1
-            source_name = f'{key}_{source_count}'
-            added = False
-            while (source_name in source_catalog) and (not added):
-                for j in source_catalog[source_name]:
-                    if i == j:
-                        added = True
+    except:
+        pass
+
+    for row in range(len(low_df)):
+        if unique_sources is not None:
+            ra = low_df['Coord RA'].iloc[row]
+            dec = low_df['Coord Dec'].iloc[row]
+            coord1 = SkyCoord(ra, dec)
+            fwhm = low_df['Beam Maj Axis'].iloc[row]
+            fwhm1_val = float(fwhm.replace(' arcsec', ''))
+            source_ids = unique_sources['Source ID']
+            matched  = False
+            while not matched:
+                for i in range(len(source_ids)):
+                    coord2 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
+                    sep = coord1.separation(coord2)
+                    fwhm2_val = float(unique_sources['FWHM'][i].replace(' arcsec', ''))
+                    max_sep = (fwhm1_val * fwhm2_val)**(1/2) * u.arcsec
+                    matched = (sep <= max_sep)
+                    if matched:
+                        low_df.loc[row, 'Source ID'] = source_ids[i]
                         break
-                    elif same_source(df=low_df, index1=i, index2=j):
-                        source_catalog[source_name].append(i)
-                        added = True
-                        break
-                source_count += 1
-                source_name = f'{key}_{source_count}'
-            if not added:
-                source_catalog[source_name] = [i]
+                break
+            if not matched:
+                last_id = source_ids[-1]
+                next_number = str(int(last_id.replace('id', '')) + 1)
+                next_number = '0' * (4 - len(next_number)) + next_number
+                next_id = f'id{next_number}'
+                source_ids.append(next_id)
+                unique_sources['RA'].append(ra)
+                unique_sources['Dec'].append(dec)
+                unique_sources['FWHM'].append(fwhm)
+                low_df.loc[row, 'Source ID'] = next_id
 
-    max_length = max(len(row_list) for row_list in source_catalog.values())
-    for row_list in source_catalog.values():
-        row_list += [None] * (max_length - len(row_list))
+        else:
+            ra = low_df['Coord RA'].iloc[row]
+            dec = low_df['Coord Dec'].iloc[row]
+            fwhm = low_df['Beam Maj Axis'].iloc[row]
+            unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm]}
+            low_df.loc[row, 'Source ID'] = 'id0001'
 
-    new_high_df = pd.DataFrame.from_dict(source_catalog)
-    new_high_df = new_high_df.T
-    new_high_df.to_csv(high_level_path, mode='w', header=False, index=True, index_label=False)
+    df = pd.DataFrame.from_dict(unique_sources)
+    df.to_csv(high_level_path, mode='w', header=True, index=False)
+    low_df.to_csv(low_level_path, mode='w', header=True, index=False)
