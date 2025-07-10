@@ -184,7 +184,6 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     #get peak
     try:
         peak = float(max(masked_data))
-        print(f'before gauss: {peak}')
     except ValueError:
         print('No values after mask applied. Check inclusion and exclusion radii.')
 
@@ -234,8 +233,6 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
             popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
             amp, sigma, theta, mu_x, mu_y = popt
             peak = float(amp)
-            print(f'after gauss: {peak}')
-            print(f'mu_x: {mu_x}, mu_y: {mu_y}')
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
             pass
@@ -330,7 +327,6 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
 
     #update ext_threshold if needed
     int_snr1 = int_peak1 / rms
-    print(f'snr: {int_snr1} = {int_peak1} / {rms}')
     if ext_threshold == None:
         if int_snr1 < 20:
             ext_threshold = 1e-3
@@ -373,7 +369,6 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     prob_dict['int_prob'].append(int_prob1)
     prob_dict['int_snr'].append(int_peak1 / rms)
 
-    print(int_peak1, rms)
     int_significant = (int_prob1 < 0.01)
 
     #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
@@ -1601,6 +1596,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                             new_sources['Ambiguous Ties'][i] = 'None found'
                         if new_sources['Ambiguous Ties'][j] == 'Unknown':
                             new_sources['Ambiguous Ties'][j] = 'None found'
+                            
     to_skip.sort(reverse=True)
     for k in to_skip:
         del new_sources['Source ID'][k]
