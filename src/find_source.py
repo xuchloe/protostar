@@ -184,6 +184,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     #get peak
     try:
         peak = float(max(masked_data))
+        print(f'before gauss: {peak}')
     except ValueError:
         print('No values after mask applied. Check inclusion and exclusion radii.')
 
@@ -230,9 +231,11 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         y_data = [2, 1, 0, -1, -2]*5
 
         try:
-            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([0,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
             amp, sigma, theta, mu_x, mu_y = popt
             peak = float(amp)
+            print(f'after gauss: {peak}')
+            print(f'mu_x: {mu_x}, mu_y: {mu_y}')
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
             pass
@@ -253,7 +256,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         y_data = [1, 0, -1] * 3
 
         try:
-            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([0,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
             amp, sigma, theta, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
@@ -302,7 +305,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
 
     #search for brightest internal peak
-    int_stats1 = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=True, internal=True)
+    int_stats1 = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=False, internal=True)
     int_coord1 = int_stats1['peak_coord']
     int_peak1 = int_stats1['peak']
     n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
@@ -327,6 +330,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
 
     #update ext_threshold if needed
     int_snr1 = int_peak1 / rms
+    print(f'snr: {int_snr1} = {int_peak1} / {rms}')
     if ext_threshold == None:
         if int_snr1 < 20:
             ext_threshold = 1e-3
@@ -348,6 +352,8 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
         if ext_prob < ext_threshold:
             ext_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=False)
             coord = ext_stats['peak_coord']
+            peak = ext_stats['peak']
+            ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
             prob_dict['ext_peak_val'].append(peak)
             prob_dict['ext_peak_coord'].append(coord)
             prob_dict['ext_prob'].append(ext_prob)
@@ -367,19 +373,25 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     prob_dict['int_prob'].append(int_prob1)
     prob_dict['int_snr'].append(int_peak1 / rms)
 
-    int_significant = True
+    print(int_peak1, rms)
+    int_significant = (int_prob1 < 0.01)
+
     #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
     center = [int_coord1]
     radius = [beam_fwhm]
 
     #find internal peaks in addition to 1st internal peak
     while int_significant:
-        int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
+        int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=True,\
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
         int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
         if int_prob < 0.01 and (int_peak > int_snr1 / 100):
+            int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
+                                     outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
+            int_peak = int_stats['peak']
+            int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
             prob_dict['int_peak_val'].append(int_peak)
             prob_dict['int_peak_coord'].append(int_coord)
             prob_dict['int_prob'].append(int_prob)
