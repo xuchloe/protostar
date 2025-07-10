@@ -172,7 +172,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         mask = np.logical_not(mask)
 
     if outer_radius is not None:
-        dist_from_field_center =((((x_dist_array - field_center[0])*x_cell_size)**2 + ((y_dist_array - field_center[1])*y_cell_size)**2)**0.5)
+        dist_from_field_center = ((((x_dist_array - field_center[0])*x_cell_size)**2 + ((y_dist_array - field_center[1])*y_cell_size)**2)**0.5)
         outer_mask = (dist_from_field_center <= outer_radius * u.arcsec)
         mask = np.logical_and(mask, outer_mask)
 
@@ -315,7 +315,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     radius = [search_radius]
 
     ext_stats1 = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=False)
-    n_excl = ext_stats1['n_excl_meas'] #should be the same for all external peaks
+    n_excl = ext_stats1['n_incl_meas'] #should be the same for all external peaks
     ext_peak1 = ext_stats1['peak']
     rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
     ext_prob1 = calc_prob_from_rms_uncert(peak=ext_peak1, rms=rms, n_excl=n_excl)
@@ -1493,10 +1493,10 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
 
     try:
         unique_sources = pd.read_csv(high_level_path).to_dict(orient='list')
-
     except:
         pass
 
+    #coarse matching
     for row in range(len(low_df)):
         if unique_sources is not None:
             ra = low_df['Coord RA'].iloc[row]
@@ -1527,14 +1527,75 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                 unique_sources['Dec'].append(dec)
                 unique_sources['FWHM'].append(fwhm)
                 low_df.loc[row, 'Source ID'] = next_id
+                unique_sources['Ambiguous Ties'].append('Unknown')
 
         else:
             ra = low_df['Coord RA'].iloc[row]
             dec = low_df['Coord Dec'].iloc[row]
             fwhm = low_df['Beam Maj Axis'].iloc[row]
-            unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm]}
+            unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm], 'Ambiguous Ties': ['Unknown']}
             low_df.loc[row, 'Source ID'] = 'id0001'
 
-    df = pd.DataFrame.from_dict(unique_sources)
+    #further refining matches
+    #getting average values
+    for i in range(len(unique_sources['Source ID'])):
+        temp_df = low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]]
+        ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
+        dec_list = [Angle(dec, u.deg) for dec in temp_df['Coord Dec']]
+        fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis']]
+        avg_ra = sum(ra_list) / len(ra_list)
+        avg_dec = sum(dec_list) / len(dec_list)
+        geo_avg_fwhm = math.prod(fwhm_list) ** (1/len(fwhm_list))
+        unique_sources['RA'][i] = avg_ra
+        unique_sources['Dec'][i] = avg_dec
+        unique_sources['FWHM'][i] = geo_avg_fwhm
+    #comparing averaged unique sources
+    new_sources = unique_sources.copy()
+    to_skip = []
+    for i in range(len(unique_sources['Source ID'])):
+        if len(unique_sources['Source ID']) > 1 and i not in to_skip:
+            coord1 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
+            for j in range(i + 1, len(unique_sources['Source ID'])):
+                if j not in to_skip:
+                    coord2 = SkyCoord(unique_sources['RA'][j], unique_sources['Dec'][j])
+                    sep = coord1.separation(coord2)
+                    if sep <= Angle(1, u.arcsec): #1 arcsec or less apart, same source
+                        #match found, update averages
+                        to_skip.append(j)
+                        num_i = len(low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]])
+                        num_j = len(low_df[(low_df['Source ID']) == unique_sources['Source ID'][j]])
+                        new_sources['RA'][i] = (unique_sources['RA'][i] * num_i + unique_sources['Ra'][j] * num_j) / (num_i + num_j)
+                        new_sources['Dec'][i] = (unique_sources['Dec'][i] * num_i + unique_sources['Dec'][j] * num_j) / (num_i + num_j)
+                        new_sources['FWHM'][i] = ((unique_sources['FWHM'][i]**num_i) * (unique_sources['FWHM'][j]**num_j))**(1/(num_i + num_j))
+                        if new_sources['Ambiguous Ties'][i] == 'Unknown':
+                            new_sources['Ambiguous Ties'][i] = 'None found'
+                        if new_sources['Ambiguous Ties'][j] == 'Unknown':
+                            new_sources['Ambiguous Ties'][j] = 'None found'
+                        #update low_df
+                        indices = low_df.index[low_df['Source ID'] == unique_sources['Source ID'][j]]
+                        low_df.loc[indices, 'Source ID'] = unique_sources['Source ID'][i]
+                        to_skip.append(j)
+                    elif sep > Angle(1, u.arcsec) and sep < Angle(5, u.arcsec): #more than 1 but less than 5 arcsec apart, ambiguous
+                        if new_sources['Ambiguous Ties'][i] == 'Unknown' or new_sources['Ambiguous Ties'][i] == 'None found':
+                            new_sources['Ambiguous Ties'][i] = unique_sources['Source ID'][j]
+                        elif unique_sources['Source ID'][j] not in new_sources['Ambiguous Ties'][i]:
+                            new_sources['Ambiguous Ties'][i] += '_{}'.format(unique_sources['Source ID'][j])
+                        if new_sources['Ambiguous Ties'][j] == 'Unknown' or new_sources['Ambiguous Ties'][j] == 'None found':
+                            new_sources['Ambiguous Ties'][j] = unique_sources['Source ID'][i]
+                        elif unique_sources['Source ID'][i] not in new_sources['Ambiguous Ties'][j]:
+                            new_sources['Ambiguous Ties'][j] += '_{}'.format(unique_sources['Source ID'][i])
+                    else: #5 or more arcsec apart, not the same source
+                        if new_sources['Ambiguous Ties'][i] == 'Unknown':
+                            new_sources['Ambiguous Ties'][i] = 'None found'
+                        if new_sources['Ambiguous Ties'][j] == 'Unknown':
+                            new_sources['Ambiguous Ties'][j] = 'None found'
+    to_skip.sort(reverse=True)
+    for k in to_skip:
+        del new_sources['Source ID'][k]
+        del new_sources['RA'][k]
+        del new_sources['Dec'][k]
+        del new_sources['FWHM'][k]
+        del new_sources['Ambiguous Ties'][k]
+    df = pd.DataFrame.from_dict(new_sources)
     df.to_csv(high_level_path, mode='w', header=True, index=False)
     low_df.to_csv(low_level_path, mode='w', header=True, index=False)
