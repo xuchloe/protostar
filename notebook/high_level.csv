@@ -1,14 +1,67 @@
 Source ID,RA,Dec,FWHM,Ambiguous Ties
-id0001,171d46m05.88s,-18d57m17.44s,3.933437513235876 arcsec,None found
-id0002,172d31m45.8s,-14d49m27.39s,3.685437560774752 arcsec,None found
-id0003,197d37m09.32s,32d20m43.24s,2.68 arcsec,None found
-id0004,194d02m46.915s,-5d47m22.095s,4.10839146888456 arcsec,None found
-id0005,70d25m17.7s,21d39m44.92s,5.393497195697797 arcsec,None found
-id0006,170d31m16.28s,-24d46m40.305s,4.40804832096927 arcsec,None found
-id0007,170d31m06.83s,-24d46m50.87s,3.863 arcsec,None found
-id0008,170d31m06.47s,-24d46m25.18s,3.863 arcsec,None found
-id0009,165d27m55.75s,-34d42m17.69s,5.678554745707749 arcsec,None found
-id0010,165d28m06.18s,-34d42m23.46s,4.768 arcsec,None found
-id0011,165d27m40.82s,-34d42m11.12s,4.768 arcsec,None found
-id0012,165d27m45.98s,-34d42m32.44s,4.768 arcsec,None found
-id0013,165d27m49.8s,-34d42m02.9s,6.763 arcsec,None found
+id0001,49d57m1.62s,41d30m41.52s,4.123 arcsec,id0058_id0059
+id0002,49d57m09.33333333s,41d30m05.57333333s,5.10515461938352 arcsec,None found
+id0003,49d56m54.40333333s,41d31m17.84666667s,5.10515461938352 arcsec,None found
+id0004,68d23m11.77s,18d00m42.28s,3.462 arcsec,id0051
+id0005,55d59m13.49s,18d32m58.52s,3.661 arcsec,None found
+id0006,64d35m18.43s,38d01m35.23s,3.446 arcsec,id0020_id0021_id0028
+id0007,133d42m12.54s,20d06m30.09s,3.469 arcsec,id0024
+id0008,133d42m6.76s,20d06m11.97s,3.469 arcsec,None found
+id0009,38d32m57.06s,14d41m47.95s,4.223 arcsec,None found
+id0010,56d14m15.55s,18d09m19.69s,3.434 arcsec,None found
+id0011,330d40m48.57s,42d16m39.39s,3.285 arcsec,None found
+id0012,330d40m48.47s,42d16m59.86s,3.285 arcsec,None found
+id0013,330d40m48.69s,42d16m18.96s,3.285 arcsec,None found
+id0014,40d46m12.73s,15d21m44.2s,3.68 arcsec,None found
+id0015,38d31m58.73s,14d41m35.05s,3.308 arcsec,None found
+id0016,77d30m34.96s,18d00m41.03s,3.079 arcsec,id0025_id0026_id0027_id0036
+id0017,133d42m18.96s,20d06m48.18s,3.601 arcsec,None found
+id0018,38d33m12.39s,14d42m21.99s,3.229 arcsec,None found
+id0019,68d59m41.03s,22d39m7.88s,3.123 arcsec,None found
+id0020,64d35m32.75s,38d01m42.14s,3.299 arcsec,id0006_id0028
+id0021,64d35m11.1s,38d01m24.34s,3.57 arcsec,id0006
+id0022,40d34m2.32s,15d18m3.31s,3.643 arcsec,None found
+id0023,39d53m42.38s,15d05m49.29s,4.32 arcsec,None found
+id0024,133d42m1.05s,20d06m46.62s,3.47 arcsec,id0007
+id0025,77d30m36.98s,18d00m15.58s,4.013 arcsec,id0016
+id0026,77d30m32.67s,18d01m03.025s,3.7214060514810794 arcsec,id0016
+id0027,77d30m23.93s,18d00m27.82s,4.013 arcsec,id0016
+id0028,64d35m27.91s,38d01m48.2s,4.208 arcsec,id0006_id0020
+id0029,73d57m2.16s,30d20m14.81s,3.295 arcsec,None found
+id0030,38d31m29.16s,14d41m33.77s,3.3471755257231433 arcsec,None found
+id0031,194d02m47.49s,-5d47m21.52s,4.167 arcsec,None found
+id0032,194d02m47.12s,-5d47m0.06s,4.167 arcsec,None found
+id0033,194d02m47.86s,-5d47m42.99s,4.167 arcsec,None found
+id0034,38d47m55.82s,14d46m1.46s,3.508 arcsec,None found
+id0035,56d01m17.23s,18d51m37.11s,3.545 arcsec,None found
+id0036,77d30m40.48s,18d01m15.38s,4.413 arcsec,id0016
+id0037,39d11m21.7s,14d53m0.82s,4.867 arcsec,None found
+id0038,67d42m34.2s,23d00m7.67s,3.424 arcsec,None found
+id0039,56d21m22.42s,19d19m50.6s,3.32 arcsec,None found
+id0040,56d00m4.3s,18d29m26.26s,3.596 arcsec,None found
+id0043,42d00m38.18s,15d44m13.1s,3.9 arcsec,None found
+id0044,38d34m21.65s,14d42m9.47s,4.224 arcsec,None found
+id0045,56d05m12.88s,18d19m6.48s,3.541 arcsec,None found
+id0046,38d31m46.67s,14d41m32.79s,3.856 arcsec,None found
+id0047,71d27m50.26s,15d55m35.88s,3.564 arcsec,None found
+id0048,68d02m33.11s,17d57m13.9s,3.375 arcsec,None found
+id0049,39d09m31.96s,14d52m27.84s,4.733 arcsec,None found
+id0050,338d20m35.69s,-10d08m9.04s,5.469 arcsec,None found
+id0051,68d23m16.38s,18d00m59.49s,3.577 arcsec,id0004
+id0052,336d42m52.53s,-10d46m34.24s,5.456 arcsec,None found
+id0053,336d42m38.85s,-10d46m24.21s,5.456 arcsec,None found
+id0054,336d43m6.21s,-10d46m44.3s,5.456 arcsec,None found
+id0056,40d36m28.18s,15d18m47.47s,3.787 arcsec,None found
+id0057,65d05m32.3s,31d22m44.63s,3.302 arcsec,None found
+id0058,49d56m16.67s,41d30m35.88s,4.446 arcsec,id0001
+id0059,49d57m47.07s,41d30m47.11s,4.446 arcsec,id0001
+id0060,56d03m5.16s,18d22m27.88s,3.471 arcsec,None found
+id0061,187d16m39.94s,2d03m8.04s,3.929 arcsec,None found
+id0062,187d17m8.04s,2d02m55.09s,3.929 arcsec,None found
+id0063,187d16m11.73s,2d03m21.1s,3.929 arcsec,None found
+id0064,40d17m34.05s,15d13m3.14s,3.878 arcsec,None found
+id0065,38d32m34.38s,14d41m42.62s,3.867 arcsec,None found
+id0066,65d29m42.75s,28d18m5.41s,3.291 arcsec,None found
+id0067,82d25m19.13s,23d34m41.17s,3.515 arcsec,None found
+id0068,39d58m15.1s,15d07m12.15s,3.619 arcsec,None found
+id0069,40d15m4.3s,15d12m17.87s,3.546 arcsec,None found
