@@ -1479,20 +1479,13 @@ def low_level_csv(folder, csv_path = './low_level.csv'):
         pass
 
     try:
-        json_file = os.path.join(folder, 'polaris.json')
-        with open(json_file, 'r') as file:
-            obs_dict = json.load(file)
-
-            #cleaning up obs_dict
-            for key, value in obs_dict.items():
-                if type(value) == list:
-                    string = ', '.join(value)
-                    obs_dict[key] = [string]
-            obs_id = obs_dict.pop('obsID')
-            str_obs_id = f'id{obs_id}'
+        str_obs_id = folder.replace('/mnt/COMPASS9/sma/quality/', '')
+        obs_id = str_obs_id.replace('/', '')
+        obs_id = int(obs_id) #will throw Exception if obs_id isn't just numbers
         if old_df is not None:
-            old_df = old_df[(old_df['Obs ID']) != str_obs_id] #removing old or outdated entries
+            old_df = old_df[(old_df['Obs ID']) != obs_id] #removing old or outdated entries
     except Exception as e:
+        obs_id = 'Unknown'
         print(f'Error with obsID: {e}. WARNING: Old/outdated data may not be deleted.')
 
     if old_df is not None:
@@ -1503,7 +1496,7 @@ def low_level_csv(folder, csv_path = './low_level.csv'):
             catalog = make_catalog(file)
             if catalog is not None:
                 for value in catalog.values():
-                    value['Obs ID'] = str_obs_id
+                    value['Obs ID'] = obs_id
                     value['Source ID'] = 'Unknown'
                 if master_catalog is None:
                     master_catalog = catalog
@@ -1529,84 +1522,96 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
 
     #coarse matching
     for row in range(len(low_df)):
-        if unique_sources is not None:
-            ra = low_df['Coord RA'].iloc[row]
-            dec = low_df['Coord Dec'].iloc[row]
-            coord1 = SkyCoord(ra, dec)
-            fwhm = low_df['Beam Maj Axis'].iloc[row]
-            fwhm1_val = float(fwhm.replace(' arcsec', ''))
-            source_ids = unique_sources['Source ID']
-            matched  = False
-            while not matched:
-                for i in range(len(source_ids)):
-                    coord2 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
-                    sep = coord1.separation(coord2)
-                    fwhm2_val = float(unique_sources['FWHM'][i].replace(' arcsec', ''))
-                    max_sep = (fwhm1_val * fwhm2_val)**(1/2) * u.arcsec
-                    matched = (sep <= max_sep)
-                    if matched:
-                        low_df.loc[row, 'Source ID'] = source_ids[i]
+        if low_df['Source ID'].iloc[row] == 'Unknown': #check to make sure we didn't already do coarse matching
+            if low_df['Stationary'].iloc[row]:
+                if unique_sources is not None:
+                    ra = low_df['Coord RA'].iloc[row]
+                    dec = low_df['Coord Dec'].iloc[row]
+                    coord1 = SkyCoord(ra, dec)
+                    fwhm = low_df['Beam Maj Axis'].iloc[row]
+                    fwhm1_val = float(fwhm.replace(' arcsec', ''))
+                    source_ids = unique_sources['Source ID']
+                    matched  = False
+                    while not matched:
+                        for i in range(len(source_ids)): #compare with each unique source
+                            coord2 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
+                            sep = coord1.separation(coord2)
+                            fwhm2_val = float(unique_sources['FWHM'][i].replace(' arcsec', ''))
+                            max_sep = (fwhm1_val * fwhm2_val)**(1/2) * u.arcsec
+                            matched = (sep <= max_sep)
+                            if matched:
+                                low_df.loc[row, 'Source ID'] = source_ids[i]
+                                break
                         break
-                break
-            if not matched:
-                last_id = source_ids[-1]
-                next_number = str(int(last_id.replace('id', '')) + 1)
-                next_number = '0' * (4 - len(next_number)) + next_number
-                next_id = f'id{next_number}'
-                source_ids.append(next_id)
-                unique_sources['RA'].append(ra)
-                unique_sources['Dec'].append(dec)
-                unique_sources['FWHM'].append(fwhm)
-                low_df.loc[row, 'Source ID'] = next_id
-                unique_sources['Ambiguous Ties'].append('Unknown')
-
-        else:
-            ra = low_df['Coord RA'].iloc[row]
-            dec = low_df['Coord Dec'].iloc[row]
-            fwhm = low_df['Beam Maj Axis'].iloc[row]
-            unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm], 'Ambiguous Ties': ['Unknown']}
-            low_df.loc[row, 'Source ID'] = 'id0001'
+                    if not matched:
+                        num = 1
+                        id_nums = [int(source_id.replace('id', '')) for source_id in unique_sources['Source ID']]
+                        while num in id_nums:
+                            num += 1
+                        next_number = '0' * (4 - len(str(num))) + str(num)
+                        next_id = f'id{next_number}'
+                        source_ids.append(next_id)
+                        unique_sources['RA'].append(ra)
+                        unique_sources['Dec'].append(dec)
+                        unique_sources['FWHM'].append(fwhm)
+                        low_df.loc[row, 'Source ID'] = next_id
+                        unique_sources['Ambiguous Ties'].append('Unknown')
+                else:
+                    ra = low_df['Coord RA'].iloc[row]
+                    dec = low_df['Coord Dec'].iloc[row]
+                    fwhm = low_df['Beam Maj Axis'].iloc[row]
+                    unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm], 'Ambiguous Ties': ['Unknown']}
+                    low_df.loc[row, 'Source ID'] = 'id0001'
+            else:
+                low_df.loc[row, 'Source ID'] = 'Not Stationary'
 
     #further refining matches
-    #getting average values
+    new_sources = unique_sources.copy()
+    to_skip = []
     for i in range(len(unique_sources['Source ID'])):
         temp_df = low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]]
         ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
         dec_list = [Angle(dec, u.deg) for dec in temp_df['Coord Dec']]
         fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis']]
-        avg_ra = sum(ra_list) / len(ra_list)
-        avg_dec = sum(dec_list) / len(dec_list)
-        geo_avg_fwhm = math.prod(fwhm_list) ** (1/len(fwhm_list))
-        unique_sources['RA'][i] = avg_ra
-        unique_sources['Dec'][i] = avg_dec
-        unique_sources['FWHM'][i] = geo_avg_fwhm
-    #comparing averaged unique sources
-    new_sources = unique_sources.copy()
-    to_skip = []
-    for i in range(len(unique_sources['Source ID'])):
         if len(unique_sources['Source ID']) > 1 and i not in to_skip:
-            coord1 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
             for j in range(i + 1, len(unique_sources['Source ID'])):
                 if j not in to_skip:
-                    coord2 = SkyCoord(unique_sources['RA'][j], unique_sources['Dec'][j])
-                    sep = coord1.separation(coord2)
-                    if sep <= Angle(1, u.arcsec): #1 arcsec or less apart, same source
+                    temp_df2 = low_df[(low_df['Source ID']) == unique_sources['Source ID'][j]]
+                    ra_list2 = [Angle(ra, u.deg) for ra in temp_df2['Coord RA']]
+                    dec_list2 = [Angle(dec, u.deg) for dec in temp_df2['Coord Dec']]
+                    fwhm_list2 = [Angle(fwhm, u.arcsec) for fwhm in temp_df2['Beam Maj Axis']]
+                    new_ra_list = ra_list + ra_list2
+                    new_dec_list = dec_list + dec_list2
+                    new_fwhm_list = fwhm_list + fwhm_list2
+                    num_pts = len(new_ra_list)
+                    avg_ra = sum(new_ra_list) / num_pts
+                    avg_dec = sum(new_dec_list) / num_pts
+                    geo_avg_fwhm = math.prod(new_fwhm_list) ** (1/num_pts)
+                    avg_pt = SkyCoord(avg_ra, avg_dec)
+                    temp = 0
+                    for pt in range(num_pts):
+                        sep = avg_pt.separation(SkyCoord(new_ra_list[pt], new_dec_list[pt]))
+                        if sep > geo_avg_fwhm / 2:
+                            temp += 1
+                    proportion = (num_pts - temp) / (num_pts)
+                    if proportion == 1: #average point is a good representative for all points, same source
                         #match found, update averages
-                        to_skip.append(j)
-                        num_i = len(low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]])
-                        num_j = len(low_df[(low_df['Source ID']) == unique_sources['Source ID'][j]])
-                        new_sources['RA'][i] = (unique_sources['RA'][i] * num_i + unique_sources['Ra'][j] * num_j) / (num_i + num_j)
-                        new_sources['Dec'][i] = (unique_sources['Dec'][i] * num_i + unique_sources['Dec'][j] * num_j) / (num_i + num_j)
-                        new_sources['FWHM'][i] = ((unique_sources['FWHM'][i]**num_i) * (unique_sources['FWHM'][j]**num_j))**(1/(num_i + num_j))
-                        if new_sources['Ambiguous Ties'][i] == 'Unknown':
-                            new_sources['Ambiguous Ties'][i] = 'None found'
-                        if new_sources['Ambiguous Ties'][j] == 'Unknown':
-                            new_sources['Ambiguous Ties'][j] = 'None found'
+                        new_sources['RA'][i] = avg_ra
+                        new_sources['Dec'][i] = avg_dec
+                        new_sources['FWHM'][i] = geo_avg_fwhm
+                        #get rid of "replaced" source in Ambiguous Ties
+                        for k in range(len(unique_sources['Source ID'])):
+                            unique_sources['Ambiguous Ties'][k] = unique_sources['Ambiguous Ties'][k].replace(unique_sources['Source ID'][j], '')
+                            unique_sources['Ambiguous Ties'][k] = unique_sources['Ambiguous Ties'][k].replace('__', '_')
+                            if unique_sources['Ambiguous Ties'][k][0] == '_':
+                                unique_sources['Ambiguous Ties'][k] = unique_sources['Ambiguous Ties'][k][1:]
+                            if unique_sources['Ambiguous Ties'][k][-1] == '_':
+                                unique_sources['Ambiguous Ties'][k] = unique_sources['Ambiguous Ties'][k][:-1]
                         #update low_df
                         indices = low_df.index[low_df['Source ID'] == unique_sources['Source ID'][j]]
                         low_df.loc[indices, 'Source ID'] = unique_sources['Source ID'][i]
                         to_skip.append(j)
-                    elif sep > Angle(1, u.arcsec) and sep < Angle(5, u.arcsec): #more than 1 but less than 5 arcsec apart, ambiguous
+                    elif proportion > 0.7: #average point is a good representative for over 70% but less than 100% of points, ambiguous
                         if new_sources['Ambiguous Ties'][i] == 'Unknown' or new_sources['Ambiguous Ties'][i] == 'None found':
                             new_sources['Ambiguous Ties'][i] = unique_sources['Source ID'][j]
                         elif unique_sources['Source ID'][j] not in new_sources['Ambiguous Ties'][i]:
@@ -1615,12 +1620,10 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                             new_sources['Ambiguous Ties'][j] = unique_sources['Source ID'][i]
                         elif unique_sources['Source ID'][i] not in new_sources['Ambiguous Ties'][j]:
                             new_sources['Ambiguous Ties'][j] += '_{}'.format(unique_sources['Source ID'][i])
-                    else: #5 or more arcsec apart, not the same source
-                        if new_sources['Ambiguous Ties'][i] == 'Unknown':
-                            new_sources['Ambiguous Ties'][i] = 'None found'
-                        if new_sources['Ambiguous Ties'][j] == 'Unknown':
-                            new_sources['Ambiguous Ties'][j] = 'None found'
-
+                    if new_sources['Ambiguous Ties'][i] == 'Unknown':
+                        new_sources['Ambiguous Ties'][i] = 'None found'
+                    if new_sources['Ambiguous Ties'][j] == 'Unknown':
+                        new_sources['Ambiguous Ties'][j] = 'None found'
     to_skip.sort(reverse=True)
     for k in to_skip:
         del new_sources['Source ID'][k]
@@ -1628,6 +1631,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
         del new_sources['Dec'][k]
         del new_sources['FWHM'][k]
         del new_sources['Ambiguous Ties'][k]
+
     df = pd.DataFrame.from_dict(new_sources)
     df.to_csv(high_level_path, mode='w', header=True, index=False)
     low_df.to_csv(low_level_path, mode='w', header=True, index=False)
