@@ -1,0 +1,22 @@
+Field Name,Obs Date Time,File Name,Stationary,Beam Maj Axis,Beam Min Axis,Beam Pos Angle,Freq,Flux Uncert,Flux Density,RA Uncert,Dec Uncert,Coord RA,Coord Dec,Internal,Obs ID,Source ID
+1642+398,7-9-25 14:46:56,1642+398_img_RX0.fits,True,3.486 arcsec,3.091 arcsec,-5.227 deg,Not found,4.325 mJy,3410.953 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13523,id0001
+1642+398,7-9-25 14:47:0,1642+398_img_RX3.fits,True,3.48 arcsec,3.156 arcsec,-4.944 deg,Not found,4.924 mJy,3407.967 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13523,id0001
+1658+347,7-9-25 14:47:12,1658+347_img_RX0.fits,True,3.478 arcsec,3.043 arcsec,-19.697 deg,Not found,3.691 mJy,57.202 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13523,id0002
+1658+347,7-9-25 14:47:14,1658+347_img_RX3.fits,True,3.479 arcsec,3.122 arcsec,-0.136 deg,Not found,4.66 mJy,48.651 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13523,id0002
+3c279,7-9-25 14:47:24,3c279_img_RX0.fits,True,3.861 arcsec,3.031 arcsec,9.811 deg,Not found,4.613 mJy,5398.918 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,13523,id0003
+3c279,7-9-25 14:47:26,3c279_img_RX3.fits,True,4.031 arcsec,2.995 arcsec,13.06 deg,Not found,7.701 mJy,5395.948 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,13523,id0003
+3c454.3,7-9-25 14:47:44,3c454.3_img_RX0.fits,True,3.44 arcsec,2.572 arcsec,-18.495 deg,Not found,4.722 mJy,5577.13 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13523,id0004
+3c454.3,7-9-25 14:47:46,3c454.3_img_RX3.fits,True,3.48 arcsec,2.579 arcsec,-11.489 deg,Not found,6.385 mJy,5575.726 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13523,id0004
+1146+399,7-16-25 6:23:44,1146+399_img_RX0.fits,True,1.767 arcsec,1.03 arcsec,113.334 deg,Not found,5.496 mJy,457.619 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11270,id0005
+1146+399,7-16-25 6:23:47,1146+399_img_RX3.fits,True,2.065 arcsec,0.992 arcsec,105.237 deg,Not found,6.821 mJy,455.213 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11270,id0005
+1159+292,7-16-25 6:24:14,1159+292_img_RX0.fits,True,1.967 arcsec,1.064 arcsec,101.445 deg,225.538GHz,5.658 mJy,3734.876 mJy,0.0 arcsec,0.0 arcsec,179d52m57.24s,29d14m43.59s,True,11270,id0006
+3c84,7-16-25 6:24:53,3c84_img_RX0.fits,True,1.359 arcsec,1.166 arcsec,-2.895 deg,Not found,3.082 mJy,9238.214 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11270,id0007
+3c84,7-16-25 6:25:3,3c84_img_RX3.fits,True,1.609 arcsec,1.16 arcsec,-38.293 deg,Not found,3.983 mJy,9234.968 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11270,id0007
+1146+399,7-16-25 9:41:7,1146+399_img_RX0.fits,True,1.466 arcsec,0.856 arcsec,88.503 deg,Not found,6.221 mJy,484.046 mJy,0.0 arcsec,0.0 arcsec,176d44m34.2s,39d58m34.1s,True,11310,id0005
+1146+399,7-16-25 9:41:10,1146+399_img_RX3.fits,True,1.519 arcsec,0.814 arcsec,86.039 deg,Not found,8.496 mJy,482.241 mJy,0.0 arcsec,0.0 arcsec,176d44m34.2s,39d58m34.1s,True,11310,id0005
+1159+292,7-16-25 9:41:50,1159+292_img_RX0.fits,True,1.506 arcsec,0.823 arcsec,85.302 deg,220.1GHz,4.497 mJy,3479.459 mJy,0.0 arcsec,0.0 arcsec,179d52m57.29s,29d14m43.63s,True,11310,id0006
+3c84,7-16-25 9:42:39,3c84_img_RX0.fits,True,1.542 arcsec,0.902 arcsec,102.723 deg,Not found,6.03 mJy,10190.052 mJy,0.0 arcsec,0.0 arcsec,49d57m2.12s,41d30m41.9s,True,11310,id0007
+3c84,7-16-25 9:42:43,3c84_img_RX3.fits,True,1.61 arcsec,0.847 arcsec,102.678 deg,Not found,7.697 mJy,10190.086 mJy,0.0 arcsec,0.0 arcsec,49d57m2.12s,41d30m41.9s,True,11310,id0007
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,True,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,479.124 mJy,0.0 arcsec,0.0 arcsec,69d10m4.04s,23d53m9.85s,True,11310,id0008
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,True,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,332.319 mJy,0.0 arcsec,0.0 arcsec,69d09m56.69s,23d53m6.68s,False,11310,id0009
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,True,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,143.751 mJy,0.0 arcsec,0.0 arcsec,69d10m12.0s,23d53m10.84s,False,11310,id0010
