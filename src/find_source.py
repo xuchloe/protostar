@@ -1572,6 +1572,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
 
     #further refining matches
     new_sources = unique_sources.copy()
+    refined = []
     to_skip = []
     for i in range(len(unique_sources['Source ID'])):
         temp_df = low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]]
@@ -1600,6 +1601,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                             temp += 1
                     proportion = (num_pts - temp) / (num_pts)
                     if proportion == 1: #average point is a good representative for all points, same source
+                        refined.append(new_sources['Source ID'][i])
                         #match found, update averages
                         new_sources['RA'][i] = avg_ra
                         new_sources['Dec'][i] = avg_dec
@@ -1636,6 +1638,21 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
         del new_sources['Dec'][k]
         del new_sources['FWHM'][k]
         del new_sources['Ambiguous Ties'][k]
+
+    #get averages for sources only matched with coarse matching
+    for i in len(new_sources['Source ID']):
+        if new_sources['Source ID'][i] not in refined:
+            temp_df = low_df[(low_df['Source ID']) == new_sources['Source ID'][i]]
+            ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
+            dec_list = [Angle(dec, u.deg) for dec in temp_df['Coord Dec']]
+            fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis']]
+            num_pts = len(ra_list)
+            avg_ra = sum(ra_list) / num_pts
+            avg_dec = sum(dec_list) / num_pts
+            geo_avg_fwhm = math.prod(fwhm_list) ** (1/num_pts)
+            new_sources['RA'][i] = avg_ra
+            new_sources['Dec'][i] = avg_dec
+            new_sources['FWHM'][i] = geo_avg_fwhm
 
     df = pd.DataFrame.from_dict(new_sources)
     df.to_csv(high_level_path, mode='w', header=True, index=False)
