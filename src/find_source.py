@@ -124,6 +124,10 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     info = file[i]
     data = info.data
 
+    neg_peak = float(np.min(data[0]))
+    if neg_peak >= 0:
+        neg_peak = None
+
     mad = float(median_abs_deviation(data[0].flatten()))
     sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad) #estimate standard deviation from MAD
 
@@ -264,7 +268,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': beam_size,\
              'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area, 'excl_area': excl_area,\
-             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad, 'sd_mad': sd_mad}
+             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad, 'sd_mad': sd_mad,\
+             'neg_peak': neg_peak}
 
     return stats
 
@@ -285,7 +290,8 @@ def calc_prob_from_rms_uncert(peak: float, rms: float, n_excl: float, n_incl: fl
         return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
 
 
-def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = None, radius_buffer: float = 5.0, ext_threshold: float = None):
+def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = None, threshold: float = 0.01, radius_buffer: float = 5.0,\
+                              ext_threshold: float = None):
 
     i = fits_data_index(fits_file)
 
@@ -309,6 +315,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     field_center = int_stats1['field_center'] #in pixels
     mad = int_stats1['mad'] #should be the same for all peaks
     sd_mad = int_stats1['sd_mad'] #should be the same for all peaks
+    neg_peak = int_stats1['neg_peak']
 
     #find external peaks and get their info
     center = [field_center]
@@ -321,7 +328,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     ext_prob1 = calc_prob_from_rms_uncert(peak=ext_peak1, rms=rms, n_excl=n_excl)
 
     prob_dict = {'field_center': field_center, 'rms_val': None, 'mad': mad, 'sd_mad': sd_mad, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
-                 'fwhm': beam_fwhm, 'incl_radius': search_radius,\
+                 'fwhm': beam_fwhm, 'incl_radius': search_radius, 'neg_peak': neg_peak,\
                  'int_peak_val': [], 'int_peak_coord': [], 'int_prob': [], 'int_snr': [],\
                  'ext_peak_val': [], 'ext_peak_coord': [], 'ext_prob': [], 'ext_snr': [], 'next_ext_peak': None}
 
@@ -330,8 +337,10 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     if ext_threshold == None:
         if int_snr1 < 20:
             ext_threshold = 1e-3
-        else:
+        elif int_snr1 < 100:
             ext_threshold = 1e-6
+        else:
+            ext_threshold = 1e-12
 
     if ext_prob1 < ext_threshold:
         ext_significant = True
@@ -369,7 +378,9 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
     prob_dict['int_prob'].append(int_prob1)
     prob_dict['int_snr'].append(int_peak1 / rms)
 
-    int_significant = (int_prob1 < 0.01)
+    if threshold == None:
+        threshold = 0.01
+    int_significant = (int_prob1 < threshold)
 
     #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
     center = [int_coord1]
@@ -381,7 +392,7 @@ def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = No
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
         int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
-        if int_prob < 0.01 and (int_peak > int_snr1 / 100):
+        if int_prob < threshold and (int_peak > int_snr1 / 100):
             int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
                                      outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
@@ -478,8 +489,12 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
     n_excl_meas = prob_dict['n_excl_meas']
 
     excl_sigma = -1 * norm.ppf(1/n_excl_meas)
-    rms_val = ext_peak_val / excl_sigma
+    old_rms_val = ext_peak_val / excl_sigma
+    sigma = norm.ppf(1/(n_incl_meas + n_excl_meas))
+    neg_peak = prob_dict['neg_peak']
+    rms_val = neg_peak / sigma
 
+    prob_dict['old_calc_rms_val'] = float(old_rms_val)
     prob_dict['calc_rms_val'] = float(rms_val)
     prob_dict['calc_ext_prob'] = float(norm.cdf((-1 * ext_peak_val)/(rms_val))) * n_excl_meas
     prob_dict['calc_ext_snr'] = float(excl_sigma)
@@ -494,7 +509,7 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
     return prob_dict
 
 
-def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = None,\
+def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None,\
             short_dict: bool = True, plot: bool = True, save_path: str = ''):
     '''
     Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
@@ -633,7 +648,8 @@ def summary(fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = N
                     float
                         The exclusion region's signal to noise ratio.
     '''
-    info = (get_prob_rms_est_from_ext(prob_dict_from_rms_uncert(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)))
+    info = (get_prob_rms_est_from_ext(prob_dict_from_rms_uncert(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
+                                                                ext_threshold=ext_threshold)))
 
     center = info['field_center']
 
@@ -1596,7 +1612,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                             new_sources['Ambiguous Ties'][i] = 'None found'
                         if new_sources['Ambiguous Ties'][j] == 'Unknown':
                             new_sources['Ambiguous Ties'][j] = 'None found'
-                            
+
     to_skip.sort(reverse=True)
     for k in to_skip:
         del new_sources['Source ID'][k]
