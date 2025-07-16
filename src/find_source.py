@@ -823,7 +823,7 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     if not (threshold >= 0 and threshold <= 1):
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
-    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
+    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
     return (summ['int_prob'][0] < threshold and summ['calc_int_prob'][0] < threshold)
 
 
@@ -875,7 +875,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                         Whether the detected point source is in the initial search region.
     '''
 
-    summ = summary(fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
+    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
 
     header_data = fits.getheader(fits_file)
     name = header_data['OBJECT']
@@ -902,12 +902,20 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     beam_min_axis = Angle(bmin, cunit1)
     bpa_rad = math.radians(bpa)
 
+    planets = ['venus', 'mars', 'jupiter', 'uranus', 'neptune', 'io', 'europa', 'ganymede', 'callisto', 'titan',\
+               'ceres', 'vesta', 'pallas', 'juno']
+
+    if name.lower() in planets:
+        stationary = False
+    else:
+        stationary = True
     interesting_sources = {}
     field_info = {'Field Name': name, 'Obs Date Time': obs_date_time, 'File Name': fits_file[fits_file.rindex('/')+1:],\
-                    'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                    'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                    'Beam Pos Angle': round(bpa, 3) * u.deg,\
-                    'Freq': freq, 'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,}
+                   'Stationary': stationary,\
+                   'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                   'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
+                   'Beam Pos Angle': round(bpa, 3) * u.deg,\
+                   'Freq': freq, 'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,}
 
     n_int_sources = len(summ['int_peak_val'])
     if type(summ['ext_peak_val']) == str:
