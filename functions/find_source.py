@@ -902,13 +902,18 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     beam_min_axis = Angle(bmin, cunit1)
     bpa_rad = math.radians(bpa)
 
-    planets = ['venus', 'mars', 'jupiter', 'uranus', 'neptune', 'io', 'europa', 'ganymede', 'callisto', 'titan',\
+    moving_objects = ['venus', 'mars', 'jupiter', 'uranus', 'neptune', 'io', 'europa', 'ganymede', 'callisto', 'titan',\
                'ceres', 'vesta', 'pallas', 'juno']
 
-    if name.lower() in planets:
+    stationary = True
+    if name.lower() in moving_objects:
         stationary = False
     else:
-        stationary = True
+        for obj in moving_objects:
+            if obj in name.lower():
+                stationary = False
+                break
+
     interesting_sources = {}
     field_info = {'Field Name': name, 'Obs Date Time': obs_date_time, 'File Name': fits_file[fits_file.rindex('/')+1:],\
                    'Stationary': stationary,\
