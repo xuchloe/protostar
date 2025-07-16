@@ -1,0 +1,495 @@
+Field Name,Obs Date Time,File Name,Stationary,Beam Maj Axis,Beam Min Axis,Beam Pos Angle,Freq,Flux Uncert,Flux Density,RA Uncert,Dec Uncert,Coord RA,Coord Dec,Internal,Obs ID,Source ID
+1058+015,6-11-25 2:49:5,1058+015_img_RX0.fits,True,2.625 arcsec,0.897 arcsec,68.963 deg,220.1GHz,20.491 mJy,2563.083 mJy,0.0 arcsec,0.0 arcsec,164d37m24.07s,1d33m58.82s,True,12742,id0016
+sgra,6-11-25 2:55:22,sgra_img_RX0.fits,True,1.47 arcsec,1.239 arcsec,64.83 deg,220.1GHz,24.031 mJy,2965.729 mJy,0.0 arcsec,0.0 arcsec,266d25m0.48s,-29d00m28.26s,True,12742,id0009
+1642+398,7-8-25 15:48:11,1642+398_img_RX0.fits,True,3.632 arcsec,3.246 arcsec,92.108 deg,Not found,8.373 mJy,3398.636 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13481,id0013
+1642+398,7-8-25 15:48:14,1642+398_img_RX3.fits,True,3.644 arcsec,3.29 arcsec,86.497 deg,Not found,10.602 mJy,3388.191 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13481,id0013
+1658+347,7-8-25 15:48:22,1658+347_img_RX0.fits,True,3.602 arcsec,3.172 arcsec,98.482 deg,Not found,5.597 mJy,58.954 mJy,0.0 arcsec,0.0 arcsec,254d30m20.48s,34d43m27.74s,True,13481,id0014
+1658+347,7-8-25 15:48:23,1658+347_img_RX3.fits,True,3.51 arcsec,3.21 arcsec,89.386 deg,Not found,7.011 mJy,48.558 mJy,0.0 arcsec,0.0 arcsec,254d30m20.48s,34d43m27.74s,True,13481,id0014
+3c454.3,7-8-25 15:48:30,3c454.3_img_RX0.fits,True,3.329 arcsec,3.012 arcsec,111.224 deg,Not found,21.19 mJy,5786.268 mJy,0.0 arcsec,0.0 arcsec,343d29m25.53s,16d08m52.9s,True,13481,id0015
+3c454.3,7-8-25 15:48:32,3c454.3_img_RX3.fits,True,3.269 arcsec,3.069 arcsec,111.301 deg,Not found,23.675 mJy,5785.028 mJy,0.0 arcsec,0.0 arcsec,343d29m25.53s,16d08m52.9s,True,13481,id0015
+1146+399,7-16-25 6:23:44,1146+399_img_RX0.fits,True,1.767 arcsec,1.03 arcsec,113.334 deg,Not found,5.496 mJy,457.619 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11270,id0017
+1146+399,7-16-25 6:23:47,1146+399_img_RX3.fits,True,2.065 arcsec,0.992 arcsec,105.237 deg,Not found,6.821 mJy,455.213 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11270,id0017
+1159+292,7-16-25 6:24:14,1159+292_img_RX0.fits,True,1.967 arcsec,1.064 arcsec,101.445 deg,225.538GHz,5.658 mJy,3734.876 mJy,0.0 arcsec,0.0 arcsec,179d52m57.24s,29d14m43.59s,True,11270,id0001
+3c84,7-16-25 6:24:53,3c84_img_RX0.fits,True,1.359 arcsec,1.166 arcsec,-2.895 deg,Not found,3.082 mJy,9238.214 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11270,id0011
+3c84,7-16-25 6:25:3,3c84_img_RX3.fits,True,1.609 arcsec,1.16 arcsec,-38.293 deg,Not found,3.983 mJy,9234.968 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11270,id0011
+0510+180,7-7-25 16:15:55,0510+180_img_RX1.fits,True,4.262 arcsec,2.523 arcsec,-37.898 deg,Not found,5.398 mJy,1065.96 mJy,0.0 arcsec,0.0 arcsec,77d30m35.0s,18d00m41.07s,True,12502,id0005
+0510+180,7-7-25 16:15:58,0510+180_img_RX3.fits,True,4.361 arcsec,2.539 arcsec,-31.82 deg,Not found,3.998 mJy,1077.723 mJy,0.0 arcsec,0.0 arcsec,77d30m34.97s,18d00m41.04s,True,12502,id0005
+3c111,7-7-25 16:16:11,3c111_img_RX1.fits,True,3.873 arcsec,2.425 arcsec,-38.133 deg,Not found,4.162 mJy,1540.658 mJy,0.0 arcsec,0.0 arcsec,64d35m18.5s,38d01m35.29s,True,12502,id0006
+3c111,7-7-25 16:16:14,3c111_img_RX3.fits,True,3.955 arcsec,2.527 arcsec,-34.844 deg,Not found,2.949 mJy,1565.483 mJy,0.0 arcsec,0.0 arcsec,64d35m18.47s,38d01m35.26s,True,12502,id0006
+3c279,7-7-25 16:16:30,3c279_img_RX1.fits,True,4.443 arcsec,2.882 arcsec,-23.788 deg,Not found,4.46 mJy,3324.808 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12502,id0004
+3c279,7-7-25 16:16:33,3c279_img_RX3.fits,True,4.63 arcsec,3.022 arcsec,-21.792 deg,Not found,3.451 mJy,3523.521 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,12502,id0004
+3c84,7-7-25 16:16:51,3c84_img_RX1.fits,True,7.773 arcsec,2.183 arcsec,98.207 deg,Not found,14.45 mJy,12969.095 mJy,0.0 arcsec,0.0 arcsec,49d57m1.67s,41d30m41.56s,True,12502,id0011
+3c84,7-7-25 16:16:53,3c84_img_RX3.fits,True,7.977 arcsec,2.279 arcsec,98.562 deg,Not found,11.929 mJy,13128.938 mJy,0.0 arcsec,0.0 arcsec,49d57m1.63s,41d30m41.53s,True,12502,id0011
+ab_aur,7-7-25 16:17:28,ab_aur_img_RX1.fits,True,4.037 arcsec,2.539 arcsec,-36.5 deg,265.985504138084GHz,0.966 mJy,105.024 mJy,0.0 arcsec,0.0 arcsec,73d56m27.08s,30d33m3.27s,True,12502,id0007
+bllac,7-7-25 16:18:12,bllac_img_RX1.fits,True,4.837 arcsec,2.088 arcsec,-24.63 deg,Not found,43.561 mJy,6819.338 mJy,0.0 arcsec,0.0 arcsec,330d40m48.67s,42d16m39.46s,True,12502,id0012
+bllac,7-7-25 16:18:13,bllac_img_RX3.fits,True,4.903 arcsec,2.141 arcsec,-23.197 deg,Not found,44.908 mJy,6844.149 mJy,0.0 arcsec,0.0 arcsec,330d40m48.63s,42d16m39.44s,True,12502,id0012
+dn_tau,7-7-25 16:18:36,dn_tau_img_RX1.fits,True,4.24 arcsec,2.47 arcsec,-34.197 deg,265.985504138084GHz,0.657 mJy,115.506 mJy,0.0 arcsec,0.0 arcsec,68d51m50.09s,24d14m57.89s,True,12502,id0008
+0958+655,7-4-25 0:37:23,0958+655_img_RX1.fits,True,5.698 arcsec,2.256 arcsec,-8.297 deg,265.984241001171GHz,22.385 mJy,5614.923 mJy,0.0 arcsec,0.0 arcsec,149d41m47.41s,65d33m54.29s,True,12494,id0018
+3c111,7-4-25 0:37:36,3c111_img_RX1.fits,True,3.899 arcsec,2.442 arcsec,-39.106 deg,Not found,3.561 mJy,1359.547 mJy,0.0 arcsec,0.0 arcsec,64d35m18.5s,38d01m35.29s,True,12494,id0006
+3c111,7-4-25 0:37:40,3c111_img_RX3.fits,True,3.979 arcsec,2.542 arcsec,-34.625 deg,Not found,2.561 mJy,1391.73 mJy,0.0 arcsec,0.0 arcsec,64d35m18.47s,38d01m35.26s,True,12494,id0006
+3c279,7-4-25 0:37:55,3c279_img_RX1.fits,True,4.261 arcsec,3.231 arcsec,-34.831 deg,Not found,3.869 mJy,3251.283 mJy,0.0 arcsec,0.0 arcsec,194d02m46.86s,-5d47m22.15s,True,12494,id0004
+3c279,7-4-25 0:37:58,3c279_img_RX3.fits,True,4.597 arcsec,3.274 arcsec,-25.946 deg,Not found,2.139 mJy,3408.747 mJy,0.0 arcsec,0.0 arcsec,194d02m46.83s,-5d47m22.18s,True,12494,id0004
+3c84,7-4-25 0:38:19,3c84_img_RX1.fits,True,3.983 arcsec,2.428 arcsec,120.736 deg,Not found,50.407 mJy,12870.641 mJy,0.0 arcsec,0.0 arcsec,49d57m1.72s,41d30m41.59s,True,12494,id0011
+3c84,7-4-25 0:38:22,3c84_img_RX3.fits,True,4.026 arcsec,2.553 arcsec,123.974 deg,Not found,44.317 mJy,13346.393 mJy,0.0 arcsec,0.0 arcsec,49d57m1.68s,41d30m41.57s,True,12494,id0011
+aa_tau,7-4-25 0:38:56,aa_tau_img_RX1.fits,True,4.275 arcsec,2.495 arcsec,-35.977 deg,265.984241001171GHz,0.802 mJy,95.511 mJy,0.0 arcsec,0.0 arcsec,68d43m50.74s,24d28m52.01s,True,12494,id0019
+bllac,7-4-25 0:39:36,bllac_img_RX1.fits,True,4.612 arcsec,2.107 arcsec,-18.934 deg,Not found,9.763 mJy,7976.353 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,12494,id0012
+bllac,7-4-25 0:39:37,bllac_img_RX3.fits,True,4.756 arcsec,2.173 arcsec,-17.309 deg,Not found,6.454 mJy,8360.132 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,12494,id0012
+ry_tau,7-4-25 0:40:2,ry_tau_img_RX1.fits,True,4.167 arcsec,2.475 arcsec,-35.785 deg,265.984241001171GHz,1.51 mJy,291.804 mJy,0.0 arcsec,0.0 arcsec,65d29m20.55s,28d26m34.53s,True,12494,id0020
+sgrastar,6-12-25 14:54:13,sgrastar_img_RX1.fits,True,1.763 arcsec,0.878 arcsec,-42.402 deg,258.5GHz,37.402 mJy,2720.307 mJy,0.0 arcsec,0.0 arcsec,266d25m0.6s,-29d00m28.1s,True,12736,id0009
+sgrastar,6-12-25 14:54:13,sgrastar_img_RX1.fits,True,1.763 arcsec,0.878 arcsec,-42.402 deg,258.5GHz,37.402 mJy,3682.605 mJy,0.0 arcsec,0.0 arcsec,266d24m55.75s,-29d00m34.14s,False,12736,id0010
+1751+096,7-15-25 11:36:41,1751+096_img_RX0.fits,True,2.948 arcsec,2.619 arcsec,-13.531 deg,225.532628498269GHz,26.219 mJy,276.1 mJy,0.0 arcsec,0.0 arcsec,267d53m14.06s,9d38m59.7s,True,13093,id0021
+1751+096,7-15-25 11:36:41,1751+096_img_RX0.fits,True,2.948 arcsec,2.619 arcsec,-13.531 deg,225.532628498269GHz,26.219 mJy,1014.933 mJy,0.0 arcsec,0.0 arcsec,267d53m15.16s,9d38m53.66s,True,13093,id0022
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,906.319 mJy,0.0 arcsec,0.0 arcsec,303d52m1.71s,37d10m58.38s,True,13093,id0023
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,852.547 mJy,0.0 arcsec,0.0 arcsec,303d52m13.02s,37d11m6.92s,True,13093,id0024
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,760.883 mJy,0.0 arcsec,0.0 arcsec,303d52m10.87s,37d10m54.96s,True,13093,id0025
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,530.991 mJy,0.0 arcsec,0.0 arcsec,303d52m12.44s,37d11m3.43s,True,13093,id0026
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,4893.593 mJy,0.0 arcsec,0.0 arcsec,303d52m6.27s,37d11m6.05s,True,13093,id0027
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,6104.623 mJy,0.0 arcsec,0.0 arcsec,303d52m0.74s,37d10m58.23s,False,13093,id0023
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,1024.795 mJy,0.0 arcsec,0.0 arcsec,303d52m13.01s,37d11m7.48s,False,13093,id0024
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,6755.113 mJy,0.0 arcsec,0.0 arcsec,303d51m56.29s,37d10m49.68s,False,13093,id0028
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,4796.086 mJy,0.0 arcsec,0.0 arcsec,303d52m29.67s,37d11m6.11s,False,13093,id0029
+2015+371,7-15-25 11:36:48,2015+371_img_RX0.fits,True,2.882 arcsec,2.754 arcsec,107.445 deg,Not found,85.101 mJy,446.632 mJy,0.0 arcsec,0.0 arcsec,303d51m46.48s,37d10m39.29s,False,13093,id0030
+2015+371,7-15-25 11:36:49,2015+371_img_RX3.fits,True,3.193 arcsec,2.606 arcsec,-16.674 deg,Not found,68.441 mJy,772.813 mJy,0.0 arcsec,0.0 arcsec,303d52m14.5s,37d10m57.25s,True,13093,id0031
+2015+371,7-15-25 11:36:49,2015+371_img_RX3.fits,True,3.193 arcsec,2.606 arcsec,-16.674 deg,Not found,68.441 mJy,1368.035 mJy,0.0 arcsec,0.0 arcsec,303d52m4.5s,37d11m0.02s,True,13093,id0023
+2015+371,7-15-25 11:36:49,2015+371_img_RX3.fits,True,3.193 arcsec,2.606 arcsec,-16.674 deg,Not found,68.441 mJy,519.739 mJy,0.0 arcsec,0.0 arcsec,303d52m15.87s,37d11m1.25s,True,13093,id0032
+2015+371,7-15-25 11:36:49,2015+371_img_RX3.fits,True,3.193 arcsec,2.606 arcsec,-16.674 deg,Not found,68.441 mJy,2919.977 mJy,0.0 arcsec,0.0 arcsec,303d52m21.15s,37d10m58.18s,True,13093,id0033
+chicyg,7-15-25 11:37:1,chicyg_img_RX0.fits,True,2.957 arcsec,2.663 arcsec,-17.385 deg,225.532628498269GHz,1.428 mJy,13.937 mJy,0.0 arcsec,0.0 arcsec,297d38m31.46s,32d54m47.81s,True,13093,id0034
+chicyg,7-15-25 11:37:1,chicyg_img_RX0.fits,True,2.957 arcsec,2.663 arcsec,-17.385 deg,225.532628498269GHz,1.428 mJy,206.134 mJy,0.0 arcsec,0.0 arcsec,297d38m31.08s,32d54m58.44s,False,13093,id0035
+chicyg,7-15-25 11:37:1,chicyg_img_RX0.fits,True,2.957 arcsec,2.663 arcsec,-17.385 deg,225.532628498269GHz,1.428 mJy,85.465 mJy,0.0 arcsec,0.0 arcsec,297d38m19.33s,32d54m48.46s,False,13093,id0036
+chicyg,7-15-25 11:37:1,chicyg_img_RX0.fits,True,2.957 arcsec,2.663 arcsec,-17.385 deg,225.532628498269GHz,1.428 mJy,7.186 mJy,0.0 arcsec,0.0 arcsec,297d38m30.23s,32d54m39.65s,False,13093,id0037
+0510+180,7-5-25 19:15:22,0510+180_img_RX0.fits,True,3.557 arcsec,3.086 arcsec,103.016 deg,Not found,4.172 mJy,1438.73 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,12556,id0005
+0510+180,7-5-25 19:15:25,0510+180_img_RX3.fits,True,3.437 arcsec,2.985 arcsec,112.058 deg,Not found,5.401 mJy,1341.577 mJy,0.0 arcsec,0.0 arcsec,77d30m34.96s,18d00m41.04s,True,12556,id0005
+3c111,7-5-25 19:15:36,3c111_img_RX0.fits,True,3.502 arcsec,3.081 arcsec,109.987 deg,Not found,2.414 mJy,905.222 mJy,0.0 arcsec,0.0 arcsec,64d35m18.4s,38d01m35.21s,True,12556,id0006
+3c111,7-5-25 19:15:40,3c111_img_RX3.fits,True,3.395 arcsec,2.986 arcsec,86.351 deg,Not found,3.636 mJy,871.126 mJy,0.0 arcsec,0.0 arcsec,64d35m18.44s,38d01m35.24s,True,12556,id0006
+3c279,7-5-25 19:15:56,3c279_img_RX0.fits,True,3.969 arcsec,3.094 arcsec,49.675 deg,Not found,2.976 mJy,3980.336 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12556,id0004
+3c279,7-5-25 19:15:59,3c279_img_RX3.fits,True,3.769 arcsec,3.056 arcsec,44.459 deg,Not found,3.569 mJy,3917.186 mJy,0.0 arcsec,0.0 arcsec,194d02m46.88s,-5d47m22.14s,True,12556,id0004
+3c84,7-5-25 19:16:18,3c84_img_RX0.fits,True,4.231 arcsec,2.93 arcsec,107.675 deg,Not found,34.946 mJy,15124.895 mJy,0.0 arcsec,0.0 arcsec,49d57m1.58s,41d30m41.49s,True,12556,id0011
+3c84,7-5-25 19:16:19,3c84_img_RX3.fits,True,4.146 arcsec,2.8 arcsec,109.829 deg,Not found,46.108 mJy,14565.939 mJy,0.0 arcsec,0.0 arcsec,49d57m1.62s,41d30m41.53s,True,12556,id0011
+ab_aur,7-5-25 19:16:44,ab_aur_img_RX0.fits,True,3.444 arcsec,3.031 arcsec,110.052 deg,221.974904839282GHz,0.528 mJy,62.014 mJy,0.0 arcsec,0.0 arcsec,73d56m27.04s,30d33m3.19s,True,12556,id0007
+dn_tau,7-5-25 19:17:46,dn_tau_img_RX0.fits,True,3.399 arcsec,3.034 arcsec,110.435 deg,221.974904839282GHz,0.445 mJy,78.579 mJy,0.0 arcsec,0.0 arcsec,68d51m50.06s,24d14m57.82s,True,12556,id0008
+0510+180,7-7-25 20:27:59,0510+180_img_RX1.fits,True,3.558 arcsec,1.846 arcsec,-37.519 deg,Not found,11.147 mJy,875.959 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,12527,id0005
+0510+180,7-7-25 20:28:4,0510+180_img_RX2.fits,True,3.536 arcsec,1.784 arcsec,-27.906 deg,Not found,9.058 mJy,848.541 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,12527,id0005
+3c111,7-7-25 20:28:23,3c111_img_RX1.fits,True,3.309 arcsec,1.697 arcsec,-35.172 deg,Not found,11.121 mJy,1233.92 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,12527,id0006
+3c111,7-7-25 20:28:27,3c111_img_RX2.fits,True,3.226 arcsec,1.66 arcsec,-26.728 deg,Not found,8.434 mJy,1199.973 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,12527,id0006
+3c279,7-7-25 20:28:48,3c279_img_RX1.fits,True,3.72 arcsec,2.189 arcsec,-29.278 deg,Not found,8.556 mJy,2723.921 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12527,id0004
+3c279,7-7-25 20:28:52,3c279_img_RX2.fits,True,3.85 arcsec,2.071 arcsec,-20.979 deg,Not found,8.19 mJy,2689.445 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12527,id0004
+3c84,7-7-25 20:29:16,3c84_img_RX1.fits,True,5.551 arcsec,1.625 arcsec,109.357 deg,Not found,59.094 mJy,11431.939 mJy,0.0 arcsec,0.0 arcsec,49d57m1.82s,41d30m41.67s,True,12527,id0011
+3c84,7-7-25 20:29:17,3c84_img_RX2.fits,True,5.486 arcsec,1.636 arcsec,114.306 deg,Not found,41.36 mJy,11125.275 mJy,0.0 arcsec,0.0 arcsec,49d57m1.83s,41d30m41.68s,True,12527,id0011
+ab_aur,7-7-25 20:29:44,ab_aur_img_RX1.fits,True,3.33 arcsec,1.804 arcsec,-33.14 deg,347.422632200358GHz,1.572 mJy,175.114 mJy,0.0 arcsec,0.0 arcsec,73d56m27.21s,30d33m3.48s,True,12527,id0007
+dn_tau,7-7-25 20:30:58,dn_tau_img_RX1.fits,True,3.454 arcsec,1.768 arcsec,-31.261 deg,347.422632200358GHz,1.32 mJy,171.445 mJy,0.0 arcsec,0.0 arcsec,68d51m50.21s,24d14m58.1s,True,12527,id0008
+aa_tau,7-1-25 21:38:7,aa_tau_img_RX0.fits,True,5.083 arcsec,3.124 arcsec,-37.902 deg,221.991507477901GHz,0.727 mJy,62.455 mJy,0.0 arcsec,0.0 arcsec,68d43m50.63s,24d28m51.81s,True,12477,id0019
+ry_tau,7-1-25 21:39:40,ry_tau_img_RX0.fits,True,5.029 arcsec,3.015 arcsec,-35.358 deg,221.991507477901GHz,1.163 mJy,194.265 mJy,0.0 arcsec,0.0 arcsec,65d29m21.14s,28d26m34.95s,True,12477,id0020
+3c111,7-4-25 4:27:9,3c111_img_RX1.fits,True,3.299 arcsec,1.824 arcsec,59.821 deg,Not found,9.592 mJy,1361.36 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,12509,id0006
+3c111,7-4-25 4:27:14,3c111_img_RX2.fits,True,3.062 arcsec,1.809 arcsec,-37.55 deg,Not found,6.663 mJy,1326.905 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,12509,id0006
+3c279,7-4-25 4:27:32,3c279_img_RX1.fits,True,3.603 arcsec,2.499 arcsec,-31.769 deg,Not found,8.383 mJy,2193.239 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12509,id0004
+3c279,7-4-25 4:27:36,3c279_img_RX2.fits,True,3.638 arcsec,2.375 arcsec,-21.321 deg,Not found,5.966 mJy,2144.097 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12509,id0004
+3c84,7-4-25 4:28:8,3c84_img_RX1.fits,True,3.222 arcsec,1.861 arcsec,129.495 deg,Not found,5.721 mJy,10564.678 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,12509,id0011
+3c84,7-4-25 4:28:13,3c84_img_RX2.fits,True,2.989 arcsec,1.849 arcsec,-27.784 deg,Not found,5.211 mJy,10349.01 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,12509,id0011
+aa_tau,7-4-25 4:29:4,aa_tau_img_RX1.fits,True,3.343 arcsec,1.875 arcsec,-38.996 deg,347.424622525858GHz,2.236 mJy,149.319 mJy,0.0 arcsec,0.0 arcsec,68d43m50.86s,24d28m52.22s,True,12509,id0019
+bllac,7-4-25 4:29:55,bllac_img_RX1.fits,True,3.872 arcsec,1.667 arcsec,-22.432 deg,Not found,14.567 mJy,6555.194 mJy,0.0 arcsec,0.0 arcsec,330d40m48.8s,42d16m39.56s,True,12509,id0012
+bllac,7-4-25 4:29:57,bllac_img_RX2.fits,True,3.756 arcsec,1.587 arcsec,-16.129 deg,Not found,13.594 mJy,6547.441 mJy,0.0 arcsec,0.0 arcsec,330d40m48.81s,42d16m39.57s,True,12509,id0012
+ry_tau,7-4-25 4:30:29,ry_tau_img_RX1.fits,True,3.28 arcsec,1.861 arcsec,-39.683 deg,347.424622525858GHz,4.085 mJy,469.803 mJy,0.0 arcsec,0.0 arcsec,65d29m20.68s,28d26m34.34s,True,12509,id0020
+3c111,7-3-25 22:50:30,3c111_img_RX0.fits,True,3.535 arcsec,2.729 arcsec,90.908 deg,Not found,3.784 mJy,1829.488 mJy,0.0 arcsec,0.0 arcsec,64d35m18.4s,38d01m35.21s,True,13185,id0006
+3c111,7-3-25 22:50:35,3c111_img_RX3.fits,True,3.045 arcsec,2.836 arcsec,103.926 deg,Not found,3.979 mJy,1766.676 mJy,0.0 arcsec,0.0 arcsec,64d35m18.44s,38d01m35.24s,True,13185,id0006
+3c279,7-3-25 22:50:50,3c279_img_RX0.fits,True,4.567 arcsec,2.664 arcsec,61.005 deg,Not found,4.009 mJy,3932.596 mJy,0.0 arcsec,0.0 arcsec,194d02m46.86s,-5d47m22.15s,True,13185,id0004
+3c279,7-3-25 22:50:53,3c279_img_RX3.fits,True,3.979 arcsec,2.731 arcsec,52.015 deg,Not found,3.587 mJy,3738.577 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13185,id0004
+3c84,7-3-25 22:51:17,3c84_img_RX0.fits,True,4.07 arcsec,2.76 arcsec,88.902 deg,Not found,2.704 mJy,14967.14 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13185,id0011
+3c84,7-3-25 22:51:21,3c84_img_RX3.fits,True,3.644 arcsec,2.754 arcsec,103.069 deg,Not found,3.259 mJy,14353.762 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13185,id0011
+aa_tau,7-3-25 22:51:59,aa_tau_img_RX0.fits,True,3.302 arcsec,2.739 arcsec,94.034 deg,221.992011583024GHz,0.683 mJy,62.661 mJy,0.0 arcsec,0.0 arcsec,68d43m50.7s,24d28m51.94s,True,13185,id0019
+ry_tau,7-3-25 22:52:55,ry_tau_img_RX0.fits,True,3.178 arcsec,2.727 arcsec,95.985 deg,221.992011583024GHz,1.503 mJy,191.768 mJy,0.0 arcsec,0.0 arcsec,65d29m20.51s,28d26m34.45s,True,13185,id0020
+3c111,7-4-25 5:54:47,3c111_img_RX1.fits,True,1.849 arcsec,1.472 arcsec,97.08 deg,Not found,13.904 mJy,1180.442 mJy,0.0 arcsec,0.0 arcsec,64d35m18.67s,38d01m35.42s,True,13208,id0006
+3c111,7-4-25 5:55:9,3c111_img_RX2.fits,True,1.955 arcsec,1.408 arcsec,80.47 deg,Not found,10.11 mJy,1158.705 mJy,0.0 arcsec,0.0 arcsec,64d35m18.68s,38d01m35.43s,True,13208,id0006
+3c279,7-4-25 5:55:25,3c279_img_RX1.fits,True,2.318 arcsec,1.528 arcsec,58.067 deg,Not found,12.815 mJy,3065.003 mJy,0.0 arcsec,0.0 arcsec,194d02m47.08s,-5d47m21.93s,True,13208,id0004
+3c279,7-4-25 5:55:28,3c279_img_RX2.fits,True,2.613 arcsec,1.362 arcsec,58.289 deg,Not found,11.076 mJy,2990.089 mJy,0.0 arcsec,0.0 arcsec,194d02m47.09s,-5d47m21.92s,True,13208,id0004
+3c84,7-4-25 5:55:54,3c84_img_RX1.fits,True,2.237 arcsec,1.468 arcsec,88.267 deg,Not found,9.615 mJy,10124.216 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13208,id0011
+3c84,7-4-25 5:55:58,3c84_img_RX2.fits,True,2.34 arcsec,1.468 arcsec,82.198 deg,Not found,7.919 mJy,9952.612 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13208,id0011
+aa_tau,7-4-25 5:56:37,aa_tau_img_RX1.fits,True,1.884 arcsec,1.437 arcsec,84.112 deg,347.430833242754GHz,1.982 mJy,130.924 mJy,0.0 arcsec,0.0 arcsec,68d43m51.3s,24d28m52.67s,True,13208,id0019
+ry_tau,7-4-25 5:57:25,ry_tau_img_RX1.fits,True,1.83 arcsec,1.447 arcsec,85.695 deg,347.430833242754GHz,4.549 mJy,437.751 mJy,0.0 arcsec,0.0 arcsec,65d29m21.14s,28d26m34.82s,True,13208,id0020
+3c111,7-4-25 2:32:8,3c111_img_RX1.fits,True,2.678 arcsec,2.139 arcsec,101.252 deg,Not found,4.437 mJy,1409.529 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,13209,id0006
+3c111,7-4-25 2:32:13,3c111_img_RX3.fits,True,2.807 arcsec,2.435 arcsec,107.755 deg,Not found,3.13 mJy,1459.83 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,13209,id0006
+3c279,7-4-25 2:32:29,3c279_img_RX1.fits,True,3.365 arcsec,2.213 arcsec,60.758 deg,Not found,3.509 mJy,3557.25 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13209,id0004
+3c279,7-4-25 2:32:32,3c279_img_RX3.fits,True,3.576 arcsec,2.389 arcsec,55.284 deg,Not found,2.86 mJy,3589.174 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13209,id0004
+3c84,7-4-25 2:32:57,3c84_img_RX1.fits,True,3.173 arcsec,2.117 arcsec,91.854 deg,Not found,5.516 mJy,11452.884 mJy,0.0 arcsec,0.0 arcsec,49d57m1.75s,41d30m41.62s,True,13209,id0011
+3c84,7-4-25 2:33:2,3c84_img_RX3.fits,True,3.261 arcsec,2.401 arcsec,93.94 deg,Not found,5.187 mJy,11829.522 mJy,0.0 arcsec,0.0 arcsec,49d57m1.72s,41d30m41.6s,True,13209,id0011
+aa_tau,7-4-25 2:33:44,aa_tau_img_RX1.fits,True,2.767 arcsec,2.292 arcsec,99.426 deg,265.984798213582GHz,0.914 mJy,89.805 mJy,0.0 arcsec,0.0 arcsec,68d43m51.3s,24d28m52.57s,True,13209,id0019
+ry_tau,7-4-25 2:34:36,ry_tau_img_RX1.fits,True,2.659 arcsec,2.291 arcsec,105.027 deg,265.984798213582GHz,2.131 mJy,266.836 mJy,0.0 arcsec,0.0 arcsec,65d29m21.14s,28d26m35.09s,True,13209,id0020
+0510+180,7-11-25 20:1:24,0510+180_img_RX1.fits,True,2.795 arcsec,2.126 arcsec,93.846 deg,Not found,3.889 mJy,904.996 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,13247,id0005
+0510+180,7-11-25 20:1:28,0510+180_img_RX3.fits,True,2.941 arcsec,2.357 arcsec,103.741 deg,Not found,2.941 mJy,893.132 mJy,0.0 arcsec,0.0 arcsec,77d30m35.03s,18d00m41.1s,True,13247,id0005
+3c120,7-11-25 20:1:45,3c120_img_RX1.fits,True,2.549 arcsec,2.153 arcsec,99.104 deg,Not found,6.155 mJy,1761.414 mJy,0.0 arcsec,0.0 arcsec,68d17m46.42s,5d21m15.62s,True,13247,id0038
+3c120,7-11-25 20:1:47,3c120_img_RX3.fits,True,2.763 arcsec,2.391 arcsec,65.679 deg,Not found,4.296 mJy,1817.362 mJy,0.0 arcsec,0.0 arcsec,68d17m45.94s,5d21m15.14s,True,13247,id0038
+3c279,7-11-25 20:1:59,3c279_img_RX1.fits,True,3.371 arcsec,2.396 arcsec,65.542 deg,Not found,5.708 mJy,3838.078 mJy,0.0 arcsec,0.0 arcsec,194d02m47.0s,-5d47m22.01s,True,13247,id0004
+3c279,7-11-25 20:2:1,3c279_img_RX3.fits,True,3.603 arcsec,2.472 arcsec,61.628 deg,Not found,4.379 mJy,3913.995 mJy,0.0 arcsec,0.0 arcsec,194d02m46.98s,-5d47m22.03s,True,13247,id0004
+3c84,7-11-25 20:2:19,3c84_img_RX1.fits,True,3.041 arcsec,2.148 arcsec,98.059 deg,Not found,4.296 mJy,13525.957 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13247,id0011
+3c84,7-11-25 20:2:23,3c84_img_RX3.fits,True,3.254 arcsec,2.35 arcsec,108.624 deg,Not found,3.829 mJy,13873.833 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13247,id0011
+dl_tau,7-11-25 20:3:6,dl_tau_img_RX1.fits,True,2.8 arcsec,2.247 arcsec,104.681 deg,265.976589479186GHz,1.384 mJy,208.336 mJy,0.0 arcsec,0.0 arcsec,68d24m46.14s,25d20m37.64s,True,13247,id0039
+t_tau,7-11-25 20:4:11,t_tau_img_RX1.fits,True,2.769 arcsec,2.249 arcsec,105.306 deg,265.976589479186GHz,1.455 mJy,253.436 mJy,0.0 arcsec,0.0 arcsec,65d29m51.47s,19d32m5.97s,True,13247,id0040
+sgra,6-10-25 19:53:20,sgra_img_RX1.fits,True,1.744 arcsec,0.933 arcsec,44.303 deg,258.5GHz,37.421 mJy,3539.884 mJy,0.0 arcsec,0.0 arcsec,266d25m0.48s,-29d00m28.26s,True,12735,id0009
+sgra,6-10-25 19:53:20,sgra_img_RX1.fits,True,1.744 arcsec,0.933 arcsec,44.303 deg,258.5GHz,37.421 mJy,291.863 mJy,0.0 arcsec,0.0 arcsec,266d25m6.27s,-29d00m23.22s,False,12735,id0041
+1159+292,6-11-25 4:1:13,1159+292_img_RX0.fits,True,1.237 arcsec,0.876 arcsec,97.351 deg,225.522309691184GHz,10.513 mJy,1391.11 mJy,0.0 arcsec,0.0 arcsec,179d52m57.51s,29d14m43.83s,True,11438,id0001
+m87,6-11-25 4:2:20,m87_img_RX0.fits,True,1.438 arcsec,0.891 arcsec,108.984 deg,225.522309691184GHz,9.527 mJy,694.648 mJy,0.0 arcsec,0.0 arcsec,187d42m21.19s,12d23m27.81s,True,11438,id0042
+m87,6-11-25 4:2:20,m87_img_RX0.fits,True,1.438 arcsec,0.891 arcsec,108.984 deg,225.522309691184GHz,9.527 mJy,1023.17 mJy,0.0 arcsec,0.0 arcsec,187d42m20.12s,12d23m21.03s,False,11438,id0043
+3c279,6-11-25 4:50:32,3c279_img_RX0.fits,True,2.183 arcsec,0.893 arcsec,66.835 deg,225.522309691184GHz,83.354 mJy,7628.854 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11437,id0004
+io,6-11-25 6:13:14,io_img_RX1.fits,False,0.736 arcsec,0.638 arcsec,85.549 deg,350.750291931505GHz,10.018 mJy,3607.941 mJy,0.0 arcsec,0.0 arcsec,0d44m22.94s,-1d23m47.99s,True,11753,Not Stationary
+io,6-11-25 6:13:14,io_img_RX1.fits,False,0.736 arcsec,0.638 arcsec,85.549 deg,350.750291931505GHz,10.018 mJy,93.893 mJy,0.0 arcsec,0.0 arcsec,0d44m21.57s,-1d23m38.24s,False,11753,Not Stationary
+io,6-11-25 6:13:14,io_img_RX1.fits,False,0.736 arcsec,0.638 arcsec,85.549 deg,350.750291931505GHz,10.018 mJy,88.033 mJy,0.0 arcsec,0.0 arcsec,0d44m24.44s,-1d23m57.76s,False,11753,Not Stationary
+io,6-11-25 6:13:14,io_img_RX1.fits,False,0.736 arcsec,0.638 arcsec,85.549 deg,350.750291931505GHz,10.018 mJy,895.441 mJy,0.0 arcsec,0.0 arcsec,0d44m24.49s,-1d23m40.94s,False,11753,Not Stationary
+m87,6-13-25 8:13:40,m87_img_RX0.fits,True,3.275 arcsec,2.745 arcsec,-39.965 deg,225.538GHz,12.866 mJy,921.117 mJy,0.0 arcsec,0.0 arcsec,187d42m20.44s,12d23m27.45s,True,11134,id0042
+m87,6-13-25 8:13:40,m87_img_RX0.fits,True,3.275 arcsec,2.745 arcsec,-39.965 deg,225.538GHz,12.866 mJy,273.599 mJy,0.0 arcsec,0.0 arcsec,187d42m8.07s,12d23m31.95s,False,11134,id0044
+m87,6-13-25 8:13:40,m87_img_RX0.fits,True,3.275 arcsec,2.745 arcsec,-39.965 deg,225.538GHz,12.866 mJy,233.62 mJy,0.0 arcsec,0.0 arcsec,187d42m19.78s,12d23m8.79s,False,11134,id0045
+m87,6-13-25 8:13:40,m87_img_RX0.fits,True,3.275 arcsec,2.745 arcsec,-39.965 deg,225.538GHz,12.866 mJy,192.255 mJy,0.0 arcsec,0.0 arcsec,187d42m21.5s,12d23m38.94s,False,11134,id0046
+0530+135,6-13-25 11:29:30,0530+135_img_RX0.fits,True,4.783 arcsec,2.686 arcsec,107.45 deg,225.982859297756GHz,12.894 mJy,858.896 mJy,0.0 arcsec,0.0 arcsec,82d44m5.69s,13d31m54.6s,True,13225,id0047
+hd98800b,6-13-25 11:30:11,hd98800b_img_RX0.fits,True,4.062 arcsec,2.638 arcsec,11.87 deg,225.982859297756GHz,1.183 mJy,44.418 mJy,0.0 arcsec,0.0 arcsec,170d31m15.91s,-24d46m40.63s,True,13225,id0048
+twhya,6-13-25 11:30:19,twhya_img_RX0.fits,True,5.063 arcsec,2.618 arcsec,9.387 deg,225.982859297756GHz,13.361 mJy,464.576 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.38s,True,13225,id0049
+3c286,6-18-25 17:41:2,3c286_img_RX0.fits,True,1.479 arcsec,0.882 arcsec,85.793 deg,220.1GHz,1.304 mJy,342.878 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13601,id0050
+sgrastar,6-18-25 17:42:38,sgrastar_img_RX0.fits,True,1.453 arcsec,1.313 arcsec,85.977 deg,220.1GHz,17.79 mJy,3978.454 mJy,0.0 arcsec,0.0 arcsec,266d25m0.34s,-29d00m28.33s,True,13601,id0009
+sgrastar,6-18-25 17:42:38,sgrastar_img_RX0.fits,True,1.453 arcsec,1.313 arcsec,85.977 deg,220.1GHz,17.79 mJy,152.859 mJy,0.0 arcsec,0.0 arcsec,266d25m6.97s,-29d00m21.62s,False,13601,id0051
+3c286,6-19-25 17:13:30,3c286_img_RX0.fits,True,1.375 arcsec,0.93 arcsec,94.237 deg,220.1GHz,1.111 mJy,341.371 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13603,id0050
+sgrastar,6-19-25 17:15:15,sgrastar_img_RX0.fits,True,1.462 arcsec,1.336 arcsec,109.648 deg,220.1GHz,29.549 mJy,2943.74 mJy,0.0 arcsec,0.0 arcsec,266d25m0.33s,-29d00m28.34s,True,13603,id0009
+3c286,6-26-25 16:27:24,3c286_img_RX0.fits,True,1.518 arcsec,0.907 arcsec,86.629 deg,220.1GHz,0.85 mJy,334.564 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13607,id0050
+sgrastar,6-26-25 16:28:28,sgrastar_img_RX0.fits,True,3.113 arcsec,0.968 arcsec,58.332 deg,220.1GHz,84.024 mJy,1816.9 mJy,0.0 arcsec,0.0 arcsec,266d25m1.12s,-29d00m28.79s,True,13607,id0009
+sgrastar,6-26-25 16:28:28,sgrastar_img_RX0.fits,True,3.113 arcsec,0.968 arcsec,58.332 deg,220.1GHz,84.024 mJy,880.405 mJy,0.0 arcsec,0.0 arcsec,266d24m42.74s,-29d00m16.19s,False,13607,id0052
+sgrastar,6-26-25 16:28:28,sgrastar_img_RX0.fits,True,3.113 arcsec,0.968 arcsec,58.332 deg,220.1GHz,84.024 mJy,827.856 mJy,0.0 arcsec,0.0 arcsec,266d24m47.27s,-29d00m35.67s,False,13607,id0053
+3c286,6-26-25 19:32:33,3c286_img_RX0.fits,True,1.539 arcsec,0.871 arcsec,81.752 deg,220.1GHz,1.425 mJy,351.6 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13608,id0050
+sgrastar,6-26-25 19:33:31,sgrastar_img_RX0.fits,True,1.445 arcsec,1.262 arcsec,86.384 deg,220.1GHz,27.376 mJy,759.169 mJy,0.0 arcsec,0.0 arcsec,266d25m0.6s,-29d00m28.56s,True,13608,id0009
+sgrastar,6-26-25 19:33:31,sgrastar_img_RX0.fits,True,1.445 arcsec,1.262 arcsec,86.384 deg,220.1GHz,27.376 mJy,310.387 mJy,0.0 arcsec,0.0 arcsec,266d25m1.68s,-29d00m29.33s,True,13608,id0009
+sgrastar,6-26-25 19:33:31,sgrastar_img_RX0.fits,True,1.445 arcsec,1.262 arcsec,86.384 deg,220.1GHz,27.376 mJy,175.265 mJy,0.0 arcsec,0.0 arcsec,266d24m53.07s,-29d00m34.75s,False,13608,id0054
+bllac,6-27-25 12:20:45,bllac_img_RX0.fits,True,5.829 arcsec,2.647 arcsec,85.196 deg,235.014737364201GHz,51.084 mJy,11499.782 mJy,0.0 arcsec,0.0 arcsec,330d40m48.54s,42d16m39.36s,True,7685,id0012
+sgrastar,6-27-25 15:36:34,sgrastar_img_RX0.fits,True,1.445 arcsec,1.323 arcsec,105.833 deg,220.1GHz,36.441 mJy,3588.168 mJy,0.0 arcsec,0.0 arcsec,266d25m0.34s,-29d00m28.33s,True,13605,id0009
+sgrastar,6-27-25 15:36:34,sgrastar_img_RX0.fits,True,1.445 arcsec,1.323 arcsec,105.833 deg,220.1GHz,36.441 mJy,310.305 mJy,0.0 arcsec,0.0 arcsec,266d25m6.87s,-29d00m33.5s,False,13605,id0055
+1310+323,7-4-25 8:56:2,1310+323_img_RX0.fits,True,1.421 arcsec,0.921 arcsec,93.68 deg,Not found,18.222 mJy,2579.122 mJy,0.0 arcsec,0.0 arcsec,197d37m9.73s,32d20m43.58s,True,13613,id0002
+1310+323,7-4-25 8:56:5,1310+323_img_RX3.fits,True,1.602 arcsec,1.001 arcsec,105.645 deg,Not found,19.635 mJy,2571.76 mJy,0.0 arcsec,0.0 arcsec,197d37m9.73s,32d20m43.58s,True,13613,id0002
+1700-261,7-4-25 8:56:18,1700-261_img_RX0.fits,True,1.473 arcsec,1.267 arcsec,91.138 deg,Not found,3.72 mJy,1102.098 mJy,0.0 arcsec,0.0 arcsec,255d13m17.31s,-26d10m51.73s,True,13613,id0056
+1700-261,7-4-25 8:56:23,1700-261_img_RX3.fits,True,1.496 arcsec,1.309 arcsec,85.301 deg,Not found,4.234 mJy,1127.952 mJy,0.0 arcsec,0.0 arcsec,255d13m17.31s,-26d10m51.73s,True,13613,id0056
+1924-292,7-4-25 8:56:43,1924-292_img_RX0.fits,True,1.457 arcsec,1.307 arcsec,110.463 deg,Not found,14.186 mJy,3918.988 mJy,0.0 arcsec,0.0 arcsec,291d12m45.58s,-29d14m30.35s,True,13613,id0057
+1924-292,7-4-25 8:56:46,1924-292_img_RX3.fits,True,1.534 arcsec,1.353 arcsec,120.215 deg,Not found,13.465 mJy,3916.932 mJy,0.0 arcsec,0.0 arcsec,291d12m45.58s,-29d14m30.35s,True,13613,id0057
+3c279,7-4-25 8:56:57,3c279_img_RX0.fits,True,1.346 arcsec,0.983 arcsec,98.804 deg,Not found,5.109 mJy,6091.852 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13613,id0004
+3c279,7-4-25 8:57:0,3c279_img_RX3.fits,True,1.403 arcsec,1.035 arcsec,101.655 deg,Not found,6.088 mJy,6090.418 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13613,id0004
+3c286,7-4-25 8:57:22,3c286_img_RX0.fits,True,1.492 arcsec,0.95 arcsec,95.449 deg,220.1GHz,1.283 mJy,319.578 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13613,id0050
+bllac,7-4-25 8:58:1,bllac_img_RX0.fits,True,1.329 arcsec,0.945 arcsec,94.755 deg,Not found,3.519 mJy,2528.52 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13613,id0012
+bllac,7-4-25 8:58:3,bllac_img_RX3.fits,True,1.381 arcsec,0.997 arcsec,98.551 deg,Not found,4.425 mJy,2527.005 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13613,id0012
+sgrastar,7-4-25 8:58:60,sgrastar_img_RX0.fits,True,1.48 arcsec,1.332 arcsec,109.845 deg,220.1GHz,16.692 mJy,3916.413 mJy,0.0 arcsec,0.0 arcsec,266d25m0.08s,-29d00m28.55s,True,13613,id0009
+1310+323,7-4-25 11:25:51,1310+323_img_RX0.fits,True,1.513 arcsec,1.016 arcsec,118.26 deg,Not found,42.142 mJy,1992.681 mJy,0.0 arcsec,0.0 arcsec,197d37m9.96s,32d20m43.78s,True,13615,id0002
+1310+323,7-4-25 11:25:54,1310+323_img_RX3.fits,True,1.576 arcsec,1.027 arcsec,120.711 deg,Not found,39.794 mJy,2000.212 mJy,0.0 arcsec,0.0 arcsec,197d37m9.96s,32d20m43.78s,True,13615,id0002
+1700-261,7-4-25 11:26:4,1700-261_img_RX0.fits,True,1.645 arcsec,1.23 arcsec,125.075 deg,Not found,10.455 mJy,939.332 mJy,0.0 arcsec,0.0 arcsec,255d13m17.31s,-26d10m51.73s,True,13615,id0056
+1700-261,7-4-25 11:26:9,1700-261_img_RX3.fits,True,1.719 arcsec,1.274 arcsec,125.184 deg,Not found,11.265 mJy,979.158 mJy,0.0 arcsec,0.0 arcsec,255d13m17.31s,-26d10m51.73s,True,13615,id0056
+1924-292,7-4-25 11:26:29,1924-292_img_RX0.fits,True,1.563 arcsec,1.248 arcsec,131.273 deg,Not found,12.005 mJy,3830.628 mJy,0.0 arcsec,0.0 arcsec,291d12m45.58s,-29d14m30.35s,True,13615,id0057
+1924-292,7-4-25 11:26:32,1924-292_img_RX3.fits,True,1.614 arcsec,1.276 arcsec,131.432 deg,Not found,12.937 mJy,3839.801 mJy,0.0 arcsec,0.0 arcsec,291d12m45.58s,-29d14m30.35s,True,13615,id0057
+3c286,7-4-25 11:26:44,3c286_img_RX0.fits,True,1.402 arcsec,0.96 arcsec,98.65 deg,220.1GHz,2.188 mJy,298.489 mJy,0.0 arcsec,0.0 arcsec,202d47m4.32s,30d30m32.96s,True,13615,id0050
+bllac,7-4-25 11:27:11,bllac_img_RX0.fits,True,1.328 arcsec,0.945 arcsec,92.748 deg,Not found,3.255 mJy,2554.409 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13615,id0012
+bllac,7-4-25 11:27:14,bllac_img_RX3.fits,True,1.364 arcsec,0.978 arcsec,95.574 deg,Not found,5.508 mJy,2553.847 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13615,id0012
+sgrastar,7-4-25 11:27:59,sgrastar_img_RX0.fits,True,1.594 arcsec,1.262 arcsec,130.859 deg,220.1GHz,33.205 mJy,3309.705 mJy,0.0 arcsec,0.0 arcsec,266d25m0.05s,-29d00m28.58s,True,13615,id0009
+sgrastar,7-4-25 11:27:59,sgrastar_img_RX0.fits,True,1.594 arcsec,1.262 arcsec,130.859 deg,220.1GHz,33.205 mJy,293.228 mJy,0.0 arcsec,0.0 arcsec,266d24m55.59s,-29d00m33.06s,False,13615,id0010
+sgrastar,7-4-25 11:27:59,sgrastar_img_RX0.fits,True,1.594 arcsec,1.262 arcsec,130.859 deg,220.1GHz,33.205 mJy,218.608 mJy,0.0 arcsec,0.0 arcsec,266d25m7.76s,-29d00m20.68s,False,13615,id0051
+1310+323,7-7-25 9:41:60,1310+323_img_RX0.fits,True,1.344 arcsec,0.865 arcsec,89.503 deg,Not found,18.554 mJy,2808.481 mJy,0.0 arcsec,0.0 arcsec,197d37m9.73s,32d20m43.58s,True,13609,id0002
+0510+180,7-7-25 14:20:28,0510+180_img_RX0.fits,True,3.432 arcsec,2.964 arcsec,96.203 deg,Not found,4.5 mJy,1187.645 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,13253,id0005
+0510+180,7-7-25 14:20:36,0510+180_img_RX3.fits,True,3.178 arcsec,2.885 arcsec,113.444 deg,Not found,5.331 mJy,1088.258 mJy,0.0 arcsec,0.0 arcsec,77d30m34.96s,18d00m41.04s,True,13253,id0005
+3c111,7-7-25 14:20:48,3c111_img_RX0.fits,True,3.354 arcsec,2.958 arcsec,105.846 deg,Not found,3.287 mJy,1806.603 mJy,0.0 arcsec,0.0 arcsec,64d35m18.4s,38d01m35.21s,True,13253,id0006
+3c111,7-7-25 14:20:51,3c111_img_RX3.fits,True,3.196 arcsec,2.853 arcsec,109.995 deg,Not found,3.939 mJy,1763.302 mJy,0.0 arcsec,0.0 arcsec,64d35m18.44s,38d01m35.24s,True,13253,id0006
+3c279,7-7-25 14:21:6,3c279_img_RX0.fits,True,3.823 arcsec,3.116 arcsec,42.352 deg,Not found,4.388 mJy,4815.246 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13253,id0004
+3c279,7-7-25 14:21:9,3c279_img_RX3.fits,True,3.605 arcsec,2.954 arcsec,38.778 deg,Not found,4.222 mJy,4547.203 mJy,0.0 arcsec,0.0 arcsec,194d02m46.88s,-5d47m22.14s,True,13253,id0004
+ab_aur,7-7-25 14:21:48,ab_aur_img_RX0.fits,True,3.298 arcsec,2.926 arcsec,105.677 deg,221.98210249008GHz,0.545 mJy,59.15 mJy,0.0 arcsec,0.0 arcsec,73d56m26.4s,30d33m3.19s,True,13253,id0007
+dn_tau,7-7-25 14:23:6,dn_tau_img_RX0.fits,True,3.225 arcsec,2.905 arcsec,109.203 deg,221.98210249008GHz,0.504 mJy,77.472 mJy,0.0 arcsec,0.0 arcsec,68d51m50.06s,24d14m57.82s,True,13253,id0008
+0510+180,7-7-25 18:31:22,0510+180_img_RX1.fits,True,2.858 arcsec,2.178 arcsec,97.288 deg,Not found,8.338 mJy,1302.601 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,13252,id0005
+0510+180,7-7-25 18:31:25,0510+180_img_RX3.fits,True,2.925 arcsec,2.417 arcsec,108.03 deg,Not found,5.158 mJy,1230.977 mJy,0.0 arcsec,0.0 arcsec,77d30m35.03s,18d00m41.1s,True,13252,id0005
+3c111,7-7-25 18:31:37,3c111_img_RX1.fits,True,2.831 arcsec,2.214 arcsec,97.523 deg,Not found,8.084 mJy,2338.431 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,13252,id0006
+3c111,7-7-25 18:31:41,3c111_img_RX3.fits,True,2.938 arcsec,2.456 arcsec,109.396 deg,Not found,6.208 mJy,2302.466 mJy,0.0 arcsec,0.0 arcsec,64d35m19.16s,38d01m35.8s,True,13252,id0006
+3c279,7-7-25 18:31:57,3c279_img_RX1.fits,True,3.085 arcsec,2.317 arcsec,59.196 deg,Not found,7.108 mJy,5713.231 mJy,0.0 arcsec,0.0 arcsec,194d02m46.97s,-5d47m22.04s,True,13252,id0004
+3c279,7-7-25 18:32:1,3c279_img_RX3.fits,True,3.204 arcsec,2.476 arcsec,54.298 deg,Not found,4.214 mJy,5560.534 mJy,0.0 arcsec,0.0 arcsec,194d02m46.95s,-5d47m22.06s,True,13252,id0004
+3c84,7-7-25 18:32:20,3c84_img_RX1.fits,True,4.743 arcsec,2.304 arcsec,92.129 deg,265.979470709883GHz,435.421 mJy,9611.409 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13252,id0011
+ab_aur,7-7-25 18:32:45,ab_aur_img_RX1.fits,True,2.916 arcsec,2.375 arcsec,99.19 deg,265.979470709883GHz,1.304 mJy,117.05 mJy,0.0 arcsec,0.0 arcsec,73d56m27.14s,30d33m3.83s,True,13252,id0007
+dn_tau,7-7-25 18:33:51,dn_tau_img_RX1.fits,True,2.842 arcsec,2.352 arcsec,103.127 deg,265.979470709883GHz,1.003 mJy,157.12 mJy,0.0 arcsec,0.0 arcsec,68d51m50.66s,24d14m58.45s,True,13252,id0008
+1159+292,7-8-25 11:24:32,1159+292_img_RX0.fits,True,3.123 arcsec,2.954 arcsec,-26.562 deg,225.538GHz,2.183 mJy,1720.327 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10479,id0001
+1310+323,7-8-25 11:24:52,1310+323_img_RX0.fits,True,3.353 arcsec,3.018 arcsec,109.387 deg,Not found,3.922 mJy,1220.142 mJy,0.0 arcsec,0.0 arcsec,197d37m9.96s,32d20m43.78s,True,10479,id0002
+1310+323,7-8-25 11:24:54,1310+323_img_RX3.fits,True,3.479 arcsec,3.014 arcsec,111.093 deg,Not found,4.387 mJy,1220.65 mJy,0.0 arcsec,0.0 arcsec,197d37m9.96s,32d20m43.78s,True,10479,id0002
+3c273,7-8-25 11:25:21,3c273_img_RX0.fits,True,3.463 arcsec,2.985 arcsec,-32.443 deg,225.538GHz,18.199 mJy,5777.936 mJy,0.0 arcsec,0.0 arcsec,187d16m39.95s,2d03m8.05s,True,10479,id0003
+3c279,7-8-25 11:25:44,3c279_img_RX0.fits,True,3.526 arcsec,2.918 arcsec,-22.154 deg,Not found,5.28 mJy,10535.72 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10479,id0004
+3c279,7-8-25 11:25:49,3c279_img_RX3.fits,True,3.633 arcsec,2.946 arcsec,-27.013 deg,Not found,6.464 mJy,10535.028 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10479,id0004
+1642+398,7-8-25 19:33:26,1642+398_img_RX0.fits,True,3.784 arcsec,3.161 arcsec,98.955 deg,Not found,5.805 mJy,3458.693 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13491,id0013
+1642+398,7-8-25 19:33:30,1642+398_img_RX3.fits,True,4.089 arcsec,3.213 arcsec,31.899 deg,Not found,8.229 mJy,3459.333 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13491,id0013
+1658+347,7-8-25 19:33:42,1658+347_img_RX0.fits,True,3.754 arcsec,3.121 arcsec,96.928 deg,Not found,5.472 mJy,53.198 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13491,id0014
+1658+347,7-8-25 19:33:43,1658+347_img_RX3.fits,True,4.066 arcsec,3.198 arcsec,45.878 deg,Not found,7.42 mJy,54.134 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13491,id0014
+3c279,7-8-25 19:33:50,3c279_img_RX0.fits,True,3.785 arcsec,3.399 arcsec,51.312 deg,Not found,8.883 mJy,5641.62 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13491,id0004
+3c279,7-8-25 19:33:53,3c279_img_RX3.fits,True,4.422 arcsec,3.374 arcsec,-10.861 deg,Not found,11.178 mJy,5639.343 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13491,id0004
+1642+398,7-9-25 12:34:60,1642+398_img_RX0.fits,True,3.638 arcsec,2.624 arcsec,-10.222 deg,Not found,15.22 mJy,3814.254 mJy,0.0 arcsec,0.0 arcsec,250d44m41.35s,39d48m36.37s,True,13513,id0013
+1642+398,7-9-25 12:35:2,1642+398_img_RX3.fits,True,3.695 arcsec,2.671 arcsec,-3.689 deg,Not found,19.784 mJy,3781.234 mJy,0.0 arcsec,0.0 arcsec,250d44m41.35s,39d48m36.37s,True,13513,id0013
+3c279,7-9-25 12:35:13,3c279_img_RX0.fits,True,6.432 arcsec,2.868 arcsec,-43.034 deg,Not found,9.696 mJy,5548.119 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13513,id0004
+3c279,7-9-25 12:35:15,3c279_img_RX3.fits,True,6.038 arcsec,2.961 arcsec,-43.014 deg,Not found,15.217 mJy,5545.591 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13513,id0004
+1642+398,7-9-25 13:25:15,1642+398_img_RX0.fits,True,3.528 arcsec,2.987 arcsec,4.17 deg,Not found,7.967 mJy,3519.05 mJy,0.0 arcsec,0.0 arcsec,250d44m41.35s,39d48m36.37s,True,13519,id0013
+1642+398,7-9-25 13:25:18,1642+398_img_RX3.fits,True,3.522 arcsec,3.009 arcsec,10.091 deg,Not found,9.132 mJy,3517.287 mJy,0.0 arcsec,0.0 arcsec,250d44m41.35s,39d48m36.37s,True,13519,id0013
+1658+347,7-9-25 13:25:26,1658+347_img_RX0.fits,True,3.48 arcsec,2.963 arcsec,-2.927 deg,Not found,6.047 mJy,61.111 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13519,id0014
+1658+347,7-9-25 13:25:27,1658+347_img_RX3.fits,True,3.498 arcsec,3.0 arcsec,5.16 deg,Not found,7.408 mJy,57.883 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13519,id0014
+3c279,7-9-25 13:25:35,3c279_img_RX0.fits,True,5.563 arcsec,2.869 arcsec,-41.704 deg,Not found,4.538 mJy,5288.534 mJy,0.0 arcsec,0.0 arcsec,194d02m46.82s,-5d47m22.19s,True,13519,id0004
+3c279,7-9-25 13:25:38,3c279_img_RX3.fits,True,5.504 arcsec,2.878 arcsec,-42.043 deg,Not found,6.099 mJy,5287.026 mJy,0.0 arcsec,0.0 arcsec,194d02m46.82s,-5d47m22.19s,True,13519,id0004
+3c454.3,7-9-25 13:25:55,3c454.3_img_RX0.fits,True,3.485 arcsec,2.552 arcsec,-16.094 deg,Not found,4.945 mJy,5806.274 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13519,id0015
+3c454.3,7-9-25 13:25:57,3c454.3_img_RX3.fits,True,3.441 arcsec,2.547 arcsec,-12.873 deg,Not found,10.024 mJy,5806.452 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13519,id0015
+1642+398,7-9-25 14:46:56,1642+398_img_RX0.fits,True,3.486 arcsec,3.091 arcsec,-5.227 deg,Not found,4.325 mJy,3410.953 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13523,id0013
+1642+398,7-9-25 14:47:0,1642+398_img_RX3.fits,True,3.48 arcsec,3.156 arcsec,-4.944 deg,Not found,4.924 mJy,3407.967 mJy,0.0 arcsec,0.0 arcsec,250d44m42.15s,39d48m36.99s,True,13523,id0013
+1658+347,7-9-25 14:47:12,1658+347_img_RX0.fits,True,3.478 arcsec,3.043 arcsec,-19.697 deg,Not found,3.691 mJy,57.202 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13523,id0014
+1658+347,7-9-25 14:47:14,1658+347_img_RX3.fits,True,3.479 arcsec,3.122 arcsec,-0.136 deg,Not found,4.66 mJy,48.651 mJy,0.0 arcsec,0.0 arcsec,254d30m21.29s,34d43m28.4s,True,13523,id0014
+3c279,7-9-25 14:47:24,3c279_img_RX0.fits,True,3.861 arcsec,3.031 arcsec,9.811 deg,Not found,4.613 mJy,5398.918 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,13523,id0004
+3c279,7-9-25 14:47:26,3c279_img_RX3.fits,True,4.031 arcsec,2.995 arcsec,13.06 deg,Not found,7.701 mJy,5395.948 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,13523,id0004
+3c454.3,7-9-25 14:47:44,3c454.3_img_RX0.fits,True,3.44 arcsec,2.572 arcsec,-18.495 deg,Not found,4.722 mJy,5577.13 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13523,id0015
+3c454.3,7-9-25 14:47:46,3c454.3_img_RX3.fits,True,3.48 arcsec,2.579 arcsec,-11.489 deg,Not found,6.385 mJy,5575.726 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13523,id0015
+1127-189,7-9-25 15:19:1,1127-189_img_RX0.fits,True,3.681 arcsec,2.735 arcsec,-1.128 deg,Not found,7.155 mJy,512.676 mJy,0.0 arcsec,0.0 arcsec,171d46m5.23s,-18d57m18.06s,True,13241,id0058
+1127-189,7-9-25 15:19:3,1127-189_img_RX3.fits,True,3.965 arcsec,2.71 arcsec,-6.585 deg,Not found,8.21 mJy,511.708 mJy,0.0 arcsec,0.0 arcsec,171d46m5.23s,-18d57m18.06s,True,13241,id0058
+1130-148,7-9-25 15:19:8,1130-148_img_RX0.fits,True,3.431 arcsec,2.794 arcsec,5.288 deg,Not found,7.594 mJy,2266.057 mJy,0.0 arcsec,0.0 arcsec,172d31m45.16s,-14d49m28.01s,True,13241,id0059
+1130-148,7-9-25 15:19:9,1130-148_img_RX3.fits,True,3.696 arcsec,2.759 arcsec,-4.361 deg,Not found,8.099 mJy,2269.766 mJy,0.0 arcsec,0.0 arcsec,172d31m45.16s,-14d49m28.01s,True,13241,id0059
+3c279,7-9-25 15:19:14,3c279_img_RX0.fits,True,4.051 arcsec,2.84 arcsec,54.52 deg,Not found,2.736 mJy,4702.406 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13241,id0004
+3c279,7-9-25 15:19:16,3c279_img_RX3.fits,True,3.978 arcsec,3.065 arcsec,50.293 deg,Not found,3.409 mJy,4701.288 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13241,id0004
+hd98800b,7-9-25 15:19:34,hd98800b_img_RX0.fits,True,4.156 arcsec,2.731 arcsec,-1.781 deg,225.538GHz,0.966 mJy,41.387 mJy,0.0 arcsec,0.0 arcsec,170d31m15.93s,-24d46m40.62s,True,13241,id0048
+twhya,7-9-25 15:19:44,twhya_img_RX0.fits,True,5.246 arcsec,2.714 arcsec,-7.401 deg,225.538GHz,10.768 mJy,414.559 mJy,0.0 arcsec,0.0 arcsec,165d27m55.75s,-34d42m18.0s,True,13241,id0049
+1127-189,7-11-25 9:23:21,1127-189_img_RX0.fits,True,3.425 arcsec,2.456 arcsec,20.413 deg,Not found,10.076 mJy,505.2 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13273,id0058
+1127-189,7-11-25 9:23:24,1127-189_img_RX3.fits,True,3.607 arcsec,2.487 arcsec,16.667 deg,Not found,10.463 mJy,505.814 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13273,id0058
+1130-148,7-11-25 9:23:29,1130-148_img_RX0.fits,True,3.317 arcsec,2.445 arcsec,28.702 deg,Not found,11.543 mJy,2043.332 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13273,id0059
+1130-148,7-11-25 9:23:30,1130-148_img_RX3.fits,True,3.454 arcsec,2.507 arcsec,24.451 deg,Not found,10.528 mJy,2046.003 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13273,id0059
+1310+323,7-11-25 9:23:36,1310+323_img_RX0.fits,True,2.68 arcsec,2.519 arcsec,94.436 deg,225.538GHz,4.408 mJy,2213.649 mJy,0.0 arcsec,0.0 arcsec,197d37m9.32s,32d20m43.24s,True,13273,id0002
+3c279,7-11-25 9:23:44,3c279_img_RX0.fits,True,4.827 arcsec,2.401 arcsec,57.341 deg,Not found,5.514 mJy,5143.485 mJy,0.0 arcsec,0.0 arcsec,194d02m46.96s,-5d47m22.05s,True,13273,id0004
+3c279,7-11-25 9:23:46,3c279_img_RX3.fits,True,4.803 arcsec,2.563 arcsec,55.316 deg,Not found,7.916 mJy,5142.715 mJy,0.0 arcsec,0.0 arcsec,194d02m46.96s,-5d47m22.05s,True,13273,id0004
+ganymede,7-11-25 9:23:58,ganymede_img_RX0.fits,False,5.388 arcsec,2.541 arcsec,104.042 deg,Not found,69.085 mJy,5786.63 mJy,0.0 arcsec,0.0 arcsec,70d25m17.7s,21d39m44.92s,True,13273,Not Stationary
+ganymede,7-11-25 9:23:59,ganymede_img_RX3.fits,False,5.399 arcsec,2.734 arcsec,104.182 deg,Not found,62.197 mJy,5790.145 mJy,0.0 arcsec,0.0 arcsec,70d25m17.7s,21d39m44.92s,True,13273,Not Stationary
+hd98800b,7-11-25 9:24:13,hd98800b_img_RX0.fits,True,3.863 arcsec,2.481 arcsec,16.69 deg,225.538GHz,1.124 mJy,34.806 mJy,0.0 arcsec,0.0 arcsec,170d31m15.93s,-24d46m40.62s,True,13273,id0048
+hd98800b,7-11-25 9:24:13,hd98800b_img_RX0.fits,True,3.863 arcsec,2.481 arcsec,16.69 deg,225.538GHz,1.124 mJy,8.904 mJy,0.0 arcsec,0.0 arcsec,170d31m6.83s,-24d46m50.87s,False,13273,id0060
+hd98800b,7-11-25 9:24:13,hd98800b_img_RX0.fits,True,3.863 arcsec,2.481 arcsec,16.69 deg,225.538GHz,1.124 mJy,6.942 mJy,0.0 arcsec,0.0 arcsec,170d31m6.47s,-24d46m25.18s,False,13273,id0061
+twhya,7-11-25 9:24:23,twhya_img_RX0.fits,True,4.768 arcsec,2.488 arcsec,10.408 deg,225.538GHz,16.99 mJy,330.855 mJy,0.0 arcsec,0.0 arcsec,165d27m55.0s,-34d42m18.0s,True,13273,id0049
+twhya,7-11-25 9:24:23,twhya_img_RX0.fits,True,4.768 arcsec,2.488 arcsec,10.408 deg,225.538GHz,16.99 mJy,388.205 mJy,0.0 arcsec,0.0 arcsec,165d28m6.18s,-34d42m23.46s,False,13273,id0062
+twhya,7-11-25 9:24:23,twhya_img_RX0.fits,True,4.768 arcsec,2.488 arcsec,10.408 deg,225.538GHz,16.99 mJy,253.251 mJy,0.0 arcsec,0.0 arcsec,165d27m40.82s,-34d42m11.12s,False,13273,id0063
+twhya,7-11-25 9:24:23,twhya_img_RX0.fits,True,4.768 arcsec,2.488 arcsec,10.408 deg,225.538GHz,16.99 mJy,827.693 mJy,0.0 arcsec,0.0 arcsec,165d27m45.98s,-34d42m32.44s,False,13273,id0064
+1127-189,7-11-25 10:56:9,1127-189_img_RX0.fits,True,4.677 arcsec,2.63 arcsec,-27.185 deg,Not found,6.161 mJy,485.223 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13323,id0058
+1127-189,7-11-25 10:56:32,1127-189_img_RX3.fits,True,4.143 arcsec,2.416 arcsec,-17.397 deg,Not found,13.166 mJy,479.103 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13323,id0058
+1130-148,7-11-25 10:56:38,1130-148_img_RX0.fits,True,4.261 arcsec,2.64 arcsec,-24.416 deg,Not found,6.499 mJy,2082.153 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13323,id0059
+1130-148,7-11-25 10:56:39,1130-148_img_RX3.fits,True,3.779 arcsec,2.399 arcsec,-12.802 deg,Not found,11.581 mJy,2072.411 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13323,id0059
+3c279,7-11-25 10:56:46,3c279_img_RX0.fits,True,3.514 arcsec,2.75 arcsec,6.201 deg,Not found,3.929 mJy,5615.107 mJy,0.0 arcsec,0.0 arcsec,194d02m46.87s,-5d47m22.14s,True,13323,id0004
+3c279,7-11-25 10:56:48,3c279_img_RX3.fits,True,3.497 arcsec,2.302 arcsec,15.855 deg,Not found,10.722 mJy,5614.216 mJy,0.0 arcsec,0.0 arcsec,194d02m46.87s,-5d47m22.14s,True,13323,id0004
+hd98800b,7-11-25 10:57:12,hd98800b_img_RX0.fits,True,5.03 arcsec,2.55 arcsec,-24.159 deg,225.538GHz,0.691 mJy,39.041 mJy,0.0 arcsec,0.0 arcsec,170d31m16.63s,-24d46m39.99s,True,13323,id0048
+twhya,7-11-25 10:57:24,twhya_img_RX0.fits,True,6.763 arcsec,2.532 arcsec,-26.495 deg,225.538GHz,5.183 mJy,391.015 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.38s,True,13323,id0049
+twhya,7-11-25 10:57:24,twhya_img_RX0.fits,True,6.763 arcsec,2.532 arcsec,-26.495 deg,225.538GHz,5.183 mJy,380.759 mJy,0.0 arcsec,0.0 arcsec,165d27m49.8s,-34d42m2.9s,False,13323,id0065
+0510+180,7-11-25 13:30:48,0510+180_img_RX0.fits,True,5.335 arcsec,3.167 arcsec,-35.626 deg,Not found,3.794 mJy,1210.765 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,12479,id0005
+0510+180,7-11-25 13:30:53,0510+180_img_RX3.fits,True,5.26 arcsec,2.957 arcsec,-35.167 deg,Not found,5.071 mJy,1160.703 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,12479,id0005
+3c120,7-11-25 13:31:10,3c120_img_RX0.fits,True,5.806 arcsec,3.037 arcsec,-26.487 deg,Not found,8.423 mJy,3047.683 mJy,0.0 arcsec,0.0 arcsec,68d17m46.42s,5d21m15.62s,True,12479,id0038
+3c120,7-11-25 13:31:12,3c120_img_RX3.fits,True,5.53 arcsec,2.947 arcsec,-28.475 deg,Not found,8.519 mJy,2970.398 mJy,0.0 arcsec,0.0 arcsec,68d17m46.42s,5d21m15.62s,True,12479,id0038
+3c279,7-11-25 13:31:22,3c279_img_RX0.fits,True,5.54 arcsec,4.716 arcsec,-18.76 deg,221.986821785896GHz,22.489 mJy,3257.046 mJy,0.0 arcsec,0.0 arcsec,194d02m46.54s,-5d47m22.47s,True,12479,id0004
+3c84,7-11-25 13:31:28,3c84_img_RX0.fits,True,10.312 arcsec,2.943 arcsec,97.431 deg,Not found,161.528 mJy,13401.379 mJy,0.0 arcsec,0.0 arcsec,49d57m1.48s,41d30m41.42s,True,12479,id0011
+3c84,7-11-25 13:31:30,3c84_img_RX3.fits,True,9.894 arcsec,2.873 arcsec,97.118 deg,Not found,165.228 mJy,12479.915 mJy,0.0 arcsec,0.0 arcsec,49d57m1.53s,41d30m41.46s,True,12479,id0011
+bllac,7-11-25 13:31:49,bllac_img_RX0.fits,True,5.968 arcsec,2.574 arcsec,-27.677 deg,Not found,9.837 mJy,12465.521 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,12479,id0012
+bllac,7-11-25 13:31:53,bllac_img_RX3.fits,True,5.694 arcsec,2.506 arcsec,-28.061 deg,Not found,15.172 mJy,12245.699 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,12479,id0012
+dl_tau,7-11-25 13:32:45,dl_tau_img_RX0.fits,True,5.25 arcsec,2.974 arcsec,-33.496 deg,221.986821785896GHz,1.579 mJy,144.662 mJy,0.0 arcsec,0.0 arcsec,68d24m46.14s,25d20m37.5s,True,12479,id0039
+t_tau,7-11-25 13:33:54,t_tau_img_RX0.fits,True,5.441 arcsec,3.046 arcsec,-35.611 deg,221.986821785896GHz,1.981 mJy,171.635 mJy,0.0 arcsec,0.0 arcsec,65d29m51.47s,19d32m5.83s,True,12479,id0040
+0510+180,7-11-25 15:34:15,0510+180_img_RX1.fits,True,4.316 arcsec,2.506 arcsec,133.753 deg,Not found,8.267 mJy,1781.606 mJy,0.0 arcsec,0.0 arcsec,77d30m35.0s,18d00m41.07s,True,12542,id0005
+0510+180,7-11-25 15:34:19,0510+180_img_RX3.fits,True,4.293 arcsec,2.652 arcsec,-38.961 deg,Not found,7.524 mJy,1772.255 mJy,0.0 arcsec,0.0 arcsec,77d30m34.97s,18d00m41.04s,True,12542,id0005
+3c120,7-11-25 15:34:35,3c120_img_RX1.fits,True,4.525 arcsec,2.481 arcsec,-39.872 deg,Not found,13.18 mJy,3805.1 mJy,0.0 arcsec,0.0 arcsec,68d17m45.91s,5d21m15.11s,True,12542,id0038
+3c120,7-11-25 15:34:38,3c120_img_RX3.fits,True,4.474 arcsec,2.675 arcsec,-34.349 deg,Not found,10.498 mJy,3850.123 mJy,0.0 arcsec,0.0 arcsec,68d17m45.89s,5d21m15.08s,True,12542,id0038
+3c279,7-11-25 15:34:52,3c279_img_RX1.fits,True,4.336 arcsec,3.354 arcsec,128.308 deg,Not found,13.736 mJy,5101.805 mJy,0.0 arcsec,0.0 arcsec,194d02m46.86s,-5d47m22.15s,True,12542,id0004
+3c279,7-11-25 15:34:55,3c279_img_RX3.fits,True,4.378 arcsec,3.631 arcsec,3.805 deg,Not found,6.912 mJy,5298.267 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,12542,id0004
+3c84,7-11-25 15:35:19,3c84_img_RX1.fits,True,4.327 arcsec,3.698 arcsec,92.509 deg,Not found,39.356 mJy,18230.783 mJy,0.0 arcsec,0.0 arcsec,49d57m1.67s,41d30m41.56s,True,12542,id0011
+3c84,7-11-25 15:35:20,3c84_img_RX3.fits,True,4.612 arcsec,3.813 arcsec,86.312 deg,Not found,32.011 mJy,18493.172 mJy,0.0 arcsec,0.0 arcsec,49d57m1.63s,41d30m41.53s,True,12542,id0011
+dl_tau,7-11-25 15:35:56,dl_tau_img_RX1.fits,True,4.304 arcsec,2.544 arcsec,-41.566 deg,265.972314328077GHz,2.989 mJy,342.466 mJy,0.0 arcsec,0.0 arcsec,68d24m45.57s,25d20m37.08s,True,12542,id0039
+t_tau,7-11-25 15:36:57,t_tau_img_RX1.fits,True,4.352 arcsec,2.581 arcsec,-41.568 deg,265.972314328077GHz,3.12 mJy,401.414 mJy,0.0 arcsec,0.0 arcsec,65d29m52.01s,19d32m5.91s,True,12542,id0040
+0510+180,7-11-25 17:34:50,0510+180_img_RX1.fits,True,2.465 arcsec,1.897 arcsec,91.277 deg,Not found,5.218 mJy,999.689 mJy,0.0 arcsec,0.0 arcsec,77d30m35.53s,18d00m41.58s,True,13233,id0005
+0510+180,7-11-25 17:34:55,0510+180_img_RX3.fits,True,2.657 arcsec,2.145 arcsec,93.609 deg,Not found,3.763 mJy,971.667 mJy,0.0 arcsec,0.0 arcsec,77d30m35.03s,18d00m41.1s,True,13233,id0005
+3c120,7-11-25 17:35:11,3c120_img_RX1.fits,True,2.298 arcsec,1.907 arcsec,96.565 deg,Not found,9.248 mJy,1866.848 mJy,0.0 arcsec,0.0 arcsec,68d17m46.42s,5d21m15.62s,True,13233,id0038
+3c120,7-11-25 17:35:14,3c120_img_RX3.fits,True,2.532 arcsec,2.23 arcsec,92.037 deg,Not found,5.946 mJy,1909.306 mJy,0.0 arcsec,0.0 arcsec,68d17m45.94s,5d21m15.14s,True,13233,id0038
+3c279,7-11-25 17:35:27,3c279_img_RX1.fits,True,2.841 arcsec,1.929 arcsec,56.91 deg,Not found,4.685 mJy,4339.775 mJy,0.0 arcsec,0.0 arcsec,194d02m46.98s,-5d47m22.04s,True,13233,id0004
+3c279,7-11-25 17:35:30,3c279_img_RX3.fits,True,3.095 arcsec,2.084 arcsec,57.058 deg,Not found,3.083 mJy,4285.011 mJy,0.0 arcsec,0.0 arcsec,194d02m46.95s,-5d47m22.06s,True,13233,id0004
+3c84,7-11-25 17:35:58,3c84_img_RX1.fits,True,2.603 arcsec,1.867 arcsec,88.231 deg,Not found,59.453 mJy,13198.444 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13233,id0011
+3c84,7-11-25 17:36:1,3c84_img_RX3.fits,True,2.852 arcsec,2.091 arcsec,89.508 deg,Not found,68.082 mJy,13541.103 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13233,id0011
+bllac,7-11-25 17:36:20,bllac_img_RX1.fits,True,2.233 arcsec,2.101 arcsec,55.838 deg,265.979995389769GHz,7.887 mJy,4970.006 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13233,id0012
+dl_tau,7-11-25 17:36:55,dl_tau_img_RX1.fits,True,2.518 arcsec,2.049 arcsec,96.897 deg,265.979995389769GHz,2.328 mJy,217.294 mJy,0.0 arcsec,0.0 arcsec,68d24m46.14s,25d20m37.64s,True,13233,id0039
+dl_tau,7-11-25 17:36:55,dl_tau_img_RX1.fits,True,2.518 arcsec,2.049 arcsec,96.897 deg,265.979995389769GHz,2.328 mJy,16.238 mJy,0.0 arcsec,0.0 arcsec,68d24m52.68s,25d20m45.84s,False,13233,id0066
+t_tau,7-11-25 17:38:8,t_tau_img_RX1.fits,True,2.488 arcsec,2.047 arcsec,97.281 deg,265.979995389769GHz,2.494 mJy,274.814 mJy,0.0 arcsec,0.0 arcsec,65d29m51.47s,19d32m5.97s,True,13233,id0040
+1127-189,7-11-25 20:30:35,1127-189_img_RX0.fits,True,4.043 arcsec,2.659 arcsec,-2.963 deg,Not found,7.667 mJy,489.776 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13330,id0058
+1127-189,7-11-25 20:30:37,1127-189_img_RX3.fits,True,4.056 arcsec,2.263 arcsec,6.316 deg,Not found,11.28 mJy,482.369 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13330,id0058
+1130-148,7-11-25 20:30:43,1130-148_img_RX0.fits,True,3.807 arcsec,2.673 arcsec,-2.04 deg,Not found,6.453 mJy,2091.709 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13330,id0059
+1130-148,7-11-25 20:30:45,1130-148_img_RX3.fits,True,3.838 arcsec,2.289 arcsec,8.247 deg,Not found,11.487 mJy,2088.836 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13330,id0059
+3c279,7-11-25 20:30:51,3c279_img_RX0.fits,True,4.774 arcsec,2.963 arcsec,53.063 deg,Not found,7.562 mJy,5333.608 mJy,0.0 arcsec,0.0 arcsec,194d02m46.76s,-5d47m22.25s,True,13330,id0004
+3c279,7-11-25 20:30:53,3c279_img_RX3.fits,True,4.756 arcsec,2.585 arcsec,43.368 deg,Not found,31.454 mJy,5332.25 mJy,0.0 arcsec,0.0 arcsec,194d02m46.76s,-5d47m22.25s,True,13330,id0004
+callisto,7-11-25 20:31:6,callisto_img_RX0.fits,False,5.794 arcsec,2.99 arcsec,104.32 deg,225.538GHz,43.596 mJy,4862.169 mJy,0.0 arcsec,0.0 arcsec,69d45m2.47s,21d40m36.55s,True,13330,Not Stationary
+hd98800b,7-11-25 20:31:21,hd98800b_img_RX0.fits,True,4.433 arcsec,2.526 arcsec,0.761 deg,225.538GHz,0.651 mJy,39.766 mJy,0.0 arcsec,0.0 arcsec,170d31m15.93s,-24d46m40.62s,True,13330,id0048
+twhya,7-11-25 20:31:32,twhya_img_RX0.fits,True,5.503 arcsec,2.529 arcsec,-1.71 deg,225.538GHz,5.979 mJy,412.21 mJy,0.0 arcsec,0.0 arcsec,165d27m55.74s,-34d42m17.38s,True,13330,id0049
+1127-189,7-14-25 9:46:40,1127-189_img_RX0.fits,True,5.48 arcsec,3.084 arcsec,-41.492 deg,Not found,7.485 mJy,492.281 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13361,id0058
+1127-189,7-14-25 9:46:43,1127-189_img_RX3.fits,True,5.365 arcsec,3.13 arcsec,-40.704 deg,Not found,9.943 mJy,489.713 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13361,id0058
+1130-148,7-14-25 9:46:49,1130-148_img_RX0.fits,True,4.862 arcsec,3.081 arcsec,-40.672 deg,Not found,6.315 mJy,2182.04 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13361,id0059
+1130-148,7-14-25 9:46:50,1130-148_img_RX3.fits,True,4.716 arcsec,3.193 arcsec,-39.288 deg,Not found,10.487 mJy,2178.928 mJy,0.0 arcsec,0.0 arcsec,172d31m45.8s,-14d49m27.39s,True,13361,id0059
+3c279,7-14-25 9:46:56,3c279_img_RX0.fits,True,3.627 arcsec,3.28 arcsec,-6.134 deg,Not found,40.97 mJy,4912.081 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13361,id0004
+3c279,7-14-25 9:46:57,3c279_img_RX3.fits,True,3.689 arcsec,3.229 arcsec,16.97 deg,Not found,89.072 mJy,4912.476 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13361,id0004
+hd98800b,7-14-25 9:47:18,hd98800b_img_RX0.fits,True,6.033 arcsec,3.114 arcsec,-38.424 deg,225.537655354344GHz,0.731 mJy,42.207 mJy,0.0 arcsec,0.0 arcsec,170d31m16.63s,-24d46m39.99s,True,13361,id0048
+twhya,7-14-25 9:47:34,twhya_img_RX0.fits,True,7.754 arcsec,3.119 arcsec,-33.398 deg,225.537655354344GHz,7.708 mJy,422.902 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.38s,True,13361,id0049
+1127-189,7-14-25 11:3:29,1127-189_img_RX0.fits,True,2.039 arcsec,0.943 arcsec,53.047 deg,Not found,9.542 mJy,503.156 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13427,id0058
+1127-189,7-14-25 11:3:31,1127-189_img_RX3.fits,True,1.887 arcsec,0.964 arcsec,55.461 deg,Not found,11.348 mJy,503.363 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13427,id0058
+1130-148,7-14-25 11:3:37,1130-148_img_RX0.fits,True,1.938 arcsec,0.928 arcsec,55.388 deg,Not found,10.19 mJy,1940.745 mJy,0.0 arcsec,0.0 arcsec,172d31m45.58s,-14d49m27.6s,True,13427,id0059
+1130-148,7-14-25 11:3:39,1130-148_img_RX3.fits,True,1.832 arcsec,0.94 arcsec,58.321 deg,Not found,11.21 mJy,1934.914 mJy,0.0 arcsec,0.0 arcsec,172d31m45.58s,-14d49m27.6s,True,13427,id0059
+3c84,7-14-25 11:3:46,3c84_img_RX0.fits,True,2.023 arcsec,0.921 arcsec,95.351 deg,Not found,14.616 mJy,15854.817 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13427,id0011
+3c84,7-14-25 11:3:48,3c84_img_RX3.fits,True,1.949 arcsec,0.928 arcsec,97.788 deg,Not found,13.49 mJy,15844.318 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13427,id0011
+hd98800b,7-14-25 11:4:11,hd98800b_img_RX0.fits,True,2.16 arcsec,0.971 arcsec,51.093 deg,223.003485343656GHz,0.817 mJy,36.039 mJy,0.0 arcsec,0.0 arcsec,170d31m16.68s,-24d46m40.08s,True,13427,id0048
+twhya,7-14-25 11:4:40,twhya_img_RX0.fits,True,2.637 arcsec,1.004 arcsec,44.316 deg,223.003485343656GHz,6.576 mJy,243.633 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.63s,True,13427,id0049
+twhya,7-14-25 11:4:40,twhya_img_RX0.fits,True,2.637 arcsec,1.004 arcsec,44.316 deg,223.003485343656GHz,6.576 mJy,184.61 mJy,0.0 arcsec,0.0 arcsec,165d27m56.76s,-34d42m27.28s,False,13427,id0067
+1146+399,7-14-25 12:17:49,1146+399_img_RX0.fits,True,4.564 arcsec,3.209 arcsec,80.125 deg,Not found,2.424 mJy,882.944 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,10500,id0017
+1146+399,7-14-25 12:17:52,1146+399_img_RX3.fits,True,4.672 arcsec,3.242 arcsec,76.743 deg,Not found,4.163 mJy,882.839 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,10500,id0017
+1159+292,7-14-25 12:18:16,1159+292_img_RX0.fits,True,5.642 arcsec,3.096 arcsec,71.262 deg,225.538GHz,2.555 mJy,2017.915 mJy,0.0 arcsec,0.0 arcsec,179d52m57.51s,29d14m43.83s,True,10500,id0001
+3c84,7-14-25 12:18:32,3c84_img_RX0.fits,True,4.265 arcsec,2.685 arcsec,74.914 deg,Not found,6.428 mJy,8799.828 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,10500,id0011
+3c84,7-14-25 12:18:34,3c84_img_RX3.fits,True,4.431 arcsec,2.679 arcsec,75.897 deg,Not found,8.424 mJy,8799.223 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,10500,id0011
+1146+399,7-14-25 13:8:56,1146+399_img_RX0.fits,True,4.572 arcsec,3.084 arcsec,85.632 deg,Not found,3.511 mJy,825.516 mJy,0.0 arcsec,0.0 arcsec,176d44m33.69s,39d58m33.71s,True,10513,id0017
+1146+399,7-14-25 13:8:59,1146+399_img_RX3.fits,True,4.77 arcsec,3.038 arcsec,85.406 deg,Not found,6.025 mJy,826.279 mJy,0.0 arcsec,0.0 arcsec,176d44m33.69s,39d58m33.71s,True,10513,id0017
+1159+292,7-14-25 13:9:17,1159+292_img_RX0.fits,True,5.615 arcsec,2.984 arcsec,75.409 deg,220.1GHz,3.304 mJy,2386.914 mJy,0.0 arcsec,0.0 arcsec,179d52m57.51s,29d14m43.83s,True,10513,id0001
+3c84,7-14-25 13:9:30,3c84_img_RX0.fits,True,4.134 arcsec,2.785 arcsec,78.144 deg,Not found,9.928 mJy,8375.634 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,10513,id0011
+3c84,7-14-25 13:9:32,3c84_img_RX3.fits,True,4.183 arcsec,2.813 arcsec,80.803 deg,Not found,14.075 mJy,8372.566 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,10513,id0011
+1146+399,7-14-25 14:33:37,1146+399_img_RX0.fits,True,3.117 arcsec,2.729 arcsec,49.311 deg,Not found,134.953 mJy,15568.529 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10546,id0017
+1146+399,7-14-25 14:33:40,1146+399_img_RX3.fits,True,3.069 arcsec,2.812 arcsec,59.961 deg,Not found,166.428 mJy,15525.798 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10546,id0017
+1159+292,7-14-25 14:34:10,1159+292_img_RX0.fits,True,3.003 arcsec,2.643 arcsec,61.808 deg,235.025816943519GHz,514.659 mJy,31608.019 mJy,0.0 arcsec,0.0 arcsec,179d52m56.9s,29d14m43.29s,True,10546,id0001
+3c279,7-14-25 14:34:32,3c279_img_RX0.fits,True,3.332 arcsec,2.789 arcsec,44.437 deg,Not found,260.89 mJy,227391.876 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10546,id0004
+3c279,7-14-25 14:34:36,3c279_img_RX3.fits,True,3.276 arcsec,2.881 arcsec,44.596 deg,Not found,297.282 mJy,226871.185 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10546,id0004
+1127-189,7-14-25 14:55:39,1127-189_img_RX0.fits,True,6.294 arcsec,3.838 arcsec,11.06 deg,Not found,8.122 mJy,498.938 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13316,id0058
+1130-148,7-14-25 14:55:46,1130-148_img_RX0.fits,True,6.095 arcsec,3.547 arcsec,19.12 deg,Not found,9.469 mJy,2020.559 mJy,0.0 arcsec,0.0 arcsec,172d31m45.04s,-14d49m28.11s,True,13316,id0059
+3c279,7-14-25 14:55:54,3c279_img_RX0.fits,True,6.136 arcsec,3.012 arcsec,28.716 deg,Not found,4.423 mJy,5246.419 mJy,0.0 arcsec,0.0 arcsec,194d02m46.85s,-5d47m22.16s,True,13316,id0004
+hd98800b,7-14-25 14:56:20,hd98800b_img_RX0.fits,True,6.855 arcsec,3.845 arcsec,1.745 deg,220.326392303507GHz,0.895 mJy,37.049 mJy,0.0 arcsec,0.0 arcsec,170d31m16.8s,-24d46m40.3s,True,13316,id0048
+twhya,7-14-25 14:56:29,twhya_img_RX0.fits,True,8.867 arcsec,3.711 arcsec,-10.833 deg,220.326392303507GHz,8.823 mJy,392.418 mJy,0.0 arcsec,0.0 arcsec,165d27m55.48s,-34d42m18.23s,True,13316,id0049
+twhya,7-14-25 14:56:29,twhya_img_RX0.fits,True,8.867 arcsec,3.711 arcsec,-10.833 deg,220.326392303507GHz,8.823 mJy,223.77 mJy,0.0 arcsec,0.0 arcsec,165d28m0.45s,-34d42m30.76s,False,13316,id0067
+1146+399,7-14-25 15:50:32,1146+399_img_RX0.fits,True,3.167 arcsec,2.983 arcsec,44.061 deg,Not found,22.289 mJy,3621.576 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10562,id0017
+1146+399,7-14-25 15:50:35,1146+399_img_RX3.fits,True,3.338 arcsec,2.918 arcsec,82.633 deg,Not found,35.501 mJy,3584.434 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10562,id0017
+1159+292,7-14-25 15:50:54,1159+292_img_RX0.fits,True,3.361 arcsec,2.94 arcsec,67.826 deg,225.538GHz,328.59 mJy,19135.618 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10562,id0001
+3c279,7-14-25 15:51:10,3c279_img_RX0.fits,True,3.673 arcsec,2.734 arcsec,36.824 deg,Not found,151.465 mJy,57940.956 mJy,0.0 arcsec,0.0 arcsec,194d02m46.87s,-5d47m22.14s,True,10562,id0004
+3c279,7-14-25 15:51:12,3c279_img_RX3.fits,True,3.609 arcsec,2.857 arcsec,49.669 deg,Not found,199.535 mJy,58009.716 mJy,0.0 arcsec,0.0 arcsec,194d02m46.87s,-5d47m22.14s,True,10562,id0004
+1146+399,7-14-25 17:23:40,1146+399_img_RX0.fits,True,3.365 arcsec,3.091 arcsec,62.493 deg,Not found,49.924 mJy,3131.163 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10599,id0017
+1146+399,7-14-25 17:23:43,1146+399_img_RX3.fits,True,3.628 arcsec,3.081 arcsec,96.617 deg,Not found,60.522 mJy,3240.83 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10599,id0017
+1159+292,7-14-25 17:24:24,1159+292_img_RX0.fits,True,3.428 arcsec,3.037 arcsec,71.655 deg,225.538GHz,107.799 mJy,11436.469 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10599,id0001
+3c279,7-14-25 17:24:49,3c279_img_RX0.fits,True,3.289 arcsec,2.878 arcsec,24.382 deg,Not found,280.839 mJy,58160.847 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10599,id0004
+3c279,7-14-25 17:24:51,3c279_img_RX3.fits,True,3.198 arcsec,2.978 arcsec,83.28 deg,Not found,144.577 mJy,58200.317 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10599,id0004
+3c279,7-14-25 18:36:15,3c279_img_RX0.fits,True,3.582 arcsec,2.531 arcsec,1.626 deg,Not found,62.413 mJy,36633.957 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10618,id0004
+3c279,7-14-25 18:36:18,3c279_img_RX3.fits,True,3.537 arcsec,2.722 arcsec,-14.312 deg,Not found,641.93 mJy,36709.93 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10618,id0004
+1146+399,7-14-25 19:48:13,1146+399_img_RX0.fits,True,3.236 arcsec,2.847 arcsec,38.917 deg,Not found,4.503 mJy,1106.829 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10638,id0017
+1146+399,7-14-25 19:48:16,1146+399_img_RX3.fits,True,3.194 arcsec,2.91 arcsec,63.788 deg,Not found,5.458 mJy,1104.113 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10638,id0017
+1159+292,7-14-25 19:48:48,1159+292_img_RX0.fits,True,3.198 arcsec,2.86 arcsec,50.561 deg,225.538GHz,10.378 mJy,4692.215 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10638,id0001
+3c279,7-14-25 19:49:8,3c279_img_RX0.fits,True,3.413 arcsec,2.832 arcsec,24.51 deg,Not found,11.406 mJy,17429.886 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10638,id0004
+3c279,7-14-25 19:49:10,3c279_img_RX3.fits,True,3.247 arcsec,2.97 arcsec,30.209 deg,Not found,12.068 mJy,17433.273 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10638,id0004
+1146+399,7-14-25 20:57:42,1146+399_img_RX0.fits,True,3.455 arcsec,2.74 arcsec,52.715 deg,Not found,3.649 mJy,670.593 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10675,id0017
+1146+399,7-14-25 20:57:46,1146+399_img_RX3.fits,True,3.415 arcsec,2.844 arcsec,60.817 deg,Not found,4.421 mJy,671.247 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10675,id0017
+1159+292,7-14-25 20:58:16,1159+292_img_RX0.fits,True,3.309 arcsec,2.753 arcsec,57.151 deg,225.538GHz,6.387 mJy,2527.08 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10675,id0001
+3c279,7-14-25 20:58:34,3c279_img_RX0.fits,True,3.356 arcsec,3.14 arcsec,-19.662 deg,Not found,15.191 mJy,12671.674 mJy,0.0 arcsec,0.0 arcsec,194d02m46.9s,-5d47m22.11s,True,10675,id0004
+3c279,7-14-25 20:58:36,3c279_img_RX3.fits,True,3.496 arcsec,3.103 arcsec,57.918 deg,Not found,16.769 mJy,12670.218 mJy,0.0 arcsec,0.0 arcsec,194d02m46.9s,-5d47m22.11s,True,10675,id0004
+1127-189,7-14-25 21:30:15,1127-189_img_RX0.fits,True,2.404 arcsec,0.874 arcsec,64.649 deg,Not found,7.023 mJy,478.858 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13459,id0058
+1127-189,7-14-25 21:30:18,1127-189_img_RX3.fits,True,2.435 arcsec,0.861 arcsec,65.125 deg,Not found,8.928 mJy,477.877 mJy,0.0 arcsec,0.0 arcsec,171d46m5.88s,-18d57m17.44s,True,13459,id0058
+1130-148,7-14-25 21:30:24,1130-148_img_RX0.fits,True,2.269 arcsec,0.842 arcsec,66.768 deg,Not found,16.038 mJy,1930.988 mJy,0.0 arcsec,0.0 arcsec,172d31m45.58s,-14d49m27.59s,True,13459,id0059
+1130-148,7-14-25 21:30:25,1130-148_img_RX3.fits,True,2.265 arcsec,0.834 arcsec,67.162 deg,Not found,15.4 mJy,1931.512 mJy,0.0 arcsec,0.0 arcsec,172d31m45.58s,-14d49m27.59s,True,13459,id0059
+3c84,7-14-25 21:30:36,3c84_img_RX0.fits,True,2.288 arcsec,0.832 arcsec,102.112 deg,Not found,5.286 mJy,15808.993 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13459,id0011
+3c84,7-14-25 21:30:41,3c84_img_RX3.fits,True,2.322 arcsec,0.815 arcsec,102.347 deg,Not found,4.991 mJy,15803.385 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,13459,id0011
+hd98800b,7-14-25 21:31:25,hd98800b_img_RX0.fits,True,2.548 arcsec,0.913 arcsec,62.458 deg,225.522097067324GHz,0.731 mJy,30.88 mJy,0.0 arcsec,0.0 arcsec,170d31m16.93s,-24d46m39.86s,True,13459,id0048
+twhya,7-14-25 21:31:53,twhya_img_RX0.fits,True,2.822 arcsec,1.022 arcsec,56.417 deg,225.522097067324GHz,7.62 mJy,249.97 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.87s,True,13459,id0049
+1127-189,7-14-25 21:51:41,1127-189_img_RX0.fits,True,4.543 arcsec,3.291 arcsec,28.964 deg,Not found,10.953 mJy,731.091 mJy,0.0 arcsec,0.0 arcsec,171d46m5.13s,-18d57m18.15s,True,13483,id0058
+1127-189,7-14-25 21:51:44,1127-189_img_RX3.fits,True,4.587 arcsec,3.257 arcsec,29.356 deg,Not found,13.148 mJy,731.472 mJy,0.0 arcsec,0.0 arcsec,171d46m5.13s,-18d57m18.15s,True,13483,id0058
+1130-148,7-14-25 21:51:49,1130-148_img_RX0.fits,True,4.531 arcsec,3.274 arcsec,38.42 deg,Not found,15.23 mJy,2784.799 mJy,0.0 arcsec,0.0 arcsec,172d31m45.06s,-14d49m28.1s,True,13483,id0059
+1130-148,7-14-25 21:51:50,1130-148_img_RX3.fits,True,4.556 arcsec,3.247 arcsec,37.962 deg,Not found,18.044 mJy,2781.617 mJy,0.0 arcsec,0.0 arcsec,172d31m45.06s,-14d49m28.1s,True,13483,id0059
+3c273,7-14-25 21:51:55,3c273_img_RX0.fits,True,8.247 arcsec,3.266 arcsec,76.808 deg,225.517987179267GHz,82.447 mJy,5174.881 mJy,0.0 arcsec,0.0 arcsec,187d16m40.5s,2d03m8.6s,True,13483,id0003
+3c279,7-14-25 21:52:1,3c279_img_RX0.fits,True,8.827 arcsec,3.384 arcsec,67.149 deg,Not found,32.933 mJy,5936.166 mJy,0.0 arcsec,0.0 arcsec,194d02m46.72s,-5d47m22.29s,True,13483,id0004
+3c279,7-14-25 21:52:3,3c279_img_RX3.fits,True,8.842 arcsec,3.377 arcsec,66.361 deg,Not found,33.141 mJy,5933.103 mJy,0.0 arcsec,0.0 arcsec,194d02m46.72s,-5d47m22.29s,True,13483,id0004
+hd98800b,7-14-25 21:52:28,hd98800b_img_RX0.fits,True,5.139 arcsec,3.284 arcsec,26.678 deg,225.517987179267GHz,1.69 mJy,58.727 mJy,0.0 arcsec,0.0 arcsec,170d31m16.97s,-24d46m40.2s,True,13483,id0048
+twhya,7-14-25 21:52:37,twhya_img_RX0.fits,True,6.163 arcsec,3.283 arcsec,17.421 deg,225.517987179267GHz,14.475 mJy,596.471 mJy,0.0 arcsec,0.0 arcsec,165d27m56.5s,-34d42m17.38s,True,13483,id0049
+1549+026,7-15-25 5:46:43,1549+026_img_RX1.fits,True,0.936 arcsec,0.561 arcsec,83.521 deg,Not found,8.08 mJy,652.478 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13628,id0068
+1549+026,7-15-25 5:46:49,1549+026_img_RX2.fits,True,0.919 arcsec,0.581 arcsec,96.043 deg,Not found,11.398 mJy,650.191 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13628,id0068
+1550+054,7-15-25 5:47:12,1550+054_img_RX1.fits,True,0.933 arcsec,0.557 arcsec,91.328 deg,Not found,9.964 mJy,624.23 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13628,id0069
+1550+054,7-15-25 5:47:15,1550+054_img_RX2.fits,True,0.937 arcsec,0.568 arcsec,102.001 deg,Not found,11.465 mJy,629.018 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13628,id0069
+3c279,7-15-25 5:47:25,3c279_img_RX1.fits,True,0.849 arcsec,0.629 arcsec,89.963 deg,350.296GHz,19.336 mJy,4241.201 mJy,0.0 arcsec,0.0 arcsec,194d02m47.35s,-5d47m21.66s,True,13628,id0004
+3c454.3,7-15-25 5:47:50,3c454.3_img_RX1.fits,True,0.988 arcsec,0.507 arcsec,76.387 deg,Not found,5.726 mJy,3294.142 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13628,id0015
+3c454.3,7-15-25 5:47:53,3c454.3_img_RX2.fits,True,0.982 arcsec,0.487 arcsec,82.348 deg,Not found,9.63 mJy,3295.09 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13628,id0015
+1549+026,7-15-25 7:7:15,1549+026_img_RX1.fits,True,0.914 arcsec,0.584 arcsec,99.312 deg,Not found,12.294 mJy,661.551 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13621,id0068
+1549+026,7-15-25 7:7:20,1549+026_img_RX2.fits,True,0.947 arcsec,0.577 arcsec,108.919 deg,Not found,19.662 mJy,676.009 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13621,id0068
+1550+054,7-15-25 7:7:35,1550+054_img_RX1.fits,True,0.946 arcsec,0.569 arcsec,101.912 deg,Not found,13.46 mJy,689.627 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13621,id0069
+1550+054,7-15-25 7:7:38,1550+054_img_RX2.fits,True,1.001 arcsec,0.566 arcsec,111.775 deg,Not found,21.837 mJy,678.976 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13621,id0069
+3c279,7-15-25 7:7:47,3c279_img_RX1.fits,True,0.94 arcsec,0.589 arcsec,111.876 deg,345.998293901426GHz,18.123 mJy,4503.664 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,13621,id0004
+3c454.3,7-15-25 7:8:16,3c454.3_img_RX1.fits,True,0.932 arcsec,0.548 arcsec,80.656 deg,Not found,6.613 mJy,4183.01 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13621,id0015
+3c454.3,7-15-25 7:8:21,3c454.3_img_RX2.fits,True,0.917 arcsec,0.542 arcsec,87.05 deg,Not found,11.098 mJy,4182.247 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13621,id0015
+1549+026,7-15-25 8:39:33,1549+026_img_RX1.fits,True,0.907 arcsec,0.553 arcsec,86.383 deg,Not found,16.121 mJy,700.488 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13622,id0068
+1549+026,7-15-25 8:39:38,1549+026_img_RX2.fits,True,0.966 arcsec,0.571 arcsec,101.269 deg,Not found,25.503 mJy,685.417 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13622,id0068
+1550+054,7-15-25 8:39:58,1550+054_img_RX1.fits,True,0.912 arcsec,0.546 arcsec,93.542 deg,Not found,19.691 mJy,724.7 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13622,id0069
+1550+054,7-15-25 8:40:0,1550+054_img_RX2.fits,True,0.954 arcsec,0.57 arcsec,106.75 deg,Not found,25.505 mJy,717.944 mJy,0.0 arcsec,0.0 arcsec,237d38m49.03s,5d27m10.45s,True,13622,id0069
+3c454.3,7-15-25 8:40:12,3c454.3_img_RX1.fits,True,0.973 arcsec,0.498 arcsec,76.627 deg,Not found,7.279 mJy,3771.466 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13622,id0015
+3c454.3,7-15-25 8:40:16,3c454.3_img_RX2.fits,True,0.959 arcsec,0.486 arcsec,81.756 deg,Not found,12.347 mJy,3771.055 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13622,id0015
+1549+026,7-15-25 10:3:22,1549+026_img_RX1.fits,True,0.999 arcsec,0.508 arcsec,102.099 deg,Not found,13.169 mJy,627.568 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13624,id0068
+1549+026,7-15-25 10:3:29,1549+026_img_RX2.fits,True,1.124 arcsec,0.531 arcsec,112.885 deg,Not found,17.184 mJy,621.454 mJy,0.0 arcsec,0.0 arcsec,237d22m21.55s,2d37m1.16s,True,13624,id0068
+1550+054,7-15-25 10:3:54,1550+054_img_RX1.fits,True,0.924 arcsec,0.498 arcsec,100.149 deg,Not found,17.158 mJy,677.99 mJy,0.0 arcsec,0.0 arcsec,237d38m48.91s,5d27m10.32s,True,13624,id0069
+1550+054,7-15-25 10:3:56,1550+054_img_RX2.fits,True,0.968 arcsec,0.529 arcsec,113.753 deg,Not found,22.558 mJy,687.092 mJy,0.0 arcsec,0.0 arcsec,237d38m48.91s,5d27m10.32s,True,13624,id0069
+3c279,7-15-25 10:4:4,3c279_img_RX1.fits,True,1.388 arcsec,0.493 arcsec,110.883 deg,Not found,14.73 mJy,3949.213 mJy,0.0 arcsec,0.0 arcsec,194d02m47.36s,-5d47m21.66s,True,13624,id0004
+3c279,7-15-25 10:4:6,3c279_img_RX2.fits,True,1.425 arcsec,0.516 arcsec,117.931 deg,Not found,25.061 mJy,3952.907 mJy,0.0 arcsec,0.0 arcsec,194d02m47.36s,-5d47m21.66s,True,13624,id0004
+3c454.3,7-15-25 10:4:26,3c454.3_img_RX1.fits,True,0.945 arcsec,0.485 arcsec,82.194 deg,Not found,6.78 mJy,4287.522 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13624,id0015
+3c454.3,7-15-25 10:4:31,3c454.3_img_RX2.fits,True,0.94 arcsec,0.509 arcsec,91.101 deg,Not found,11.943 mJy,4286.896 mJy,0.0 arcsec,0.0 arcsec,343d29m26.22s,16d08m53.56s,True,13624,id0015
+bllac,7-15-25 10:5:5,bllac_img_RX1.fits,True,1.26 arcsec,0.545 arcsec,81.098 deg,Not found,57.907 mJy,2440.849 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13624,id0012
+bllac,7-15-25 10:5:6,bllac_img_RX2.fits,True,1.353 arcsec,0.535 arcsec,85.925 deg,Not found,81.118 mJy,2471.809 mJy,0.0 arcsec,0.0 arcsec,330d40m49.37s,42d16m39.98s,True,13624,id0012
+1146+399,7-15-25 14:33:2,1146+399_img_RX0.fits,True,3.849 arcsec,2.912 arcsec,58.679 deg,Not found,5.863 mJy,624.854 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,10700,id0017
+1146+399,7-15-25 14:33:5,1146+399_img_RX3.fits,True,3.828 arcsec,2.885 arcsec,70.823 deg,Not found,7.062 mJy,605.956 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,10700,id0017
+1159+292,7-15-25 14:33:33,1159+292_img_RX0.fits,True,3.488 arcsec,3.009 arcsec,54.048 deg,225.538GHz,17.826 mJy,2605.263 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10700,id0001
+3c279,7-15-25 14:33:50,3c279_img_RX0.fits,True,4.048 arcsec,2.935 arcsec,115.678 deg,Not found,16.735 mJy,12084.453 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10700,id0004
+3c279,7-15-25 14:33:50,3c279_img_RX0.fits,True,4.048 arcsec,2.935 arcsec,115.678 deg,Not found,16.735 mJy,229.74 mJy,0.0 arcsec,0.0 arcsec,194d02m50.35s,-5d46m59.1s,False,10700,id0070
+3c279,7-15-25 14:33:50,3c279_img_RX0.fits,True,4.048 arcsec,2.935 arcsec,115.678 deg,Not found,16.735 mJy,1728.923 mJy,0.0 arcsec,0.0 arcsec,194d02m44.78s,-5d47m44.13s,False,10700,id0071
+3c279,7-15-25 14:33:51,3c279_img_RX3.fits,True,4.065 arcsec,2.927 arcsec,121.851 deg,Not found,18.419 mJy,11971.452 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10700,id0004
+3c279,7-15-25 14:33:51,3c279_img_RX3.fits,True,4.065 arcsec,2.927 arcsec,121.851 deg,Not found,18.419 mJy,309.221 mJy,0.0 arcsec,0.0 arcsec,194d02m50.34s,-5d46m59.09s,False,10700,id0070
+3c279,7-15-25 14:33:51,3c279_img_RX3.fits,True,4.065 arcsec,2.927 arcsec,121.851 deg,Not found,18.419 mJy,2799.894 mJy,0.0 arcsec,0.0 arcsec,194d02m44.79s,-5d47m44.13s,False,10700,id0071
+1146+399,7-15-25 15:29:7,1146+399_img_RX0.fits,True,8.635 arcsec,3.186 arcsec,-21.728 deg,Not found,25.102 mJy,295.075 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10715,id0017
+1146+399,7-15-25 15:29:10,1146+399_img_RX3.fits,True,8.346 arcsec,3.287 arcsec,-19.456 deg,Not found,25.563 mJy,322.045 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10715,id0017
+1159+292,7-15-25 15:29:32,1159+292_img_RX0.fits,True,8.74 arcsec,3.063 arcsec,-26.076 deg,225.538GHz,43.078 mJy,1580.432 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10715,id0001
+3c279,7-15-25 15:29:45,3c279_img_RX0.fits,True,3.655 arcsec,2.863 arcsec,-11.066 deg,Not found,3.581 mJy,10126.619 mJy,0.0 arcsec,0.0 arcsec,194d02m46.9s,-5d47m22.11s,True,10715,id0004
+3c279,7-15-25 15:29:48,3c279_img_RX3.fits,True,3.587 arcsec,2.934 arcsec,84.612 deg,Not found,5.358 mJy,10122.101 mJy,0.0 arcsec,0.0 arcsec,194d02m46.9s,-5d47m22.11s,True,10715,id0004
+1146+399,7-15-25 16:15:40,1146+399_img_RX0.fits,True,3.606 arcsec,2.868 arcsec,83.618 deg,Not found,6.953 mJy,642.26 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10750,id0017
+1146+399,7-15-25 16:15:43,1146+399_img_RX3.fits,True,3.637 arcsec,2.802 arcsec,81.254 deg,Not found,6.463 mJy,638.421 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,10750,id0017
+1159+292,7-15-25 16:16:12,1159+292_img_RX0.fits,True,3.576 arcsec,2.744 arcsec,89.253 deg,225.538GHz,16.679 mJy,2653.743 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,10750,id0001
+3c279,7-15-25 16:16:28,3c279_img_RX0.fits,True,4.358 arcsec,2.769 arcsec,114.332 deg,Not found,17.003 mJy,12835.773 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10750,id0004
+3c279,7-15-25 16:16:30,3c279_img_RX3.fits,True,4.292 arcsec,2.751 arcsec,111.302 deg,Not found,15.471 mJy,12787.526 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,10750,id0004
+1146+399,7-15-25 17:40:20,1146+399_img_RX0.fits,True,3.221 arcsec,2.947 arcsec,19.718 deg,Not found,3.143 mJy,367.193 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11085,id0017
+1146+399,7-15-25 17:40:23,1146+399_img_RX3.fits,True,3.324 arcsec,2.953 arcsec,78.32 deg,Not found,6.022 mJy,366.837 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11085,id0017
+1159+292,7-15-25 17:40:53,1159+292_img_RX0.fits,True,3.046 arcsec,2.975 arcsec,68.416 deg,225.538GHz,13.079 mJy,3145.393 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11085,id0001
+3c279,7-15-25 17:41:15,3c279_img_RX0.fits,True,3.886 arcsec,2.92 arcsec,-27.941 deg,Not found,44.046 mJy,8342.34 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11085,id0004
+3c279,7-15-25 17:41:18,3c279_img_RX3.fits,True,3.828 arcsec,3.17 arcsec,-39.576 deg,Not found,43.991 mJy,8318.891 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11085,id0004
+1146+399,7-15-25 18:45:32,1146+399_img_RX0.fits,True,3.201 arcsec,2.808 arcsec,-3.239 deg,Not found,4.305 mJy,353.15 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11100,id0017
+1146+399,7-15-25 18:45:34,1146+399_img_RX3.fits,True,3.183 arcsec,2.804 arcsec,-9.328 deg,Not found,6.328 mJy,352.527 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11100,id0017
+1159+292,7-15-25 18:45:59,1159+292_img_RX0.fits,True,3.083 arcsec,2.734 arcsec,-22.388 deg,225.538GHz,16.279 mJy,2975.675 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11100,id0001
+3c279,7-15-25 18:46:18,3c279_img_RX0.fits,True,3.74 arcsec,2.67 arcsec,-31.355 deg,Not found,7.367 mJy,10475.419 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11100,id0004
+3c279,7-15-25 18:46:20,3c279_img_RX3.fits,True,3.822 arcsec,2.634 arcsec,-32.795 deg,Not found,11.181 mJy,10467.57 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11100,id0004
+1146+399,7-15-25 19:35:17,1146+399_img_RX0.fits,True,3.082 arcsec,2.821 arcsec,94.114 deg,Not found,4.206 mJy,396.669 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11111,id0017
+1146+399,7-15-25 19:35:20,1146+399_img_RX3.fits,True,3.169 arcsec,2.808 arcsec,93.205 deg,Not found,5.685 mJy,396.513 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11111,id0017
+1159+292,7-15-25 19:35:46,1159+292_img_RX0.fits,True,3.047 arcsec,2.72 arcsec,93.258 deg,225.538GHz,24.086 mJy,3448.077 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11111,id0001
+3c279,7-15-25 19:36:4,3c279_img_RX0.fits,True,3.297 arcsec,2.869 arcsec,100.873 deg,Not found,5.91 mJy,11509.606 mJy,0.0 arcsec,0.0 arcsec,194d02m46.89s,-5d47m22.12s,True,11111,id0004
+3c279,7-15-25 19:36:6,3c279_img_RX3.fits,True,3.382 arcsec,2.849 arcsec,111.74 deg,Not found,7.876 mJy,11503.1 mJy,0.0 arcsec,0.0 arcsec,194d02m46.89s,-5d47m22.12s,True,11111,id0004
+1146+399,7-15-25 20:48:59,1146+399_img_RX0.fits,True,3.212 arcsec,2.662 arcsec,-25.098 deg,Not found,4.974 mJy,433.424 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11124,id0017
+1146+399,7-15-25 20:49:1,1146+399_img_RX3.fits,True,3.289 arcsec,2.709 arcsec,-17.886 deg,Not found,6.496 mJy,435.422 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11124,id0017
+1159+292,7-15-25 20:49:25,1159+292_img_RX0.fits,True,3.076 arcsec,2.569 arcsec,-39.451 deg,225.538GHz,40.261 mJy,5486.942 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11124,id0001
+3c279,7-15-25 20:49:43,3c279_img_RX0.fits,True,3.509 arcsec,2.673 arcsec,-20.289 deg,Not found,6.924 mJy,11541.936 mJy,0.0 arcsec,0.0 arcsec,194d02m46.89s,-5d47m22.12s,True,11124,id0004
+3c279,7-15-25 20:49:46,3c279_img_RX3.fits,True,3.451 arcsec,2.698 arcsec,-27.055 deg,Not found,7.422 mJy,11538.242 mJy,0.0 arcsec,0.0 arcsec,194d02m46.89s,-5d47m22.12s,True,11124,id0004
+1146+399,7-15-25 22:19:43,1146+399_img_RX0.fits,True,3.199 arcsec,3.048 arcsec,43.796 deg,Not found,2.592 mJy,415.121 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11144,id0017
+1146+399,7-15-25 22:19:46,1146+399_img_RX3.fits,True,3.229 arcsec,3.067 arcsec,29.948 deg,Not found,3.114 mJy,415.104 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11144,id0017
+1159+292,7-15-25 22:20:22,1159+292_img_RX0.fits,True,3.121 arcsec,2.934 arcsec,-42.139 deg,225.538GHz,15.337 mJy,3555.589 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11144,id0001
+3c279,7-15-25 22:20:47,3c279_img_RX0.fits,True,4.793 arcsec,2.844 arcsec,132.055 deg,Not found,10.553 mJy,9478.448 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11144,id0004
+3c279,7-15-25 22:20:49,3c279_img_RX3.fits,True,4.9 arcsec,2.856 arcsec,132.095 deg,Not found,12.484 mJy,9473.482 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11144,id0004
+1008+063,7-15-25 23:48:40,1008+063_img_RX0.fits,True,6.092 arcsec,2.984 arcsec,116.942 deg,Not found,8.386 mJy,59.62 mJy,0.0 arcsec,0.0 arcsec,152d00m11.69s,6d21m20.11s,True,11161,id0072
+1008+063,7-15-25 23:48:42,1008+063_img_RX3.fits,True,6.222 arcsec,2.875 arcsec,116.747 deg,Not found,11.577 mJy,70.139 mJy,0.0 arcsec,0.0 arcsec,152d00m11.69s,6d21m20.66s,True,11161,id0072
+1146+399,7-15-25 23:48:49,1146+399_img_RX0.fits,True,3.276 arcsec,3.071 arcsec,50.493 deg,Not found,3.337 mJy,398.735 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,11161,id0017
+1146+399,7-15-25 23:48:52,1146+399_img_RX3.fits,True,3.262 arcsec,3.083 arcsec,46.804 deg,Not found,4.287 mJy,397.144 mJy,0.0 arcsec,0.0 arcsec,176d44m33.71s,39d58m33.72s,True,11161,id0017
+1159+292,7-15-25 23:49:26,1159+292_img_RX0.fits,True,3.167 arcsec,2.98 arcsec,126.836 deg,225.538GHz,15.114 mJy,3253.015 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11161,id0001
+3c279,7-15-25 23:49:50,3c279_img_RX0.fits,True,4.033 arcsec,2.9 arcsec,128.63 deg,Not found,7.272 mJy,9357.776 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11161,id0004
+3c279,7-15-25 23:49:53,3c279_img_RX3.fits,True,4.071 arcsec,2.872 arcsec,128.03 deg,Not found,8.489 mJy,9351.014 mJy,0.0 arcsec,0.0 arcsec,194d02m47.49s,-5d47m21.52s,True,11161,id0004
+0721+713,7-16-25 2:42:37,0721+713_img_RX0.fits,True,5.358 arcsec,2.788 arcsec,50.324 deg,225.538GHz,3.77 mJy,596.647 mJy,0.0 arcsec,0.0 arcsec,110d28m21.72s,71d20m36.36s,True,11170,id0073
+1146+399,7-16-25 2:42:48,1146+399_img_RX0.fits,True,3.79 arcsec,2.723 arcsec,112.059 deg,Not found,4.742 mJy,475.017 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11170,id0017
+1146+399,7-16-25 2:42:51,1146+399_img_RX3.fits,True,3.881 arcsec,2.682 arcsec,110.156 deg,Not found,5.205 mJy,474.912 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11170,id0017
+1159+292,7-16-25 2:43:21,1159+292_img_RX0.fits,True,3.793 arcsec,2.78 arcsec,102.82 deg,225.538GHz,3.352 mJy,4312.134 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11170,id0001
+3c84,7-16-25 2:43:52,3c84_img_RX0.fits,True,3.166 arcsec,2.816 arcsec,-24.374 deg,Not found,1.676 mJy,10058.047 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11170,id0011
+3c84,7-16-25 2:44:4,3c84_img_RX3.fits,True,3.213 arcsec,2.811 arcsec,-28.966 deg,Not found,1.91 mJy,10056.883 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11170,id0011
+1146+399,7-16-25 4:22:3,1146+399_img_RX0.fits,True,3.893 arcsec,2.694 arcsec,110.438 deg,Not found,2.479 mJy,514.681 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11195,id0017
+1146+399,7-16-25 4:22:7,1146+399_img_RX3.fits,True,3.898 arcsec,2.673 arcsec,112.59 deg,Not found,3.2 mJy,514.027 mJy,0.0 arcsec,0.0 arcsec,176d44m34.47s,39d58m34.3s,True,11195,id0017
+1159+292,7-16-25 4:22:37,1159+292_img_RX0.fits,True,3.809 arcsec,2.599 arcsec,109.011 deg,Not found,4.405 mJy,4065.396 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11195,id0001
+1159+292,7-16-25 4:22:48,1159+292_img_RX3.fits,True,3.826 arcsec,2.584 arcsec,111.596 deg,Not found,3.7 mJy,4066.301 mJy,0.0 arcsec,0.0 arcsec,179d52m56.87s,29d14m43.27s,True,11195,id0001
+3c84,7-16-25 4:23:26,3c84_img_RX0.fits,True,5.555 arcsec,3.142 arcsec,107.376 deg,Not found,7.678 mJy,9585.51 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11195,id0011
+3c84,7-16-25 4:23:29,3c84_img_RX3.fits,True,5.502 arcsec,3.19 arcsec,108.123 deg,Not found,5.502 mJy,9582.977 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11195,id0011
+1146+399,7-16-25 8:16:12,1146+399_img_RX0.fits,True,1.664 arcsec,1.024 arcsec,118.804 deg,Not found,4.707 mJy,513.796 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11286,id0017
+1146+399,7-16-25 8:16:15,1146+399_img_RX3.fits,True,1.975 arcsec,0.982 arcsec,107.745 deg,Not found,6.204 mJy,513.347 mJy,0.0 arcsec,0.0 arcsec,176d44m34.16s,39d58m34.07s,True,11286,id0017
+1159+292,7-16-25 8:16:44,1159+292_img_RX0.fits,True,1.737 arcsec,1.052 arcsec,106.937 deg,225.538GHz,1.732 mJy,4338.481 mJy,0.0 arcsec,0.0 arcsec,179d52m57.24s,29d14m43.59s,True,11286,id0001
+3c84,7-16-25 8:17:21,3c84_img_RX0.fits,True,1.369 arcsec,1.197 arcsec,8.511 deg,Not found,4.303 mJy,9666.472 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11286,id0011
+3c84,7-16-25 8:17:27,3c84_img_RX3.fits,True,1.607 arcsec,1.2 arcsec,-39.313 deg,Not found,4.953 mJy,9663.447 mJy,0.0 arcsec,0.0 arcsec,49d57m2.08s,41d30m41.87s,True,11286,id0011
+1146+399,7-16-25 9:41:7,1146+399_img_RX0.fits,True,1.466 arcsec,0.856 arcsec,88.503 deg,Not found,6.221 mJy,484.046 mJy,0.0 arcsec,0.0 arcsec,176d44m34.2s,39d58m34.1s,True,11310,id0017
+1146+399,7-16-25 9:41:10,1146+399_img_RX3.fits,True,1.519 arcsec,0.814 arcsec,86.039 deg,Not found,8.496 mJy,482.241 mJy,0.0 arcsec,0.0 arcsec,176d44m34.2s,39d58m34.1s,True,11310,id0017
+1159+292,7-16-25 9:41:50,1159+292_img_RX0.fits,True,1.506 arcsec,0.823 arcsec,85.302 deg,220.1GHz,4.497 mJy,3479.459 mJy,0.0 arcsec,0.0 arcsec,179d52m57.29s,29d14m43.63s,True,11310,id0001
+3c84,7-16-25 9:42:39,3c84_img_RX0.fits,True,1.542 arcsec,0.902 arcsec,102.723 deg,Not found,6.03 mJy,10190.052 mJy,0.0 arcsec,0.0 arcsec,49d57m2.12s,41d30m41.9s,True,11310,id0011
+3c84,7-16-25 9:42:43,3c84_img_RX3.fits,True,1.61 arcsec,0.847 arcsec,102.678 deg,Not found,7.697 mJy,10190.086 mJy,0.0 arcsec,0.0 arcsec,49d57m2.12s,41d30m41.9s,True,11310,id0011
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,False,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,479.124 mJy,0.0 arcsec,0.0 arcsec,69d10m4.04s,23d53m9.85s,True,11310,Not Stationary
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,False,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,332.319 mJy,0.0 arcsec,0.0 arcsec,69d09m56.69s,23d53m6.68s,False,11310,Not Stationary
+ceres_nowp,7-16-25 9:43:13,ceres_nowp_img_RX0.fits,False,1.878 arcsec,0.804 arcsec,107.639 deg,220.1GHz,17.216 mJy,143.751 mJy,0.0 arcsec,0.0 arcsec,69d10m12.0s,23d53m10.84s,False,11310,Not Stationary
+1146+399,7-16-25 11:20:24,1146+399_img_RX0.fits,True,1.212 arcsec,0.914 arcsec,115.499 deg,Not found,5.221 mJy,468.73 mJy,0.0 arcsec,0.0 arcsec,176d44m34.21s,39d58m34.1s,True,11339,id0017
+1146+399,7-16-25 11:20:28,1146+399_img_RX3.fits,True,1.214 arcsec,0.881 arcsec,104.149 deg,Not found,6.94 mJy,466.924 mJy,0.0 arcsec,0.0 arcsec,176d44m34.21s,39d58m34.1s,True,11339,id0017
+1159+292,7-16-25 11:21:10,1159+292_img_RX0.fits,True,1.199 arcsec,0.956 arcsec,117.017 deg,225.538GHz,6.318 mJy,2746.405 mJy,0.0 arcsec,0.0 arcsec,179d52m57.29s,29d14m43.64s,True,11339,id0001
+3c84,7-16-25 11:22:1,3c84_img_RX0.fits,True,1.453 arcsec,1.004 arcsec,86.555 deg,Not found,15.054 mJy,10561.034 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11339,id0011
+3c84,7-16-25 11:22:5,3c84_img_RX3.fits,True,1.476 arcsec,0.955 arcsec,95.431 deg,Not found,12.598 mJy,10607.555 mJy,0.0 arcsec,0.0 arcsec,49d57m2.4s,41d30m42.11s,True,11339,id0011
