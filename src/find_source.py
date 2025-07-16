@@ -1640,7 +1640,7 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
         del new_sources['Ambiguous Ties'][k]
 
     #get averages for sources only matched with coarse matching
-    for i in len(new_sources['Source ID']):
+    for i in range(len(new_sources['Source ID'])):
         if new_sources['Source ID'][i] not in refined:
             temp_df = low_df[(low_df['Source ID']) == new_sources['Source ID'][i]]
             ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
