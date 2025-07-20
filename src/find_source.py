@@ -4,10 +4,12 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm, median_abs_deviation
 from scipy.io import loadmat
 from astropy.coordinates import Angle, SkyCoord
+from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
+from datetime import datetime, timedelta
 import glob
 import pandas as pd
 import json
@@ -895,7 +897,18 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     freq = 'Not found'
     if ctype3 == 'FREQ':
-        freq = str(crval3) + cunit3
+        freq = '{} {}'.format(crval3, cunit3)
+    elif ctype3 == 'CHANNUM':
+        hdul = fits.open(fits_file)
+        try:
+            freq_col = hdul[1].columns[1]
+            if freq_col.name == 'Freq':
+                if freq_col.unit == 'Hz':
+                    freq = '{} GHz'.format(hdul[1].data[1][1] / 1e9)
+                elif freq_col.unit == 'GHz':
+                    freq = '{} GHz'.format(hdul[1].data[1][1])
+        except:
+            pass
 
     #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
     beam_maj_axis = Angle(bmaj, cunit1)
@@ -1657,3 +1670,79 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
     df = pd.DataFrame.from_dict(new_sources)
     df.to_csv(high_level_path, mode='w', header=True, index=False)
     low_df.to_csv(low_level_path, mode='w', header=True, index=False)
+
+
+def light_curve(low_path: str, high_path: str, unique_ids: list = None):
+
+    low_df = pd.read_csv(low_path)
+    high_df = pd.read_csv(high_path)
+    if unique_ids == None:
+        unique_ids = high_df['Source ID'].tolist()
+    for source in unique_ids:
+        plt.subplots()
+        source_df = low_df[low_df['Source ID'] == source]
+        fluxes = source_df['Flux Density']
+        fluxes = [float(flux.replace('mJy', '')) for flux in fluxes]
+        flux_errs = source_df['Flux Uncert']
+        flux_errs = [float(err.replace('mJy', '')) for err in flux_errs]
+        flux_unit = 'mJy'
+        if max(fluxes) > 1000:
+            flux_unit = 'Jy'
+            for i in range(len(fluxes)):
+                fluxes[i] /= 1000
+                flux_errs[i] /= 1000
+        date_times = source_df['Obs Date Time'].tolist()
+        for i in range(len(date_times)):
+            dt = date_times[i]
+            m_end = dt.rindex(':')
+            s_start = m_end + 1
+            if dt[s_start:] == '60':
+                dt = dt[:s_start] + '0'
+                fmt = '%m-%d-%y %H:%M'
+                date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
+
+        fmt_str = '%m-%d-%y %H:%M:%S'
+        date_times = [Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd for dt in date_times]
+
+        freqs = source_df['Freq'].tolist()
+        other = []
+        milli = []
+        micro = []
+        for i in range(len(freqs)):
+            if freqs[i] == 'Not found':
+                other.append(i)
+                pass
+            else:
+                try:
+                    freqs[i] = float(freqs[i].replace('GHz', ''))
+                    if freqs[i] > 214 and freqs[i] < 273:
+                        milli.append(i)
+                    elif freqs[i] > 340 and freqs[i] < 355:
+                        micro.append(i)
+                    else:
+                        other.append(i)
+                except Exception as e:
+                    print(f'Error while getting the frequencies for source {source}: {e}')
+        other_dt = [date_times[a] for a in other]
+        other_flx = [fluxes[a] for a in other]
+        other_flx_err = [flux_errs[a] for a in other]
+        milli_dt = [date_times[b] for b in milli]
+        milli_flx = [fluxes[b] for b in milli]
+        milli_flx_err = [flux_errs[b] for b in milli]
+        micro_dt = [date_times[c] for c in micro]
+        micro_flx = [fluxes[c] for c in micro]
+        micro_flx_err = [flux_errs[c] for c in micro]
+        if milli != []:
+            plt.errorbar(milli_dt, milli_flx, yerr=milli_flx_err, color='r', fmt='x', capsize=5, markersize=4,\
+                        capthick=0.5, elinewidth=0.5, label='1.4-1.1mm SMA')
+        if micro != []:
+            plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='g', fmt='x', capsize=5, markersize=4,\
+                        capthick=0.5, elinewidth=0.5, label='870µm SMA')
+        if other != []:
+            plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='b', fmt='x', capsize=5, markersize=4,\
+                        capthick=0.5, elinewidth=0.5, label='Other/not found')
+        plt.title(f'Source {source[2:]}')
+        plt.xlabel('Modified Julian Date')
+        plt.ylabel(f'Flux in {flux_unit}')
+        plt.legend()
+        plt.ylim(bottom=0)
