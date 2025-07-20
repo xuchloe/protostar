@@ -85,3 +85,4 @@ src/pyuvdata/uvdata/corr_fits.c
 src/pyuvdata/uvdata/src/miriad_wrap.cpp
 
 .vscode/
+.DS_Store
