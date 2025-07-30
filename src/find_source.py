@@ -19,7 +19,7 @@ import math
 
 def fits_data_index(fits_file: str):
     '''
-    Finds the location of a FITS file's data array.
+    Finds the location of a FITS file's image data array.
 
     Parameters
     ----------
@@ -29,7 +29,7 @@ def fits_data_index(fits_file: str):
     Returns
     -------
     int
-        The index of the data array in the FITS file.
+        The index of the image data array in the FITS file.
     '''
 
     file_index = 0
@@ -55,6 +55,31 @@ def fits_data_index(fits_file: str):
 
 
 def gaussian_theta(coord, amp, sigma, theta, mu_x, mu_y):
+    '''
+    Finds the value at a point on a 2D Gaussian.
+
+    Parameters
+    ----------
+    coord : tuple
+        The coordinate(s) of the point(s) where the first entry is the x-coordinate or a list of x-coordinates
+        and the second entry is the y-coordinate or a list of y-coordinates.
+    amp : float
+        The factor in front of the 2D Gaussian's exponent.
+    sigma : float
+        The standard deviation of the 2D Gaussian.
+    theta : float
+        The angle of rotation of the 2D Gaussian.
+    mu_x : float
+        The x-value of the peak of the 2D Gaussian.
+    mu_y : float
+        The y-value of the peak of the 2D Gaussian.
+
+    Returns
+    -------
+    float
+        The value of the 2D Gaussian evaluated at the given point.
+    '''
+
     x, y = coord
     return amp * np.exp(-(((x-mu_x)*math.cos(theta)+(y-mu_y)*math.sin(theta))**2+(-(x-mu_x)*math.sin(theta)+(y-mu_y)*math.cos(theta))**2)/(2*sigma**2))
 
@@ -64,25 +89,29 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     '''
     Finds the statistics of a region of an image.
 
-    The region can be the union of circles or the complement of such a region.
-
-    The statistics are the region's maximum flux in Jy and its coordinates in pixels, the region's rms in Jy,
-    the coordinates in pixels of the image's center, the image's beam size in arcseconds squared,
-    the image's x- and y-axis lengths in arcseconds, and the area included in the mask in arcseconds squared.
-
     Parameters
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
     center : list (optional)
         A list of center coordinates in units of pixels.
-        If no center coordinates are given, eventually defaults to ((length of x-axis)/2, (length of y-axis)/2), rounded up.
+        If no center coordinates are given, eventually defaults to [((length of x-axis)/2, (length of y-axis)/2)], rounded up.
     radius : list (optional)
         A list of search radii in units of arcsec.
         If no radius list is given, defaults to an empty list.
     invert : bool (optional)
         Whether to swap the inclusion and exclusion regions.
         If no value is given, defaults to False.
+    Gaussian : bool (optional)
+        Whether to use a 2D Gaussian fit to estimate the true maximum flux and its corresponding coordinates.
+        If no value is given, defaults to True.
+    internal : bool (optional)
+        Whether the peak to search for is internal (in which case to use a 5x5 pixel region if using a Gaussian fit)
+        or external (in which case to use a 3x3 pixel region if using a Gaussian fit).
+        If no value is given, defaults to True.
+    outer radius : float (optional)
+        The radius outside of which everything will be excluded. This is not affected by value invert.
+        If no value is given, defaults to None and will not be used to exclude data.
 
     Returns
     -------
@@ -91,11 +120,11 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
             float
                 The region's maximum flux in Jy.
             tuple (int, int)
+                The coordinates in pixels of the image's center.
+            tuple (int, int)
                 The coordinates in pixels of the region's maximum flux.
             float
                 The region's rms in Jy.
-            tuple (int, int)
-                The coordinates in pixels of the image's center.
             float
                 The image's beam size in arcseconds squared.
             float
@@ -104,6 +133,18 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
                 The image's y-axis length in arcsec.
             float
                 The area included in the mask in arcseconds squared.
+            float
+                The area excluded by the mask in arcseconds squared.
+            float
+                The number of measurements included in the mask.
+            float
+                The number of measurements excluded by the mask.
+            float
+                The median absolute deviation of the flux of the image.
+            float
+                The standard deviation of the flux of the image, as estimated by the MAD.
+            float
+                The most negative flux in the image, if such a flux exists. If not, this is None.
 
     Raises
     ------
@@ -195,8 +236,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #find coordinates of peak
     peak_pix = np.where(data[0] == peak)
-    peak_x = peak_pix[1][0]
-    peak_y = peak_pix[0][0]
+    peak_x = int(peak_pix[1][0])
+    peak_y = int(peak_pix[0][0])
     peak_coord = (peak_x, peak_y)
 
     #fit for peak and coordinates assuming Gaussian
@@ -277,6 +318,28 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
 
 def calc_prob_from_rms_uncert(peak: float, rms: float, n_excl: float, n_incl: float = None):
+    '''
+    Estimates the probability of a value or greater occurring in some number of measurements
+    of a Gaussian distribution with an imprecisely known RMS.
+
+    Parameters
+    ----------
+    peak : float
+        The smallest value in the range of values whose probability of occurring will be estimated.
+    rms : float
+        The imprecisely known RMS value.
+    n_excl : float
+        The number of measurements in the region from which the RMS is measured.
+        If no value is given for n_incl, this is also the number of measurements
+        for which the probability will be estimated.
+    n_incl : float (optional)
+        The number of measurements for which the probability will be estimated.
+
+    Returns
+    -------
+    float
+        The estimated probability.
+    '''
 
     #calculate error for rms
     rms_err = rms * (n_excl)**(-1/2)
@@ -292,8 +355,80 @@ def calc_prob_from_rms_uncert(peak: float, rms: float, n_excl: float, n_incl: fl
         return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
 
 
-def prob_dict_from_rms_uncert(fits_file: str, center: list = [], rms: float = None, threshold: float = 0.01, radius_buffer: float = 5.0,\
+def prob_dict_from_rms_uncert(fits_file: str, center: list = [], threshold: float = 0.01, radius_buffer: float = 5.0,\
                               ext_threshold: float = None):
+    '''
+    Finds the probabilities of the internal and external peaks, as well as other relevant statistics of an image.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the image.
+    center : list (optional)
+        A list of center coordinates in units of pixels.
+        If no center coordinates are given, first defaults to [((length of x-axis)/2, (length of y-axis)/2)], rounded up.
+    threshold : float (optional)
+        The maximum probability, assuming no source in the image, for a significant internal detection.
+        If no value is given, defaults to 0.01.
+    radius_buffer : float (optional)
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
+        If no value is given, defaults to 5 arcsec.
+    ext_threshold : float (optional)
+        The probability that an external peak must be below for it to be considered an external source.
+        If no value is given, defaults to 1e-3, 1e-6, or 1e-12, depending on the SNR of the internal peak.
+
+    Returns
+    -------
+    dict
+        A dictionary with:
+            tuple (int, int)
+                The coordinates in pixels of the image's center.
+            float
+                The image's rms in Jy.
+            float
+                The median absolute deviation of the flux of the image.
+            float
+                The standard deviation of the flux of the image, as estimated by the MAD.
+            float
+                The number of measurements included in the mask.
+            float
+                The number of measurements excluded by the mask.
+            float
+                The length of the beam major axis in arcsec.
+            float
+                The radius of the initial inclusion region in arcsec.
+            float
+                The most negative flux in the image, if such a flux exists. If not, this is None.
+            list
+                A list with:
+                    float(s)
+                        The flux of the brightest internal peak and the fluxes of the remaining significant internal peaks,
+                        if these exist.
+            list
+                A list with:
+                    tuple(s) (int, int)
+                        The coordinates in pixels of the brightest internal peak and the remaining significant internal peaks,
+                        if these exist.
+            list
+                A list with:
+                    float(s)
+                        The probability/probabilities of the brightest internal peak and the remaining significant internal peaks,
+                        if these exist.
+            list
+                A list with:
+                    float(s)
+                        The signal to noise ratios of the brightest internal peak and the remaining significant internal peaks,
+                        if these exist.
+            list
+                A list with:
+                    float(s)
+                        The flux(es) the significant external peak(s), if these exist.
+
+ext_peak_coord: []
+ext_prob: []
+ext_snr: []
+next_ext_peak: 0.11062327027320862
+    '''
 
     i = fits_data_index(fits_file)
 
@@ -492,12 +627,18 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
 
     excl_sigma = -1 * norm.ppf(1/n_excl_meas)
     old_rms_val = ext_peak_val / excl_sigma
+    prob_dict['calc_rms_val'] = float(old_rms_val)
+
     sigma = norm.ppf(1/(n_incl_meas + n_excl_meas))
     neg_peak = prob_dict['neg_peak']
-    rms_val = neg_peak / sigma
 
-    prob_dict['old_calc_rms_val'] = float(old_rms_val)
-    prob_dict['calc_rms_val'] = float(rms_val)
+    if neg_peak is not None:
+        rms_val = neg_peak / sigma
+        prob_dict['neg_peak_rms_val'] = float(rms_val)
+    else:
+        prob_dict['neg_peak_rms_val'] = None
+        rms_val = old_rms_val
+
     prob_dict['calc_ext_prob'] = float(norm.cdf((-1 * ext_peak_val)/(rms_val))) * n_excl_meas
     prob_dict['calc_ext_snr'] = float(excl_sigma)
     for i in range(len(int_peak_val)):
@@ -904,9 +1045,9 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
             freq_col = hdul[1].columns[1]
             if freq_col.name == 'Freq':
                 if freq_col.unit == 'Hz':
-                    freq = '{} GHz'.format(hdul[1].data[1][1] / 1e9)
+                    freq = '{} GHz'.format(hdul[1].data[0][1] / 1e9)
                 elif freq_col.unit == 'GHz':
-                    freq = '{} GHz'.format(hdul[1].data[1][1])
+                    freq = '{} GHz'.format(hdul[1].data[0][1])
         except:
             pass
 
@@ -933,7 +1074,27 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                    'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                    'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
                    'Beam Pos Angle': round(bpa, 3) * u.deg,\
-                   'Freq': freq, 'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,}
+                   'Freq': freq}
+
+    ###'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,
+
+    hdul = fits.open(fits_file)
+    try:
+        noise_col = hdul[1].columns[2]
+        if noise_col.name == 'Freq':
+            if noise_col.unit == 'mJy':
+                noise = float(hdul[1].data[0][2] * 1e-3)
+            elif freq_col.unit == 'Jy':
+                noise = float(hdul[1].data[0][2])
+    except:
+        pass
+
+    rms_list = [summ['rms_val'], summ['sd_mad'], summ['calc_rms_val'], summ['neg_peak_rms_val']]
+    if summ['neg_peak_rms_val'] is not None:
+        rms_list += summ['neg_peak_rms_val']
+    if noise is not None:
+        rms_list += noise
+    field_info['Flux Uncert'] = max(rms_list)
 
     n_int_sources = len(summ['int_peak_val'])
     if type(summ['ext_peak_val']) == str:
@@ -1732,15 +1893,14 @@ def light_curve(low_path: str, high_path: str, unique_ids: list = None):
         micro_dt = [date_times[c] for c in micro]
         micro_flx = [fluxes[c] for c in micro]
         micro_flx_err = [flux_errs[c] for c in micro]
-        if milli != []:
-            plt.errorbar(milli_dt, milli_flx, yerr=milli_flx_err, color='r', fmt='x', capsize=5, markersize=4,\
-                        capthick=0.5, elinewidth=0.5, label='1.4-1.1mm SMA')
-        if micro != []:
-            plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='g', fmt='x', capsize=5, markersize=4,\
-                        capthick=0.5, elinewidth=0.5, label='870µm SMA')
-        if other != []:
-            plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='b', fmt='x', capsize=5, markersize=4,\
-                        capthick=0.5, elinewidth=0.5, label='Other/not found')
+
+        plt.errorbar(milli_dt, milli_flx, yerr=milli_flx_err, color='r', fmt='x', capsize=5, markersize=4,\
+                     capthick=0.5, elinewidth=0.5, label='1.4-1.1mm SMA')
+        plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='g', fmt='x', capsize=5, markersize=4,\
+                     capthick=0.5, elinewidth=0.5, label='870µm SMA')
+        plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='b', fmt='x', capsize=5, markersize=4,\
+                     capthick=0.5, elinewidth=0.5, label='Other/not found')
+
         plt.title(f'Source {source[2:]}')
         plt.xlabel('Modified Julian Date')
         plt.ylabel(f'Flux in {flux_unit}')
