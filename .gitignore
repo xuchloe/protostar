@@ -86,3 +86,4 @@ src/pyuvdata/uvdata/src/miriad_wrap.cpp
 
 .vscode/
 .DS_Store
+.ipynb_checkpoints/
