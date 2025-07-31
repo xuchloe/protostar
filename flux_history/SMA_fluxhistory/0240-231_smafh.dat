@@ -1,0 +1,6 @@
+!B0237-233   J0240-231                                                                    
+!J2000  RA: 02:40:08.1745    DEC: -23:09:15.730                                           
+!                                                                                         
+!BAND    UT DATE     TIME   OBS  F(GHz)   FLUX(JY)  ERROR    SNR    FLUX PI   MJD         
+ 1.3mm   09 Dec 2004 06:22  SMA  225.62   0.190 +/- 0.082     2.3  mgurwell  53348.266    
+ 1.3mm   01 Aug 2005 16:21  SMA  223.14   0.154 +/- 0.024     6.7  mgurwell  53583.680    
