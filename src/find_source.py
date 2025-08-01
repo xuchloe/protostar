@@ -1038,16 +1038,19 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     freq = 'Not found'
     if ctype3 == 'FREQ':
-        freq = '{} {}'.format(crval3, cunit3)
+        if cunit3 == 'GHz':
+            freq = crval3
+        elif cunit2 == 'Hz':
+            freq = crval3 / 1e9 # into GHz
     elif ctype3 == 'CHANNUM':
         hdul = fits.open(fits_file)
         try:
             freq_col = hdul[1].columns[1]
             if freq_col.name == 'Freq':
                 if freq_col.unit == 'Hz':
-                    freq = '{} GHz'.format(hdul[1].data[0][1] / 1e9)
+                    freq = hdul[1].data[0][1] / 1e9 # into GHz
                 elif freq_col.unit == 'GHz':
-                    freq = '{} GHz'.format(hdul[1].data[0][1])
+                    freq = hdul[1].data[0][1]
         except:
             pass
 
@@ -1071,30 +1074,29 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     interesting_sources = {}
     field_info = {'Field Name': name, 'Obs Date Time': obs_date_time, 'File Name': fits_file[fits_file.rindex('/')+1:],\
                    'Stationary': stationary,\
-                   'Beam Maj Axis': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                   'Beam Min Axis': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3) * u.arcsec,\
-                   'Beam Pos Angle': round(bpa, 3) * u.deg,\
-                   'Freq': freq}
-
-    ###'Flux Uncert': round(summ['rms_val'] * 1000, 3) * u.mJy,
+                   'Beam Maj Axis (arcsec)': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3),\
+                   'Beam Min Axis (arcsec)': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3),\
+                   'Beam Pos Angle (deg)': round(bpa, 3),\
+                   'Freq (GHz)': round(freq, 3)}
 
     hdul = fits.open(fits_file)
+    noise = None
     try:
         noise_col = hdul[1].columns[2]
-        if noise_col.name == 'Freq':
+        if noise_col.name == 'Noise Est':
             if noise_col.unit == 'mJy':
-                noise = float(hdul[1].data[0][2] * 1e-3)
+                noise = float(hdul[1].data[0][2] * 1e3) # into Jy
             elif freq_col.unit == 'Jy':
                 noise = float(hdul[1].data[0][2])
     except:
         pass
 
-    rms_list = [summ['rms_val'], summ['sd_mad'], summ['calc_rms_val'], summ['neg_peak_rms_val']]
+    rms_list = [summ['rms_val'], summ['sd_mad'], summ['calc_rms_val'], summ['neg_peak_rms_val']] # all in Jy
     if summ['neg_peak_rms_val'] is not None:
-        rms_list += summ['neg_peak_rms_val']
+        rms_list.append(summ['neg_peak_rms_val'])
     if noise is not None:
-        rms_list += noise
-    field_info['Flux Uncert'] = max(rms_list)
+        rms_list.append(noise)
+    field_info['Flux Uncert (mJy)'] = round(max(rms_list) * 1e3, 3)
 
     n_int_sources = len(summ['int_peak_val'])
     if type(summ['ext_peak_val']) == str:
@@ -1131,39 +1133,27 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     for i in range(n_int_sources):
         if (summ['int_prob'][i] < threshold and summ['calc_int_prob'][i] < threshold):
             info = field_info.copy()
-            info['Flux Density'] = round(summ[f'int_peak_val'][i] * 1000, 3) * u.mJy
+            info['Flux (mJy)'] = round(summ[f'int_peak_val'][i] * 1000, 3)
 
             snr = summ[f'int_snr'][i]
             b_min_uncert = float(bmaj / snr)
             b_maj_uncert = float(bmin / snr)
-            info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
-            info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+            info['RA Uncert (arcsec)'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
+            info['Dec Uncert (arcsec)'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
 
             ra_offset = summ[f'int_peak_coord'][i][ra_index] * u.arcsec
             dec_offset = summ[f'int_peak_coord'][i][dec_index] * u.arcsec
             coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
-            ra_str = str(coord.ra)
-            dec_str = str(coord.dec)
+            ra_tuple = coord.ra.hms
+            dec_tuple = coord.dec.dms
 
-            try:
-                m_index = ra_str.index('m')
-                s_index = ra_str.index('s')
-                ra_seconds = ra_str[m_index + 1: s_index]
-                ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
-            except:
-                pass
+            # rounding the arcseconds to 2 past the decimal
+            ra_str = f'{int(ra_tuple.h)}h{abs(int(ra_tuple.m))}m{abs(round(float(ra_tuple.s), 2))}s'
+            dec_str = f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m{abs(round(float(dec_tuple.s), 2))}s'
 
-            try:
-                m_index = dec_str.index('m')
-                s_index = dec_str.index('s')
-                dec_seconds = dec_str[m_index + 1: s_index]
-                dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
-            except:
-                pass
-
-            info['Coord RA'] = ra_str
-            info['Coord Dec'] = dec_str
+            info['RA'] = ra_str
+            info['Dec'] = dec_str
             info['Internal'] = True
 
             key = f'Source {pt_source_count}'
@@ -1172,39 +1162,27 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
 
     for i in range(n_ext_sources):
         info = field_info.copy()
-        info['Flux Density'] = round(summ[f'ext_peak_val'][i] * 1000, 3) * u.mJy
+        info['Flux (mJy)'] = round(summ[f'ext_peak_val'][i] * 1000, 3)
 
         snr = summ[f'ext_snr'][i]
         b_min_uncert = float(bmaj / snr)
         b_maj_uncert = float(bmin / snr)
-        info['RA Uncert'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3) * u.arcsec
-        info['Dec Uncert'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3) * u.arcsec
+        info['RA Uncert (arcsec)'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
+        info['Dec Uncert (arcsec)'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
 
         ra_offset = summ[f'ext_peak_coord'][i][ra_index] * u.arcsec
         dec_offset = summ[f'ext_peak_coord'][i][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
-        ra_str = str(coord.ra)
-        dec_str = str(coord.dec)
+        ra_tuple = coord.ra.hms
+        dec_tuple = coord.dec.dms
 
-        try:
-            m_index = ra_str.index('m')
-            s_index = ra_str.index('s')
-            ra_seconds = ra_str[m_index + 1: s_index]
-            ra_str = ra_str[:m_index + 1] + str(round(float(ra_seconds), 2)) + 's'
-        except:
-            pass
+        # rounding the arcseconds to 2 past the decimal
+        ra_str = f'{int(ra_tuple.h)}h{abs(int(ra_tuple.m))}m{abs(round(float(ra_tuple.s), 2))}s'
+        dec_str = f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m{abs(round(float(dec_tuple.s), 2))}s'
 
-        try:
-            m_index = dec_str.index('m')
-            s_index = dec_str.index('s')
-            dec_seconds = dec_str[m_index + 1: s_index]
-            dec_str = dec_str[:m_index + 1] + str(round(float(dec_seconds), 2)) + 's'
-        except:
-            pass
-
-        info['Coord RA'] = ra_str
-        info['Coord Dec'] = dec_str
+        info['RA'] = ra_str
+        info['Dec'] = dec_str
         info['Internal'] = False
 
         key = f'Source {pt_source_count}'
@@ -1215,6 +1193,9 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         return
     else:
         return interesting_sources
+
+
+make_catalog('../data/11151/3c279.fits')
 
 
 def combine_catalogs(catalog_1: dict, catalog_2: dict):
@@ -1704,19 +1685,18 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
         if low_df['Source ID'].iloc[row] == 'Unknown': #check to make sure we didn't already do coarse matching
             if low_df['Stationary'].iloc[row]:
                 if unique_sources is not None:
-                    ra = low_df['Coord RA'].iloc[row]
-                    dec = low_df['Coord Dec'].iloc[row]
+                    ra = low_df['RA'].iloc[row]
+                    dec = low_df['Dec'].iloc[row]
                     coord1 = SkyCoord(ra, dec)
-                    fwhm = low_df['Beam Maj Axis'].iloc[row]
-                    fwhm1_val = float(fwhm.replace(' arcsec', ''))
+                    fwhm = low_df['Beam Maj Axis (arcsec)'].iloc[row]
                     source_ids = unique_sources['Source ID']
                     matched  = False
                     while not matched:
                         for i in range(len(source_ids)): #compare with each unique source
                             coord2 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
                             sep = coord1.separation(coord2)
-                            fwhm2_val = float(unique_sources['FWHM'][i].replace(' arcsec', ''))
-                            max_sep = (fwhm1_val * fwhm2_val)**(1/2) * u.arcsec
+                            fwhm2_val = float(unique_sources['FWHM (arcsec)'][i])
+                            max_sep = (fwhm * fwhm2_val)**(1/2) * u.arcsec
                             matched = (sep <= max_sep)
                             if matched:
                                 low_df.loc[row, 'Source ID'] = source_ids[i]
@@ -1732,14 +1712,14 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                         source_ids.append(next_id)
                         unique_sources['RA'].append(ra)
                         unique_sources['Dec'].append(dec)
-                        unique_sources['FWHM'].append(fwhm)
+                        unique_sources['FWHM (arcsec)'].append(fwhm)
                         low_df.loc[row, 'Source ID'] = next_id
                         unique_sources['Ambiguous Ties'].append('Unknown')
                 else:
-                    ra = low_df['Coord RA'].iloc[row]
-                    dec = low_df['Coord Dec'].iloc[row]
-                    fwhm = low_df['Beam Maj Axis'].iloc[row]
-                    unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM': [fwhm], 'Ambiguous Ties': ['Unknown']}
+                    ra = low_df['RA'].iloc[row]
+                    dec = low_df['Dec'].iloc[row]
+                    fwhm = low_df['Beam Maj Axis (arcsec)'].iloc[row]
+                    unique_sources = {'Source ID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM (arcsec)': [fwhm], 'Ambiguous Ties': ['Unknown']}
                     low_df.loc[row, 'Source ID'] = 'id0001'
             else:
                 low_df.loc[row, 'Source ID'] = 'Not Stationary'
@@ -1750,16 +1730,16 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
     to_skip = []
     for i in range(len(unique_sources['Source ID'])):
         temp_df = low_df[(low_df['Source ID']) == unique_sources['Source ID'][i]]
-        ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
-        dec_list = [Angle(dec, u.deg) for dec in temp_df['Coord Dec']]
-        fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis']]
+        ra_list = [Angle(ra, u.deg) for ra in temp_df['RA']]
+        dec_list = [Angle(dec, u.deg) for dec in temp_df['Dec']]
+        fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis (arcsec)']]
         if len(unique_sources['Source ID']) > 1 and i not in to_skip:
             for j in range(i + 1, len(unique_sources['Source ID'])):
                 if j not in to_skip:
                     temp_df2 = low_df[(low_df['Source ID']) == unique_sources['Source ID'][j]]
-                    ra_list2 = [Angle(ra, u.deg) for ra in temp_df2['Coord RA']]
-                    dec_list2 = [Angle(dec, u.deg) for dec in temp_df2['Coord Dec']]
-                    fwhm_list2 = [Angle(fwhm, u.arcsec) for fwhm in temp_df2['Beam Maj Axis']]
+                    ra_list2 = [Angle(ra, u.deg) for ra in temp_df2['RA']]
+                    dec_list2 = [Angle(dec, u.deg) for dec in temp_df2['Dec']]
+                    fwhm_list2 = [Angle(fwhm, u.arcsec) for fwhm in temp_df2['Beam Maj Axis (arcsec)']]
                     new_ra_list = ra_list + ra_list2
                     new_dec_list = dec_list + dec_list2
                     new_fwhm_list = fwhm_list + fwhm_list2
@@ -1777,9 +1757,11 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
                     if proportion == 1: #average point is a good representative for all points, same source
                         refined.append(new_sources['Source ID'][i])
                         #match found, update averages
-                        new_sources['RA'][i] = avg_ra
+                        hms_ra = avg_ra.hms
+                        str_ra = f'{hms_ra.h}h{hms_ra.m}m{round(hms_ra.s, 2)}s'
+                        new_sources['RA'][i] = str_ra
                         new_sources['Dec'][i] = avg_dec
-                        new_sources['FWHM'][i] = geo_avg_fwhm
+                        new_sources['FWHM (arcsec)'][i] = round(geo_avg_fwhm.value, 3)
                         #get rid of "replaced" source in Ambiguous Ties
                         for k in range(len(unique_sources['Source ID'])):
                             unique_sources['Ambiguous Ties'][k] = unique_sources['Ambiguous Ties'][k].replace(unique_sources['Source ID'][j], '')
@@ -1810,99 +1792,126 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
         del new_sources['Source ID'][k]
         del new_sources['RA'][k]
         del new_sources['Dec'][k]
-        del new_sources['FWHM'][k]
+        del new_sources['FWHM (arcsec)'][k]
         del new_sources['Ambiguous Ties'][k]
 
     #get averages for sources only matched with coarse matching
     for i in range(len(new_sources['Source ID'])):
         if new_sources['Source ID'][i] not in refined:
             temp_df = low_df[(low_df['Source ID']) == new_sources['Source ID'][i]]
-            ra_list = [Angle(ra, u.deg) for ra in temp_df['Coord RA']]
-            dec_list = [Angle(dec, u.deg) for dec in temp_df['Coord Dec']]
-            fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis']]
+            ra_list = [Angle(ra, u.deg) for ra in temp_df['RA']]
+            dec_list = [Angle(dec, u.deg) for dec in temp_df['Dec']]
+            fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['Beam Maj Axis (arcsec)']]
             num_pts = len(ra_list)
             avg_ra = sum(ra_list) / num_pts
+            hms_ra = avg_ra.hms
+            str_ra = f'{hms_ra.h}h{hms_ra.m}m{round(hms_ra.s, 2)}s'
             avg_dec = sum(dec_list) / num_pts
             geo_avg_fwhm = math.prod(fwhm_list) ** (1/num_pts)
-            new_sources['RA'][i] = avg_ra
+            new_sources['RA'][i] = str_ra
             new_sources['Dec'][i] = avg_dec
-            new_sources['FWHM'][i] = geo_avg_fwhm
+            new_sources['FWHM (arcsec)'][i] = round(geo_avg_fwhm.value, 3)
 
     df = pd.DataFrame.from_dict(new_sources)
     df.to_csv(high_level_path, mode='w', header=True, index=False)
     low_df.to_csv(low_level_path, mode='w', header=True, index=False)
 
 
-def light_curve(low_path: str, high_path: str, unique_ids: list = None):
+def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bool = True, table: bool = True):
 
     low_df = pd.read_csv(low_path)
     high_df = pd.read_csv(high_path)
     if unique_ids == None:
         unique_ids = high_df['Source ID'].tolist()
-    for source in unique_ids:
-        plt.subplots()
-        source_df = low_df[low_df['Source ID'] == source]
-        fluxes = source_df['Flux Density']
-        fluxes = [float(flux.replace('mJy', '')) for flux in fluxes]
-        flux_errs = source_df['Flux Uncert']
-        flux_errs = [float(err.replace('mJy', '')) for err in flux_errs]
-        flux_unit = 'mJy'
-        if max(fluxes) > 1000:
-            flux_unit = 'Jy'
-            for i in range(len(fluxes)):
-                fluxes[i] /= 1000
-                flux_errs[i] /= 1000
-        date_times = source_df['Obs Date Time'].tolist()
-        for i in range(len(date_times)):
-            dt = date_times[i]
-            m_end = dt.rindex(':')
-            s_start = m_end + 1
-            if dt[s_start:] == '60':
-                dt = dt[:s_start] + '0'
-                fmt = '%m-%d-%y %H:%M'
-                date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
 
-        fmt_str = '%m-%d-%y %H:%M:%S'
-        date_times = [Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd for dt in date_times]
+    if plot:
+        for source in unique_ids:
+            plt.subplots()
+            source_df = low_df[low_df['Source ID'] == source]
+            fluxes = source_df['Flux (mJy)'].to_list()
+            flux_errs = source_df['Flux Uncert (mJy)'].to_list()
+            flux_unit = 'mJy'
+            if max(fluxes) > 1000:
+                flux_unit = 'Jy'
+                for i in range(len(fluxes)):
+                    fluxes[i] /= 1000
+                    flux_errs[i] /= 1000
+            date_times = source_df['Obs Date Time'].tolist()
+            for i in range(len(date_times)):
+                dt = date_times[i]
+                m_end = dt.rindex(':')
+                s_start = m_end + 1
+                if dt[s_start:] == '60':
+                    dt = dt[:s_start] + '0'
+                    fmt = '%m-%d-%y %H:%M'
+                    date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
 
-        freqs = source_df['Freq'].tolist()
-        other = []
-        milli = []
-        micro = []
-        for i in range(len(freqs)):
-            if freqs[i] == 'Not found':
-                other.append(i)
-                pass
-            else:
-                try:
-                    freqs[i] = float(freqs[i].replace('GHz', ''))
-                    if freqs[i] > 214 and freqs[i] < 273:
-                        milli.append(i)
-                    elif freqs[i] > 340 and freqs[i] < 355:
-                        micro.append(i)
-                    else:
-                        other.append(i)
-                except Exception as e:
-                    print(f'Error while getting the frequencies for source {source}: {e}')
-        other_dt = [date_times[a] for a in other]
-        other_flx = [fluxes[a] for a in other]
-        other_flx_err = [flux_errs[a] for a in other]
-        milli_dt = [date_times[b] for b in milli]
-        milli_flx = [fluxes[b] for b in milli]
-        milli_flx_err = [flux_errs[b] for b in milli]
-        micro_dt = [date_times[c] for c in micro]
-        micro_flx = [fluxes[c] for c in micro]
-        micro_flx_err = [flux_errs[c] for c in micro]
+            fmt_str = '%m-%d-%y %H:%M:%S'
+            date_times = [Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd for dt in date_times]
 
-        plt.errorbar(milli_dt, milli_flx, yerr=milli_flx_err, color='r', fmt='x', capsize=5, markersize=4,\
-                     capthick=0.5, elinewidth=0.5, label='1.4-1.1mm SMA')
-        plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='g', fmt='x', capsize=5, markersize=4,\
-                     capthick=0.5, elinewidth=0.5, label='870µm SMA')
-        plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='b', fmt='x', capsize=5, markersize=4,\
-                     capthick=0.5, elinewidth=0.5, label='Other/not found')
+            freqs = source_df['Freq (GHz)'].tolist()
+            other = []
+            small_milli = [] # 1.1mm
+            large_milli = [] # 1.3mm
+            micro = [] # 870µm
+            for i in range(len(freqs)):
+                if freqs[i] == 'Not found':
+                    other.append(i)
+                    pass
+                else:
+                    try:
+                        if freqs[i] > 260.69 and freqs[i] < 285.52: # 1.15-1.05mm
+                            small_milli.append(i)
+                        elif freqs[i] > 222.07 and freqs[i] < 239.83: # 1.35-1.25mm
+                            large_milli.append(i)
+                        elif freqs[i] > 340.67 and freqs[i] < 348.60: # 880-860µm
+                            micro.append(i)
+                        else:
+                            other.append(i)
+                    except Exception as e:
+                        print(f'Error while getting the frequencies for source {source}: {e}')
+            other_dt = [date_times[a] for a in other]
+            other_flx = [fluxes[a] for a in other]
+            other_flx_err = [flux_errs[a] for a in other]
+            sm_milli_dt = [date_times[b] for b in small_milli]
+            sm_milli_flx = [fluxes[b] for b in small_milli]
+            sm_milli_flx_err = [flux_errs[b] for b in small_milli]
+            lg_milli_dt = [date_times[c] for c in large_milli]
+            lg_milli_flx = [fluxes[c] for c in large_milli]
+            lg_milli_flx_err = [flux_errs[c] for c in large_milli]
+            micro_dt = [date_times[d] for d in micro]
+            micro_flx = [fluxes[d] for d in micro]
+            micro_flx_err = [flux_errs[d] for d in micro]
 
-        plt.title(f'Source {source[2:]}')
-        plt.xlabel('Modified Julian Date')
-        plt.ylabel(f'Flux in {flux_unit}')
-        plt.legend()
-        plt.ylim(bottom=0)
+            plt.errorbar(sm_milli_dt, sm_milli_flx, yerr=sm_milli_flx_err, color='g', fmt='x', capsize=3, markersize=2,\
+                        capthick=0.5, elinewidth=0.5, label='1.1mm')
+            plt.errorbar(lg_milli_dt, lg_milli_flx, yerr=lg_milli_flx_err, color='r', fmt='x', capsize=3, markersize=2,\
+                        capthick=0.5, elinewidth=0.5, label='1.3mm')
+            plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='b', fmt='x', capsize=3, markersize=2,\
+                        capthick=0.5, elinewidth=0.5, label='870µm')
+            plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='k', fmt='x', capsize=3, markersize=2,\
+                        capthick=0.5, elinewidth=0.5, label='Other/not found')
+
+            plt.title(f'Source {source[2:]}')
+            plt.xlabel('Modified Julian Date')
+            plt.ylabel(f'Flux [{flux_unit}]')
+            plt.legend()
+            plt.ylim(bottom=0)
+
+    if table:
+        for j in range(len(unique_ids)):
+            source = unique_ids[j]
+            source_df = low_df[low_df['Source ID'] == source]
+            dat_name = f'./{source}_flux_history.dat'
+            with open(dat_name, 'w') as new_file:
+                new_file.write('#{}, RA: {}, Dec:{}\n'.format(source, high_df.loc[j, 'RA'], low_df.loc[j, 'Dec']))
+            cal_df = source_df.copy()
+            for col in cal_df.columns:
+                if col not in ['Obs Date Time', 'Obs ID', 'Flux (mJy)', 'Flux Uncert (mJy)']:
+                    cal_df.drop(columns=col, inplace=True)
+            snr_list = [round(float(cal_df['Flux (mJy)'].to_list()[i] / cal_df['Flux Uncert (mJy)'].to_list()[i]), 2) for i in range(len(cal_df))]
+            cal_df['SNR'] = snr_list
+            fmt_str = '%m-%d-%y %H:%M:%S'
+            mjd_list = [float(Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd) for dt in cal_df['Obs Date Time']]
+            cal_df['MJD'] = mjd_list
+            cal_df.to_csv(dat_name, sep='\t', index=False, mode='a')
