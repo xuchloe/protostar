@@ -1042,6 +1042,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
             freq = crval3
         elif cunit2 == 'Hz':
             freq = crval3 / 1e9 # into GHz
+        freq = round(freq, 3)
     elif ctype3 == 'CHANNUM':
         hdul = fits.open(fits_file)
         try:
@@ -1051,6 +1052,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                     freq = hdul[1].data[0][1] / 1e9 # into GHz
                 elif freq_col.unit == 'GHz':
                     freq = hdul[1].data[0][1]
+            freq = round(freq, 3)
         except:
             pass
 
@@ -1077,7 +1079,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                    'Beam Maj Axis (arcsec)': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3),\
                    'Beam Min Axis (arcsec)': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3),\
                    'Beam Pos Angle (deg)': round(bpa, 3),\
-                   'Freq (GHz)': round(freq, 3)}
+                   'Freq (GHz)': freq}
 
     hdul = fits.open(fits_file)
     noise = None
@@ -1193,9 +1195,6 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         return
     else:
         return interesting_sources
-
-
-make_catalog('../data/11151/3c279.fits')
 
 
 def combine_catalogs(catalog_1: dict, catalog_2: dict):
@@ -1667,6 +1666,21 @@ def low_level_csv(folder, csv_path = './low_level.csv'):
 
     df = pd.DataFrame.from_dict(master_catalog)
     df = df.T
+
+    if master_catalog is not None:
+        # fixing rounding error where 60 appears in the seconds
+        date_times = df['Obs Date Time'].tolist()
+        df.drop(columns='Obs Date Time', inplace=True)
+        for i in range(len(date_times)):
+            dt = date_times[i]
+            m_end = dt.rindex(':')
+            s_start = m_end + 1
+            if dt[s_start:] == '60':
+                dt = dt[:s_start] + '0'
+                fmt = '%m-%d-%y %H:%M'
+                date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
+        df['Obs Date Time'] = date_times
+
     df.to_csv(csv_path, mode='w', header=True, index=False)
 
 
@@ -1817,7 +1831,8 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
     low_df.to_csv(low_level_path, mode='w', header=True, index=False)
 
 
-def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bool = True, table: bool = True):
+def light_curve(low_path: str = './low_level.csv', high_path: str = './high_level.csv', unique_ids: list = None,\
+                plot: bool = True, table: bool = True, save_path: str = ''):
 
     low_df = pd.read_csv(low_path)
     high_df = pd.read_csv(high_path)
@@ -1837,15 +1852,6 @@ def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bo
                     fluxes[i] /= 1000
                     flux_errs[i] /= 1000
             date_times = source_df['Obs Date Time'].tolist()
-            for i in range(len(date_times)):
-                dt = date_times[i]
-                m_end = dt.rindex(':')
-                s_start = m_end + 1
-                if dt[s_start:] == '60':
-                    dt = dt[:s_start] + '0'
-                    fmt = '%m-%d-%y %H:%M'
-                    date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
-
             fmt_str = '%m-%d-%y %H:%M:%S'
             date_times = [Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd for dt in date_times]
 
@@ -1860,11 +1866,12 @@ def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bo
                     pass
                 else:
                     try:
-                        if freqs[i] > 260.69 and freqs[i] < 285.52: # 1.15-1.05mm
+                        float_freq = float(freqs[i])
+                        if float_freq > 260.69 and float_freq < 285.52: # 1.15-1.05mm
                             small_milli.append(i)
-                        elif freqs[i] > 222.07 and freqs[i] < 239.83: # 1.35-1.25mm
+                        elif float_freq > 222.07 and float_freq < 239.83: # 1.35-1.25mm
                             large_milli.append(i)
-                        elif freqs[i] > 340.67 and freqs[i] < 348.60: # 880-860µm
+                        elif float_freq > 340.67 and float_freq < 348.60: # 880-860µm
                             micro.append(i)
                         else:
                             other.append(i)
@@ -1898,6 +1905,14 @@ def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bo
             plt.legend()
             plt.ylim(bottom=0)
 
+            if save_path != '':
+                try:
+                    if save_path[-1] != '/':
+                        save_path = save_path + '/'
+                    plt.savefig(f'{save_path}{source}.jpg')
+                except:
+                    print('Error saving figure. Double check path entered.')
+
     if table:
         for j in range(len(unique_ids)):
             source = unique_ids[j]
@@ -1907,7 +1922,7 @@ def light_curve(low_path: str, high_path: str, unique_ids: list = None, plot: bo
                 new_file.write('#{}, RA: {}, Dec:{}\n'.format(source, high_df.loc[j, 'RA'], low_df.loc[j, 'Dec']))
             cal_df = source_df.copy()
             for col in cal_df.columns:
-                if col not in ['Obs Date Time', 'Obs ID', 'Flux (mJy)', 'Flux Uncert (mJy)']:
+                if col not in ['Obs Date Time', 'Obs ID', 'Flux (mJy)', 'Flux Uncert (mJy)', 'Freq (GHz)']:
                     cal_df.drop(columns=col, inplace=True)
             snr_list = [round(float(cal_df['Flux (mJy)'].to_list()[i] / cal_df['Flux Uncert (mJy)'].to_list()[i]), 2) for i in range(len(cal_df))]
             cal_df['SNR'] = snr_list
