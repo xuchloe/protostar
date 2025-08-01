@@ -1,0 +1,26 @@
+Source ID,RA,Dec,FWHM (arcsec),Ambiguous Ties
+id0001,13.0h10.0m28.65s,32d20m43.59s,1.454,None found
+id0002,13.0h10.0m28.19s,32d20m41.33s,1.444,None found
+id0003,13.0h10.0m28.22s,32d20m38.1s,1.444,None found
+id0004,16.0h35.0m15.49s,38d08m04.5s,1.57,None found
+id0005,16.0h42.0m58.79s,39d48m36.79s,1.528,None found
+id0006,16.0h42.0m58.33s,39d48m27.8s,1.528,None found
+id0007,16.0h42.0m59.27s,39d48m45.58s,1.528,None found
+id0008,13.0h31.0m8.27s,30d30m32.77s,1.431,None found
+id0009,15.0h12.0m50.53s,-9d05m59.83s,1.801,None found
+id0010,12.0h56.0m11.16s,-5d47m21.625s,1.435,None found
+id0011,12.0h56.0m11.17s,-5d47m17.96s,1.439,None found
+id0012,12.0h56.0m11.41s,-5d47m25.14s,1.439,None found
+id0013,12.0h56.0m11.42s,-5d47m21.65s,1.439,None found
+id0014,12.0h56.0m11.26s,-5d47m19.96s,1.439,None found
+id0015,12.0h56.0m11.04s,-5d47m23.3s,1.439,None found
+id0016,12.0h56.0m11.12s,-5d47m25.15s,1.439,None found
+id0017,12.0h56.0m11.29s,-5d47m26.77s,1.439,None found
+id0018,12.0h56.0m10.91s,-5d47m17.92s,1.439,None found
+id0019,11.0h59.0m31.83s,29d14m43.73s,1.806,None found
+id0020,20.0h32.0m45.52s,40d39m36.41s,1.81,None found
+id0021,15.0h55.0m43.04s,11d11m24.37s,1.732,None found
+id0022,17.0h51.0m32.81s,9d39m00.54s,1.418,None found
+id0023,12.0h56.0m11.15s,-5d47m35.75s,1.432,None found
+id0024,11.0h59.0m31.93s,29d14m40.66s,2.216,None found
+id0025,17.0h51.0m32.76s,9d38m54.28s,1.418,None found
