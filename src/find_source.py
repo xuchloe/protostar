@@ -805,6 +805,26 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
 
     incl_radius = info['incl_radius'] #unitless but in arcsec already
 
+    # get most conservative rms and internal snr
+    hdul = fits.open(fits_file)
+    noise = None
+    try:
+        noise_col = hdul[1].columns[2]
+        if noise_col.name == 'Noise Est':
+            if noise_col.unit == 'mJy':
+                noise = float(hdul[1].data[0][2] * 1e3) # into Jy
+            elif noise_col.unit == 'Jy':
+                noise = float(hdul[1].data[0][2])
+    except:
+        pass
+    rms_list = [info['rms_val'], info['sd_mad'], info['calc_rms_val'], info['neg_peak_rms_val']] # all in Jy
+    if info['neg_peak_rms_val'] is not None:
+        rms_list.append(info['neg_peak_rms_val'])
+    if noise is not None:
+        rms_list.append(noise)
+    conservative_rms = max(rms_list) # in Jy
+    conservative_snr = round(info['int_peak_val'][0] / conservative_rms, 3)
+
     x_coords = []
     y_coords = []
     ext_peak_coords = info['ext_peak_coord']
@@ -866,7 +886,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
         ax.add_artist(beam)
 
         title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
-        ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {int_snr:.2f}', horizontalalignment='left', verticalalignment='top',\
+        ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {conservative_snr}', horizontalalignment='left', verticalalignment='top',\
                 fontsize=10, bbox=dict(facecolor='w'))
 
         plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
@@ -916,6 +936,8 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
         short_info['int_peak_coord'] = int_peaks
         short_info['ext_peak_coord'] = ext_peaks
         short_info['field_center'] = (0,0)
+        short_info['conservative_rms'] = conservative_rms
+        short_info['conservative_snr'] = conservative_snr
 
         del short_info['next_ext_peak']
 

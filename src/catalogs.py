@@ -122,24 +122,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
                    'Beam Pos Angle (deg)': round(bpa, 3),\
                    'Freq (GHz)': freq}
 
-    hdul = fits.open(fits_file)
-    noise = None
-    try:
-        noise_col = hdul[1].columns[2]
-        if noise_col.name == 'Noise Est':
-            if noise_col.unit == 'mJy':
-                noise = float(hdul[1].data[0][2] * 1e3) # into Jy
-            elif freq_col.unit == 'Jy':
-                noise = float(hdul[1].data[0][2])
-    except:
-        pass
-
-    rms_list = [summ['rms_val'], summ['sd_mad'], summ['calc_rms_val'], summ['neg_peak_rms_val']] # all in Jy
-    if summ['neg_peak_rms_val'] is not None:
-        rms_list.append(summ['neg_peak_rms_val'])
-    if noise is not None:
-        rms_list.append(noise)
-    field_info['Flux Uncert (mJy)'] = round(max(rms_list) * 1e3, 3)
+    field_info['Flux Uncert (mJy)'] = round(summ['conservative_rms'] * 1e3, 3)
 
     n_int_sources = len(summ['int_peak_val'])
     if type(summ['ext_peak_val']) == str:
@@ -176,16 +159,16 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     for i in range(n_int_sources):
         if (summ['int_prob'][i] < threshold and summ['calc_int_prob'][i] < threshold):
             info = field_info.copy()
-            info['Flux (mJy)'] = round(summ[f'int_peak_val'][i] * 1000, 3)
+            info['Flux (mJy)'] = round(summ['int_peak_val'][i] * 1000, 3)
 
-            snr = summ[f'int_snr'][i]
+            snr = summ['int_peak_val'][i] / summ['conservative_rms']
             b_min_uncert = float(bmaj / snr)
             b_maj_uncert = float(bmin / snr)
             info['RA Uncert (arcsec)'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
             info['Dec Uncert (arcsec)'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
 
-            ra_offset = summ[f'int_peak_coord'][i][ra_index] * u.arcsec
-            dec_offset = summ[f'int_peak_coord'][i][dec_index] * u.arcsec
+            ra_offset = summ['int_peak_coord'][i][ra_index] * u.arcsec
+            dec_offset = summ['int_peak_coord'][i][dec_index] * u.arcsec
             coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
             ra_tuple = coord.ra.hms
@@ -207,14 +190,14 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         info = field_info.copy()
         info['Flux (mJy)'] = round(summ[f'ext_peak_val'][i] * 1000, 3)
 
-        snr = summ[f'ext_snr'][i]
+        snr = summ['ext_peak_val'][i] / summ['conservative_rms']
         b_min_uncert = float(bmaj / snr)
         b_maj_uncert = float(bmin / snr)
         info['RA Uncert (arcsec)'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
         info['Dec Uncert (arcsec)'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
 
-        ra_offset = summ[f'ext_peak_coord'][i][ra_index] * u.arcsec
-        dec_offset = summ[f'ext_peak_coord'][i][dec_index] * u.arcsec
+        ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
+        dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
         ra_tuple = coord.ra.hms
