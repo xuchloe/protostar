@@ -247,16 +247,26 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
     return catalog_1
 
 
-def low_level_csv(folder, csv_path = './low_level.csv'):
+def low_level_csv(folder: str, db_path: str):
 
     master_catalog = None
     old_df = None
     str_obs_id = 'Unknown'
 
-    try:
-        old_df = pd.read_csv(csv_path)
-    except:
-        pass
+    if os.path.exists(db_path):
+        # get all rows from existing low level database
+        con1_established = False
+        con1_closed = False
+        try:
+            con1 = sqlite3.connect(db_path)
+            con1_established = True
+            old_df = pd.read_sql_query("SELECT * from low_level", con1)
+            con1.close()
+            con1_closed = True
+        except:
+            if con1_established and not con1_closed:
+                con1.close()
+            print(f'Error reading from low level database at {db_path}')
 
     try:
         str_obs_id = folder.replace('/mnt/COMPASS9/sma/quality/', '')
@@ -302,18 +312,56 @@ def low_level_csv(folder, csv_path = './low_level.csv'):
                 date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
         df['Obs Date Time'] = date_times
 
-    df.to_csv(csv_path, mode='w', header=True, index=False)
+    # write into database
+    con2_established = False
+    con2_closed = False
+    try:
+        con2 = sqlite3.connect(db_path)
+        con2_established = True
+        df.to_sql("low_level", con2, if_exists="replace")
+        con2.close()
+        con2_closed = True
+    except:
+        if con2_established and not con2_closed:
+            con2.close()
+        print(f'Error adding to low level database at {db_path}')
 
 
-def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high_level.csv'):
+def high_level_csv(low_level_db: str, high_level_db: str):
 
-    low_df = pd.read_csv(low_level_path)
+    if os.path.exists(low_level_db):
+        # get all rows from low level database
+        con1_established = False
+        con1_closed = False
+        try:
+            con1 = sqlite3.connect(low_level_db)
+            con1_established = True
+            low_df = pd.read_sql_query("SELECT * from low_level", con1)
+            con1.close()
+            con1_closed = True
+        except:
+            if con1_established and not con1_closed:
+                con1.close()
+            print(f'Error reading from low level database at {low_level_db}')
+            return # can't continue if there is no low level info
+    else:
+        raise OSError(f'Path {low_level_db} not found')
+
     unique_sources = None
 
-    try:
-        unique_sources = pd.read_csv(high_level_path).to_dict(orient='list')
-    except:
-        pass
+    if os.path.exists(high_level_db):
+        con2_established = False
+        con2_closed = False
+        try:
+            con2 = sqlite3.connect(high_level_db)
+            con2_established = True
+            unique_sources = pd.read_sql_query("SELECT * from high_level", con2).to_dict(orient='list')
+            con2.close()
+            con2_closed = True
+        except:
+            if con2_established and not con2_closed:
+                con2.close()
+            print(f'Error reading from high level database at {high_level_db}')
 
     #coarse matching
     for row in range(len(low_df)):
@@ -448,15 +496,73 @@ def high_level_csv(low_level_path = './low_level.csv', high_level_path = './high
             new_sources['FWHM (arcsec)'][i] = round(geo_avg_fwhm.value, 3)
 
     df = pd.DataFrame.from_dict(new_sources)
-    df.to_csv(high_level_path, mode='w', header=True, index=False)
-    low_df.to_csv(low_level_path, mode='w', header=True, index=False)
+
+    # write into low level database
+    con3_established = False
+    con3_closed = False
+    try:
+        con3 = sqlite3.connect(low_level_db)
+        con3_established = True
+        df.to_sql("low_level", con3, if_exists="replace")
+        con3.close()
+        con3_closed = True
+    except:
+        if con3_established and not con3_closed:
+            con3.close()
+        print(f'Error adding to low level database at {low_level_db}')
+
+    # write into high level database
+    con4_established = False
+    con4_closed = False
+    try:
+        con4 = sqlite3.connect(high_level_db)
+        con4_established = True
+        df.to_sql("high_level", con4, if_exsits="replace")
+        con4.close()
+        con4_closed = True
+    except:
+        if con4_established and not con4_closed:
+            con4.close()
+        print(f'Error adding to high level database at {high_level_db}')
 
 
-def light_curve(low_path: str = './low_level.csv', high_path: str = './high_level.csv', unique_ids: list = None,\
+def light_curve(low_level_db: str, high_level_db: str, unique_ids: list = None,\
                 plot: bool = True, table: bool = True, save_path: str = ''):
 
-    low_df = pd.read_csv(low_path)
-    high_df = pd.read_csv(high_path)
+    if os.path.exists(low_level_db):
+        # get all rows from low level database
+        con1_established = False
+        con1_closed = False
+        try:
+            con1 = sqlite3.connect(low_level_db)
+            con1_established = True
+            low_df = pd.read_sql_query("SELECT * from low_level", con1)
+            con1.close()
+            con1_closed = True
+        except:
+            if con1_established and not con1_closed:
+                con1.close()
+            print(f'Error reading from low level database at {low_level_db}')
+            return # can't continue if there is no low level info
+    else:
+        raise OSError(f'Path {low_level_db} not found')
+
+    if os.path.exists(high_level_db):
+        con2_established = False
+        con2_closed = False
+        try:
+            con2 = sqlite3.connect(high_level_db)
+            con2_established = True
+            unique_sources = pd.read_sql_query("SELECT * from high_level", con2).to_dict(orient='list')
+            con2.close()
+            con2_closed = True
+        except:
+            if con2_established and not con2_closed:
+                con2.close()
+            print(f'Error reading from high level database at {high_level_db}')
+    else:
+        raise OSError(f'Path {high_level_db} not found')
+
     if unique_ids == None:
         unique_ids = high_df['Source ID'].tolist()
 
