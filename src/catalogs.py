@@ -477,8 +477,8 @@ def light_curve(low_path: str = './low_level.csv', high_path: str = './high_leve
 
             freqs = source_df['Freq (GHz)'].tolist()
             other = []
-            small_milli = [] # 1.1mm
-            large_milli = [] # 1.3mm
+            small_milli = [] # 1.1-1.2mm
+            large_milli = [] # 1.3-1.4mm
             micro = [] # 870µm
             for i in range(len(freqs)):
                 if freqs[i] == 'Not found':
@@ -487,11 +487,11 @@ def light_curve(low_path: str = './low_level.csv', high_path: str = './high_leve
                 else:
                     try:
                         float_freq = float(freqs[i])
-                        if float_freq > 260.69 and float_freq < 285.52: # 1.15-1.05mm
+                        if float_freq > 241.77 and float_freq < 282.82: # 1.24-1.06mm
                             small_milli.append(i)
-                        elif float_freq > 222.07 and float_freq < 239.83: # 1.35-1.25mm
+                        elif float_freq > 237.93 and float_freq < 208.19: # 1.44-1.26mm
                             large_milli.append(i)
-                        elif float_freq > 340.67 and float_freq < 348.60: # 880-860µm
+                        elif float_freq > 333.10 and float_freq < 356.90: # 900-840µm
                             micro.append(i)
                         else:
                             other.append(i)
@@ -511,11 +511,11 @@ def light_curve(low_path: str = './low_level.csv', high_path: str = './high_leve
             micro_flx_err = [flux_errs[d] for d in micro]
 
             plt.errorbar(sm_milli_dt, sm_milli_flx, yerr=sm_milli_flx_err, color='g', fmt='x', capsize=3, markersize=2,\
-                        capthick=0.5, elinewidth=0.5, label='1.1mm')
+                        capthick=0.5, elinewidth=0.5, label='~1.1-1.2mm')
             plt.errorbar(lg_milli_dt, lg_milli_flx, yerr=lg_milli_flx_err, color='r', fmt='x', capsize=3, markersize=2,\
-                        capthick=0.5, elinewidth=0.5, label='1.3mm')
+                        capthick=0.5, elinewidth=0.5, label='~1.3-1.4mm')
             plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='b', fmt='x', capsize=3, markersize=2,\
-                        capthick=0.5, elinewidth=0.5, label='870µm')
+                        capthick=0.5, elinewidth=0.5, label='~870µm')
             plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='k', fmt='x', capsize=3, markersize=2,\
                         capthick=0.5, elinewidth=0.5, label='Other/not found')
 
