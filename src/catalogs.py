@@ -163,8 +163,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
             info['Flux_mJy'] = round(summ['int_peak_val'][i] * 1000, 3)
 
             snr = summ['int_peak_val'][i] / summ['conservative_rms']
-            b_min_uncert = float(bmaj / snr)
-            b_maj_uncert = float(bmin / snr)
+            b_min_uncert = float((beam_maj_axis.to(u.arcsec) / u.arcsec) / snr)
+            b_maj_uncert = float((beam_min_axis.to(u.arcsec) / u.arcsec) / snr)
             info['RAUncert_arcsec'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
             info['DecUncert_arcsec'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
 
