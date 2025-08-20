@@ -429,9 +429,11 @@ def high_level_table(db_path: str = '../sources.db'):
                         refined.append(new_sources['SourceID'][i])
                         #match found, update averages
                         hms_ra = avg_ra.hms
-                        str_ra = f'{hms_ra.h}h{hms_ra.m}m{round(hms_ra.s, 2)}s'
+                        dms_dec = avg_dec.dms
+                        str_ra = f'{int(hms_ra.h)}h{abs(int(hms_ra.m))}m{round(abs(hms_ra.s), 2)}s'
+                        str_dec = f'{int(dms_dec.d)}d{abs(int(dms_dec.m))}m{round(abs(dms_dec.s), 2)}s'
                         new_sources['RA'][i] = str_ra
-                        new_sources['Dec'][i] = avg_dec
+                        new_sources['Dec'][i] = str_dec
                         new_sources['FWHM_arcsec'][i] = round(geo_avg_fwhm.value, 3)
                         #get rid of "replaced" source in AmbiguousTies
                         for k in range(len(unique_sources['SourceID'])):
@@ -476,10 +478,10 @@ def high_level_table(db_path: str = '../sources.db'):
             num_pts = len(ra_list)
             avg_ra = sum(ra_list) / num_pts
             hms_ra = avg_ra.hms
-            str_ra = f'{hms_ra.h}h{hms_ra.m}m{round(hms_ra.s, 2)}s'
+            str_ra = f'{int(hms_ra.h)}h{abs(int(hms_ra.m))}m{round(abs(hms_ra.s), 2)}s'
             avg_dec = sum(dec_list) / num_pts
             dms_dec = avg_dec.dms
-            str_dec = f'{dms_dec.d}d{abs(dms_dec.m)}m{round(abs(dms_dec.s), 2)}s'
+            str_dec = f'{int(dms_dec.d)}d{abs(int(dms_dec.m))}m{round(abs(dms_dec.s), 2)}s'
             geo_avg_fwhm = math.prod(fwhm_list) ** (1/num_pts)
             new_sources['RA'][i] = str_ra
             new_sources['Dec'][i] = str_dec
@@ -612,3 +614,537 @@ def light_curve(source_id: str, db_path: str = '../sources.db',\
         mjd_list = [float(Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd) for dt in cal_df['ObsDateTime']]
         cal_df['MJD'] = mjd_list
         return cal_df
+
+
+def clause_helper(column_name: str, parameter, other_type):
+    phrase = ''
+    if parameter is not None:
+        if type(parameter) == list:
+            if parameter:
+                for i in range(len(parameter)):
+                    if type(parameter[i]) != other_type:
+                        raise TypeError(f'In order to write a condition for {column_name}, if input is a list, its elements must be of {other_type}.')
+                    if i == 0:
+                        phrase += ' ({} = "{}"'.format(column_name, parameter[i])
+                    else:
+                        phrase += ' OR {} = "{}"'.format(column_name, parameter[i])
+            phrase += ')'
+        elif type(parameter) == other_type:
+            if type(parameter) == str:
+                if not parameter.strip():
+                    return ''
+            phrase += f' ({column_name} = "{parameter}")'
+        else:
+            raise TypeError(f'In order to write a condition for {column_name}, input must be None, of type list, or of {other_type}.')
+        if phrase:
+            phrase += ' AND'
+    return phrase
+
+
+def search_low_level(db_path: str = '../sources.db', field_name = None, stationary = True, lower_freq = None, upper_freq = None,\
+                    lower_flux = None, upper_flux = None, ra = None, dec = None, sep_lower = None, sep_upper = None,\
+                    internal = None, obs_id = None, source_id = None, obs_dt_lower = None, obs_dt_upper = None):
+
+    where_clause = 'WHERE'
+    where_clause += clause_helper(column_name='FieldName', parameter=field_name, other_type=str)
+    if stationary is not None:
+        where_clause += f' (Stationary = {stationary}) AND'
+    if not (lower_flux is None or type(lower_flux) == float or type(lower_flux) == int):
+        raise TypeError('Inputted lower bound for flux must be None, of type float, or of type int.')
+    if not (upper_flux is None or type(upper_flux) == float or type(upper_flux) == int):
+        raise TypeError('Inputted upper bound for flux must be None, of type float, or of type int.')
+    if lower_flux is not None and upper_flux is not None:
+        where_clause += f' (Flux_mJy BETWEEN {lower_flux} AND {upper_flux}) AND'
+    elif lower_flux is not None:
+        where_clause += f' (Flux_mJy >= {lower_flux})'
+    elif upper_flux is not None:
+        where_clause += f' (Flux_mJy <= {upper_flux})'
+    if internal is not None:
+        where_clause += f' (Internal = {internal}) AND'
+    where_clause += clause_helper(column_name='ObsID', parameter=obs_id, other_type=str)
+    where_clause += clause_helper(column_name='SourceID', parameter=source_id, other_type=str)
+
+    if where_clause[-5:] == 'WHERE':
+        where_clause = ''
+    if where_clause[-4:] == ' AND':
+        where_clause = where_clause[:-4]
+    where_clause += ';'
+
+    if os.path.exists(db_path):
+        # connect and query
+        con_established = False
+        con_closed = False
+        try:
+            con = sqlite3.connect(db_path)
+            con_established = True
+            result_df = pd.read_sql_query(f'SELECT * FROM low_level {where_clause}', con)
+            con.close()
+            con_closed = True
+        except Exception as e:
+            if con_established and not con_closed:
+                con.close()
+            print(f'Error querying database at {db_path} : {e}')
+    else:
+        raise OSError(f'Path {db_path} not found')
+
+    to_drop = []
+    if not (lower_freq is None or type(lower_freq) == int or type(lower_freq) == float):
+        raise TypeError('Inputted frequency lower bound must be None, of type int, or of type float.')
+    if not (upper_freq is None or type(upper_freq) == int or type(upper_freq) == float):
+        raise TypeError('Inputted frequency upper bound must be None, of type int, or of type float.')
+    if lower_freq is not None and upper_freq is not None:
+        for row in range(len(result_df)):
+            if result_df['Freq_GHz'].iloc[row] == 'Not found':
+                to_drop.append(row)
+            elif not (float(result_df['Freq_GHz'].iloc[row]) <= upper_freq and float(result_df['Freq_GHz'].iloc[row]) >= lower_freq):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    elif lower_freq is not None:
+        for row in range(len(result_df)):
+            if result_df['Freq_GHz'].iloc[row] == 'Not found':
+                to_drop.append(row)
+            elif not (float(result_df['Freq_GHz'].iloc[row]) >= lower_freq):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    elif upper_freq is not None:
+        for row in range(len(result_df)):
+            if result_df['Freq_GHz'].iloc[row] == 'Not found':
+                to_drop.append(row)
+            elif not (float(result_df['Freq_GHz'].iloc[row]) <= upper_freq):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    if to_drop and not result_df.empty:
+        result_df.reset_index(inplace=True)
+
+    # handling ra, dec stuff
+    coord = None
+    ra_ang = None
+    dec_ang = None
+    lower_ang = None
+    upper_ang = None
+    if sep_lower is not None:
+        try:
+            lower_ang = Angle(sep_lower)
+            if lower_ang == 0:
+                lower_ang = None
+        except Exception as e:
+            print(f'Error converting separation lower bound input to Angle: {e}')
+    if sep_upper is not None:
+        try:
+            upper_ang = Angle(sep_upper)
+            if upper_ang == 0:
+                upper_ang = None
+        except Exception as e:
+            print(f'Error converting separation upper bound input to Angle: {e}')
+    if lower_ang is not None and upper_ang is not None:
+        if lower_ang > upper_ang:
+            raise ValueError(f'Inputted separation lower bound {sep_lower} is greater than inputted separation upper bound {sep_upper}.')
+    if ra is not None and dec is not None:
+        try:
+            coord = SkyCoord(ra, dec)
+        except Exception as e:
+            print(f'Error converting Right Ascension and Declination inputs to SkyCoord object: {e}')
+    elif ra is not None:
+        try:
+            ra_ang = Angle(ra)
+        except Exception as e:
+            print(f'Error converting Right Ascension input to Angle: {e}')
+    elif dec is not None:
+        try:
+            dec_ang = Angle(dec)
+        except Exception as e:
+            print(f'Error converting Declination input to Angle: {e}')
+
+    to_drop = []
+    if lower_ang is not None and upper_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep <= upper_ang and sep >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) <= upper_ang and abs(ra_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) <= upper_ang and abs(dec_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    elif lower_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    elif upper_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    else:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                if not (temp_coord == coord):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (temp_ang == ra_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (temp_ang == dec_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    if to_drop and not result_df.empty:
+        result_df.reset_index(inplace=True)
+
+    to_drop = []
+    # handling observation date time stuff
+    lower_dt = None
+    upper_dt = None
+    fmt = '%m-%d-%y %H:%M:%S'
+    if obs_dt_lower is not None:
+        try:
+            lower_dt = datetime.strptime(obs_dt_lower, fmt)
+        except Exception as e:
+            print(f'Error converting inputted observation date and time lower bound to datetime object: {e}. Please check the input format and ensure it matches {fmt}.')
+    if obs_dt_upper is not None:
+        try:
+            upper_dt = datetime.strptime(obs_dt_upper, fmt)
+        except Exception as e:
+            print(f'Error converting inputted observation date and time upper bound input to datetime object: {e}. Please check the input format and ensure it matcheds {fmt}.')
+
+    if lower_dt is not None and upper_dt is not None:
+        if lower_dt > upper_dt:
+            raise ValueError(f'Inputted observation date and time lower bound {obs_dt_lower} is later than inputted observation date and time upper bound {obs_dt_upper}.')
+        for row in range(len(result_df)):
+            temp_dt = datetime.strptime(result_df['ObsDateTime'].iloc[row], fmt)
+            if not (temp_dt <= upper_dt and temp_dt >= lower_dt):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    elif lower_dt is not None:
+        for row in range(len(result_df)):
+            temp_dt = datetime.strptime(result_df['ObsDateTime'].iloc[row], fmt)
+            if not (temp_dt >= lower_dt):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    elif upper_dt is not None:
+        for row in range(len(result_df)):
+            temp_dt = datetime.strptime(result_df['ObsDateTime'].iloc[row], fmt)
+            if not (temp_dt <= upper_dt):
+                to_drop.append(row)
+        result_df.drop(to_drop, inplace=True)
+    if to_drop and not result_df.empty:
+        result_df.reset_index(inplace=True)
+
+    if result_df.empty:
+        print('Search returned an empty table.')
+    else:
+        if 'level_0' in result_df:
+            result_df.drop(columns='level_0', inplace=True)
+        if 'index' in result_df:
+            result_df.drop(columns='index', inplace=True)
+    return result_df
+
+
+def search_high_level(db_path: str = '../sources.db', source_id = None, ra = None, dec = None, sep_lower = None, sep_upper = None,\
+                      ambiguous_ties = None, ambig_exact: bool = False):
+    where_clause = 'WHERE'
+    where_clause += clause_helper(column_name='SourceID', parameter=source_id, other_type=str)
+
+    if where_clause[-5:] == 'WHERE':
+        where_clause = ''
+    if where_clause[-4:] == ' AND':
+        where_clause = where_clause[:-4]
+    where_clause += ';'
+
+    if os.path.exists(db_path):
+        # connect and query
+        con_established = False
+        con_closed = False
+        try:
+            con = sqlite3.connect(db_path)
+            con_established = True
+            result_df = pd.read_sql_query(f'SELECT * FROM high_level {where_clause}', con)
+            con.close()
+            con_closed = True
+        except Exception as e:
+            if con_established and not con_closed:
+                con.close()
+            print(f'Error querying database at {db_path} : {e}')
+    else:
+        raise OSError(f'Path {db_path} not found')
+
+    # handling ra, dec stuff
+    coord = None
+    ra_ang = None
+    dec_ang = None
+    lower_ang = None
+    upper_ang = None
+    if sep_lower is not None:
+        try:
+            lower_ang = Angle(sep_lower)
+            if lower_ang == 0:
+                lower_ang = None
+        except Exception as e:
+            print(f'Error converting separation lower bound input to Angle: {e}')
+    if sep_upper is not None:
+        try:
+            upper_ang = Angle(sep_upper)
+            if upper_ang == 0:
+                upper_ang = None
+        except Exception as e:
+            print(f'Error converting separation upper bound input to Angle: {e}')
+    if lower_ang is not None and upper_ang is not None:
+        if lower_ang > upper_ang:
+            raise ValueError(f'Inputted separation lower bound {sep_lower} is greater than inputted separation upper bound {sep_upper}.')
+    if ra is not None and dec is not None:
+        try:
+            coord = SkyCoord(ra, dec)
+        except Exception as e:
+            print(f'Error converting Right Ascension and Declination inputs to SkyCoord object: {e}')
+    elif ra is not None:
+        try:
+            ra_ang = Angle(ra)
+        except Exception as e:
+            print(f'Error converting Right Ascension input to Angle: {e}')
+    elif dec is not None:
+        try:
+            dec_ang = Angle(dec)
+        except Exception as e:
+            print(f'Error converting Declination input to Angle: {e}')
+
+    to_drop = []
+    if lower_ang is not None and upper_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep <= upper_ang and sep >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) <= upper_ang and abs(ra_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) <= upper_ang and abs(dec_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    elif lower_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) >= lower_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    elif upper_ang is not None:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                sep = coord.separation(temp_coord)
+                if not (sep <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (abs(ra_ang - temp_ang) <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (abs(dec_ang - temp_ang) <= upper_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    else:
+        if coord is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_coord = SkyCoord(temp_ra, temp_dec)
+                if not (temp_coord == coord):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif ra_ang is not None:
+            for row in range(len(result_df)):
+                temp_ra = result_df['RA'].iloc[row]
+                temp_ang = Angle(temp_ra)
+                if not (temp_ang == ra_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+        elif dec_ang is not None:
+            for row in range(len(result_df)):
+                temp_dec = result_df['Dec'].iloc[row]
+                temp_ang = Angle(temp_dec)
+                if not (temp_ang == dec_ang):
+                    to_drop.append(row)
+            result_df.drop(to_drop, inplace=True)
+    if to_drop and not result_df.empty:
+        result_df.reset_index(inplace=True)
+
+    to_drop = []
+    if ambiguous_ties is not None:
+        if type(ambiguous_ties) == bool:
+            if ambiguous_ties:
+                for row in range(len(result_df)):
+                    if result_df['AmbiguousTies'].iloc[row] == 'None found':
+                        to_drop.append(row)
+                result_df.drop(to_drop, inplace=True)
+            elif not ambiguous_ties:
+                for row in range(len(result_df)):
+                    if result_df['AmbiguousTies'].iloc[row] != 'None found':
+                        to_drop.append(row)
+                result_df.drop(to_drop, inplace=True)
+        elif ambig_exact:
+            if type(ambiguous_ties) == list:
+                if ambiguous_ties:
+                    try:
+                        ambiguous_ties = [ele.strip() for ele in ambiguous_ties]
+                    except AttributeError:
+                        if type(ambiguous_ties) == str:
+                            raise AttributeError
+                        else:
+                            raise TypeError('In order to search by ambiguous ties, if input is a list, its elements must be of type str.')
+                    for row in range(len(result_df)):
+                        temp = result_df['AmbiguousTies'].iloc[row]
+                        for ele in ambiguous_ties:
+                            if ele not in temp:
+                                to_drop.append(row)
+                            temp = temp.replace(ele, '')
+                        if temp.replace('_', ''): # this means there are source IDs in temp that are not in ambiguous_ties
+                            if row not in to_drop:
+                                to_drop.append(row)
+                    result_df.drop(to_drop, inplace=True)
+            elif type(ambiguous_ties) == str:
+                ambiguous_ties = ambiguous_ties.strip()
+                if ambiguous_ties:
+                    for row in range(len(result_df)):
+                        temp = result_df['AmbiguousTies'].iloc[row]
+                        if ambiguous_ties != temp:
+                            to_drop.append(row)
+                    result_df.drop(to_drop, inplace=True)
+            else:
+                raise TypeError('In order to search by ambiguous ties, input must be None, of type list, or of type str.')
+        elif not ambig_exact:
+            if type(ambiguous_ties) == list:
+                if ambiguous_ties:
+                    try:
+                        ambiguous_ties = [ele.strip() for ele in ambiguous_ties]
+                    except AttributeError:
+                        if type(ambiguous_ties) == str:
+                            raise AttributeError
+                        else:
+                            raise TypeError('In order to search by ambiguous ties, if input is a list, its elements must be of type str.')
+                    for row in range(len(result_df)):
+                        temp = result_df['AmbiguousTies'].iloc[row]
+                        for ele in ambiguous_ties:
+                            if ele in temp:
+                                continue
+                            to_drop.append(row)
+                    result_df.drop(to_drop, inplace=True)
+            elif type(ambiguous_ties) == str:
+                ambiguous_ties = ambiguous_ties.strip()
+                if ambiguous_ties:
+                    for row in range(len(result_df)):
+                        temp = result_df['AmbiguousTies'].iloc[row]
+                        if ambiguous_ties not in temp:
+                            to_drop.append(row)
+                    result_df.drop(to_drop, inplace=True)
+    if to_drop and not result_df.empty:
+        result_df.reset_index(inplace=True)
+
+    if result_df.empty:
+            print('Search returned an empty table.')
+    else:
+        if 'level_0' in result_df:
+            result_df.drop(columns='level_0', inplace=True)
+        if 'index' in result_df:
+            result_df.drop(columns='index', inplace=True)
+    return result_df
