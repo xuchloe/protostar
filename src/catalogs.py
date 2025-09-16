@@ -4,12 +4,163 @@ from astropy.time import Time
 import astropy.units as u
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
+import numpy as np
 import glob
 import pandas as pd
 import os
 import math
 import sqlite3
-from find_source import summary
+import io
+from PIL import Image
+from find_source import summary, fits_data_index
+
+
+def interpolation_kernel(s):
+    dist = abs(s)
+    if dist % 1 == 0:
+        return 0
+    if dist < 1:
+        return (3/2 * (dist**3) - 5/2 * (dist**2) + 1)
+    if dist < 2:
+        return (-1/2 * (dist**3) + 5/2 * (dist**2) - 4 * dist + 2)
+    return 0
+
+
+def interpolation_function(x, node_x, node_val):
+    num_nodes = len(node_x)
+    N = num_nodes - 1
+
+    # make sure inputs are valid
+    if len(node_val) != num_nodes:
+        raise ValueError("The number of nodes given does not match the number of node values given")
+    h = node_x[1] - node_x[0]
+    for i in range(1, N):
+        if node_x[i+1] - node_x[i] != h:
+            raise ValueError("Nodes are not uniformly spaced")
+
+    # boundary conditions
+    node_neg1 = node_x[0] - h
+    node_Nplus1 = node_x[N] + h
+    c_neg1 = node_val[2] - 3*node_val[1] + 3*node_val[0]
+    c_Nplus1 = 3*node_val[N] - 3*node_val[N-1] + 3*node_val[N-2]
+
+    # apply interpolation function
+    interpolated_val = c_neg1 * interpolation_kernel((x - node_neg1) / h)
+    for k in range(0, num_nodes):
+        s = (x - node_x[k]) / h
+        interpolated_val += node_val[k] * interpolation_kernel(s)
+    interpolated_val += c_Nplus1 * interpolation_kernel((x - node_Nplus1) / h)
+    return float(interpolated_val)
+
+
+def thumbnail(fits_file: str, peak_coord: tuple, pts_bw_nodes: int = 4):
+
+    i = fits_data_index(fits_file)
+
+    # open FITS file
+    try:
+        file = fits.open(fits_file)
+    except:
+        print(f'Unable to open {fits_file}')
+
+    # extract data array
+    info = file[i]
+    data = info.data
+
+    data_array = data[0]
+    min_flux = np.min(data_array)
+    max_flux = np.max(data_array)
+
+    header_data = fits.getheader(fits_file)
+
+    beam_maj = Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    x_dim = header_data['NAXIS1']
+    y_dim = header_data['NAXIS2']
+
+    center = (round(x_dim/2), round(y_dim/2))
+
+    # unnormalized the normalized coordinates
+    unnorm_x = round((peak_coord[0] / pixel_scale) + center[0])
+    unnorm_y = round((peak_coord[1] / pixel_scale) + center[1])
+
+    delta = math.ceil((2.5 + (beam_maj/2))/ pixel_scale) # ~number pixels in search radius
+
+    # make sure the ~5x5 arcsec box is actually inside the original image and handle issues if not
+    new_data = data_array
+    if unnorm_y - delta >= 0:
+        new_data = data_array[unnorm_y - delta:]
+    if unnorm_y + delta < y_dim:
+        new_data = new_data[:(unnorm_y + delta) - y_dim + 1]
+    if unnorm_x - delta >= 0:
+        new_data = [row[unnorm_x - delta:] for row in new_data]
+    if unnorm_x + delta < x_dim:
+        new_data = [row[:(unnorm_x + delta) - x_dim + 1] for row in new_data]
+
+    y_length = len(new_data)
+    if y_length == 0:
+        raise ValueError("Attempts to obtain a smaller image centered on the source resulted in an empty data array.")
+    else:
+        x_length = len(new_data[0])
+
+    node_x = np.arange(0, x_length).tolist()
+    node_y = np.arange(0, y_length).tolist()
+
+    interpolated_data = []
+
+    # first interpolate in x direction (add entries to rows)
+    pts_bw_nodes = 4
+    pts_spacing = 1 / (pts_bw_nodes + 1)
+
+
+    # iterate through rows
+    for row_num in range(y_length):
+        temp = new_data[row_num].tolist()
+
+        # iterate through nodes in row
+        for i in range(x_length - 1):
+            temp2 = []
+            for j in range(1, pts_bw_nodes+1):
+                x = i + j*pts_spacing
+                temp2.append(interpolation_function(x, node_x=node_x, node_val=new_data[row_num]))
+            temp = temp[:i-x_length+1] + temp2 + temp[i-x_length+1:]
+
+        interpolated_data.append(temp)
+
+    # interpolate in y direction (add rows)
+    new_x_length = len(interpolated_data[0])
+
+    temp = []
+    for i in range((y_length - 1) * pts_bw_nodes):
+        temp.append([])
+
+    for col_num in range(new_x_length):
+        temp2 = [row_num[col_num] for row_num in interpolated_data] # list of a single column's nodes
+
+        # iterate through nodes in row so that we get rows to add
+        for i in range(y_length - 1):
+            for j in range(1, pts_bw_nodes+1):
+                y = i + j*pts_spacing
+                temp[i*pts_bw_nodes + j - 1].append(interpolation_function(y, node_x=node_y, node_val=temp2))
+
+    for i in range(y_length - 1):
+        interpolated_data = interpolated_data[:i-y_length+1] + temp[:pts_bw_nodes] + interpolated_data[i-y_length+1:]
+        temp = temp[pts_bw_nodes:]
+
+    fig, ax = plt.subplots()
+    plt.axis('off')
+    plt.title('normalized offset: {},\n pixel scale: {} arcsec'.format((round(peak_coord[0],2), round(peak_coord[1],2)), round(pixel_scale,2)))
+    img = ax.imshow(interpolated_data, vmin=min_flux, vmax=max_flux)
+    fig.colorbar(img)
+
+    # saving to database
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    plot_data = buffer.read()
+    plt.close()
+
+    return plot_data
 
 
 def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
@@ -183,6 +334,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
             info['Dec'] = dec_str
             info['Internal'] = True
 
+            info['Image'] = thumbnail(fits_file=fits_file, peak_coord=summ['int_peak_coord'][i], pts_bw_nodes=4)
+
             key = f'Source{pt_source_count}'
             interesting_sources[key] = info
             pt_source_count +=1
@@ -211,6 +364,8 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         info['RA'] = ra_str
         info['Dec'] = dec_str
         info['Internal'] = False
+
+        info['Image'] = thumbnail(fits_file=fits_file, peak_coord=summ['ext_peak_coord'][i], pts_bw_nodes=4)
 
         key = f'Source{pt_source_count}'
         interesting_sources[key] = info
@@ -314,10 +469,14 @@ def low_level_table(folder: str, db_path: str = '../sources.db'):
         # write into low level table
         con2_established = False
         con2_closed = False
+        dtype={'FieldName': 'TEXT', 'FileName': 'TEXT', 'Stationary': 'INTEGER', 'BeamMajAxis_arcsec': 'REAL', \
+               'BeamMinAxis_arcsec': 'REAL', 'BeamPosAngle_deg': 'REAL', 'Freq_GHz': 'REAL', 'FluxUncert_mJy': 'REAL', \
+                'Flux_mJy': 'REAL', 'RAUncert_arcsec': 'REAL', 'DecUncert_arcsec': 'REAL', 'RA': 'TEXT', 'Dec': 'TEXT', \
+                'Internal': 'INTEGER', 'Image': 'BLOB', 'ObsID': 'TEXT', 'SourceID': 'TEXT', 'ObsDateTime': 'TEXT'}
         try:
             con2 = sqlite3.connect(db_path)
             con2_established = True
-            df.to_sql("low_level", con=con2, if_exists='append', index=False)
+            df.to_sql("low_level", con=con2, if_exists='append', index=False, dtype=dtype)
             con2.close()
             con2_closed = True
         except Exception as e:
@@ -643,7 +802,8 @@ def clause_helper(column_name: str, parameter, other_type):
 
 def search_low_level(db_path: str = '../sources.db', field_name = None, stationary = True, lower_freq = None, upper_freq = None,\
                     lower_flux = None, upper_flux = None, ra = None, dec = None, sep_lower = None, sep_upper = None,\
-                    internal = None, obs_id = None, source_id = None, obs_dt_lower = None, obs_dt_upper = None):
+                    internal = None, obs_id = None, source_id = None, obs_dt_lower = None, obs_dt_upper = None,\
+                    show_thumbnail: bool = True):
 
     where_clause = 'WHERE'
     where_clause += clause_helper(column_name='FieldName', parameter=field_name, other_type=str)
@@ -900,6 +1060,13 @@ def search_low_level(db_path: str = '../sources.db', field_name = None, stationa
             result_df.drop(columns='level_0', inplace=True)
         if 'index' in result_df:
             result_df.drop(columns='index', inplace=True)
+
+    if show_thumbnail:
+        image_data = result_df['Image']
+        for thumbnail in image_data:
+            image_buffer = io.BytesIO(thumbnail)
+            image = Image.open(image_buffer)
+            image.show()
     return result_df
 
 
