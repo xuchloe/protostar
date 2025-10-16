@@ -885,7 +885,10 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                                 edgecolor='k', angle=header_data['BPA'], hatch='/////', lw=1)
         ax.add_artist(beam)
 
-        title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
+        try:
+            title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
+        except:
+            title = fits_file
         ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {conservative_snr}', horizontalalignment='left', verticalalignment='top',\
                 fontsize=10, bbox=dict(facecolor='w'))
 
