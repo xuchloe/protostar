@@ -673,9 +673,9 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
             # New initial guesses from previous results
             for i in range(n_sources):
                 source = permutation[i]
+                coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+                rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
                 if permutation_info['result'] is None: # fitting didn't happen, so can't actually refine
-                    coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
-                    rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
                     peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
                     if i == 0:
                         p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
