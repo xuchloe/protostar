@@ -3,3 +3,7 @@ scipy
 matplotlib
 astropy
 pandas
+emcee
+corner
+uncertainties
+sigfig
