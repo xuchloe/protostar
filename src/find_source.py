@@ -187,8 +187,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     y_unit = info.header['CUNIT2']
 
     #find cell size (units of arcsec)
-    x_cell_size = (Angle(info.header['CDELT1'], x_unit)).to(u.arcsec)
-    y_cell_size = (Angle(info.header['CDELT2'], y_unit)).to(u.arcsec)
+    x_cell_size = (Angle(abs(info.header['CDELT1']), x_unit)).to(u.arcsec)
+    y_cell_size = (Angle(abs(info.header['CDELT2']), y_unit)).to(u.arcsec)
 
     #find beam size (unitless but in arcsec^2)
     beam_size = float(((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)\
@@ -790,7 +790,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
     center = info['field_center']
 
     header_data = fits.getheader(fits_file)
-    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = Angle(abs(header_data['CDELT1']), header_data['CUNIT1']).to_value('arcsec')
 
     int_x_coords = []
     int_y_coords = []

@@ -74,7 +74,7 @@ def thumbnail(fits_file: str, peak_coord: tuple, pts_bw_nodes: int = 4):
     header_data = fits.getheader(fits_file)
 
     beam_maj = Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec')
-    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = Angle(abs(header_data['CDELT1']), header_data['CUNIT1']).to_value('arcsec')
     x_dim = header_data['NAXIS1']
     y_dim = header_data['NAXIS2']
 
