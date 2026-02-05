@@ -235,7 +235,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #fit for peak and coordinates assuming Gaussian
     #use data from 5x5 region if internal peak
-    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) <= x_dim and (peak_y - 2) >= 0 and (peak_y + 2) <= y_dim:
+    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) < x_dim and (peak_y - 2) >= 0 and (peak_y + 2) < y_dim:
         neg2_2 = data[0][peak_x - 2][peak_y + 2]
         neg2_1 = data[0][peak_x - 2][peak_y + 1]
         neg2_0 = data[0][peak_x - 2][peak_y]
@@ -278,7 +278,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
             pass
 
     #use data from 3x3 region if external peak
-    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) <= x_dim and (peak_y - 1) >= 0 and (peak_y + 1) <= y_dim:
+    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) < x_dim and (peak_y - 1) >= 0 and (peak_y + 1) < y_dim:
         left_top = data[0][peak_x - 1][peak_y + 1]
         left_middle = data[0][peak_x - 1][peak_y]
         left_bottom = data[0][peak_x - 1][peak_y - 1]
