@@ -411,6 +411,15 @@ def log_probability(params, sources, vis_priors, re, im, u, v, w, rad_bmaj, rad_
     log_likelihood_value = log_likelihood(model, re, im, u, v, w)
     return log_prior + log_likelihood_value
 
+def round_tuple(tup):
+    rounded_err = sigfig.round(float(tup[1]), sigfigs=2)
+    str_err = str(rounded_err)
+    places = 0
+    if '.' in str_err:
+        decimal = str_err.split('.')[1]
+        places = len(decimal)
+    return (round(float(tup[0]), places), rounded_err)
+
 def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
     # priors = [[(i0_min, i0_max), (l0_min, l0_max), (m0_min, m0_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
     # but (tuple) for exclusive and [list] for inclusive
@@ -807,8 +816,8 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     del source_result['best']
 
                 # convert l0, m0 to ra, dec in arcsec
-                source_result['ra'] = tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['l0']])
-                source_result['dec'] = tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['m0']])
+                source_result['ra'] = round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['l0']]))
+                source_result['dec'] = round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['m0']]))
                 del source_result['l0']
                 del source_result['m0']
 
@@ -828,9 +837,9 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                         peak = uflux / n_beams
                         # Modify dictionary
                         del source_result['s0'] # remove flux values
-                        source_result['i0'] = (peak.n, peak.s)
+                        source_result['i0'] = round_tuple((peak.n, peak.s))
                     else: # unresolved source
-                        source_result['i0'] = (source_result['s0'][0], source_result['s0'][1])
+                        source_result['i0'] = round_tuple((source_result['s0'][0], source_result['s0'][1]))
                         del source_result['s0']
                     del source_result[source_params[3]] # remove visibility width values
                     new_width_key = source_params[3].replace('vis_', '')
@@ -841,15 +850,15 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi) - 90)
                     del source_result['vis_theta']
-                    source_result['theta'] = (uimg_theta.n % 90, uimg_theta.s)
+                    source_result['theta'] = round_tuple((uimg_theta.n % 90, uimg_theta.s))
 
                     usigma_min = ufloat(source_result['sigma'][0], source_result['sigma'][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
                     usigma_maj = usigma_min / uratio
                     del source_result['sigma']
                     del source_result['ratio']
-                    source_result['sigma_maj'] = (usigma_maj.n, usigma_maj.s)
-                    source_result['sigma_min'] = (usigma_min.n, usigma_min.s)
+                    source_result['sigma_maj'] = round_tuple((usigma_maj.n, usigma_maj.s))
+                    source_result['sigma_min'] = round_tuple((usigma_min.n, usigma_min.s))
 
     if corner_plot:
         for j in range(len(all_results)):
