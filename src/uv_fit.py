@@ -10,6 +10,7 @@ import scipy.special as sp
 import warnings
 import itertools
 from uncertainties import ufloat
+import sigfig
 
 def p_model(p_params, u, v):
     i0, l0, m0 = p_params
