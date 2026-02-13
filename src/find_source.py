@@ -176,7 +176,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #keep center pixel coordinates if specified, set to default if unspecified
     center_pix = center
-    field_center = (round(x_dim/2), round(y_dim/2))
+    field_center = ((x_dim-1)/2, (y_dim-1)/2)
     if center == []:
         center_pix = [field_center]
         if len(radius) > 1:
