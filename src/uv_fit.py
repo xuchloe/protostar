@@ -412,59 +412,9 @@ def round_tuple(tup):
         places = len(decimal)
     return (round(float(tup[0]), places), rounded_err)
 
-def limiting_value(param_name, tuple, param_chain, n_walkers, param_priors):
-    median = tuple[0]
-    sd = tuple[1]
-    last_n = param_chain[-n_walkers:]
-
-    # adjusting for hardcoded priors
-    if param_priors is None:
-        if param_name in ['sigma', 'r', 'ratio']:
-            param_priors = [0, None]
-        if param_name == 'vis_theta':
-            param_priors = [-np.pi/2, np.pi/2]
-    if param_priors is not None:
-        if param_priors[0] is None:
-            if param_name in ['sigma', 'r', 'ratio']:
-                param_priors = [0, param_priors[1]]
-            if param_name == 'vis_theta':
-                param_priors = [-np.pi/2, param_priors[1]]
-        if param_priors[1] is None:
-            if param_name == 'vis_theta':
-                param_priors = [param_priors[0], np.pi/2]
-            if param_name == 'ratio':
-                param_priors = [param_priors[0], 1]
-        if param_priors[0] is not None:
-            if param_name in ['sigma', 'r', 'ratio']:
-                param_priors = [max(param_priors[0], 0), param_priors[1]]
-            if param_name == 'vis_theta':
-                param_priors = [max(param_priors[0], -np.pi/2), np.pi/2]
-        if param_priors[1] is not None:
-            if param_name == 'ratio':
-                param_priors = [param_priors[0], min(param_priors[1], 1)]
-            if param_name == 'vis_theta':
-                param_priors = [param_priors[0], min(param_priors[1], np.pi/2)]
-
-    if all(last_n > median): # running away to higher values
-        return ('upper', np.percentile(param_chain, 99.7))
-    elif all(last_n < median):  # running away to lower values
-        return ('lower', np.percentile(param_chain, 0.3))
-
-    if param_priors is not None:
-        if param_priors[0] is not None and all(last_n < param_priors[0] + sd/2): # hugging lower prior
-            return ('lower prior', np.percentile(param_chain, 0.3))
-        elif param_priors[1] is not None and all(last_n > param_priors[1] - sd/2): # hugging upper prior
-            return ('upper prior', np.percentile(param_chain, 99.7))
-
-    if param_name == 'vis_theta' and param_priors == [-np.pi/2, np.pi/2]: # special case for angle wrapping
-        neg_vis_thetas = [theta for theta in param_chain if theta < 0]
-        pos_vis_thetas = [theta for theta in param_chain if theta >= 0]
-        neg_med = np.median(neg_vis_thetas) if neg_vis_thetas else None
-        pos_med = np.median(pos_vis_thetas) if pos_vis_thetas else None
-        if neg_med is not None and pos_med is not None:
-            if abs(abs(neg_med) - pos_med) < 10 * np.pi/180:
-                return('angle wrap', -np.pi/2)
-    return None
+def sigmas(param_chain):
+    return (np.percentile(param_chain,2.5), np.percentile(param_chain,16), np.percentile(param_chain,50),\
+            np.percentile(param_chain,84), np.percentile(param_chain, 97.5))
 
 def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
@@ -855,70 +805,39 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
 
                 # peak
                 peak_chain = source_chain[:, 0]
-                peak_prior = source_priors[0]
-                peak_limit = limiting_value('peak', source_result['peak'], peak_chain, n_walkers, peak_prior)
-                source_result['peak'] = round_tuple((source_result['peak'][0], source_result['peak'][1]))
-                if peak_limit is not None:
-                    source_result['peak'] = (source_result['peak'][0], source_result['peak'][1], \
-                                            (peak_limit[0], sigfig.round(peak_limit[1], sigfigs=3)))
+                peak_sigmas = sigmas(peak_chain)
+                source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
 
                 # convert ra, dec to arcsec
                 ra_chain = source_chain[:, 1]
                 dec_chain = source_chain[:, 2]
-                ra_prior = source_priors[1]
-                dec_prior = source_priors[2]
-                ra_limit = limiting_value('ra', source_result['ra'], ra_chain, n_walkers, ra_prior)
-                dec_limit = limiting_value('dec', source_result['dec'], dec_chain, n_walkers, dec_prior)
-                source_result['ra'] = round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']]))
-                if ra_limit is not None:
-                    source_result['ra'] = (source_result['ra'][0], source_result['ra'][1], \
-                                           (ra_limit[0], sigfig.round(float(Angle(ra_limit[1], units.radian).to(units.arcsec).value), sigfigs=3)))
-                source_result['dec'] = round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']]))
-                if dec_limit is not None:
-                    source_result['dec'] = (source_result['dec'][0], source_result['dec'][1], \
-                                            (dec_limit[0], sigfig.round(float(Angle(dec_limit[1], units.radian).to(units.arcsec).value), sigfigs=3)))
+                ra_sigmas = sigmas(ra_chain)
+                dec_sigmas = sigmas(dec_chain)
+                source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
+                source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
 
                 if source_type != 'p': # convert visibility width to image width in arcsec
                     width_chain = source_chain[:, 3]
-                    width_prior = source_priors[3]
-                    width_limit = limiting_value(source_params[3], source_result[source_params[3]], width_chain, n_walkers, width_prior)
-
-                    source_result[source_params[3]] = round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
-                                                    float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value)))
-                    if width_limit is not None:
-                        source_result[source_params[3]] = (source_result[source_params[3]][0], source_result[source_params[3]][1], \
-                                                       (width_limit[0], sigfig.round(float(Angle(width_limit[1], units.radian).to(units.arcsec).value), sigfigs=3)))
+                    width_sigmas = sigmas(width_chain)
+                    source_result[source_params[3]] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
+                                                    float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
 
                 if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
-                    theta_prior = source_priors[5]
-                    theta_limit = limiting_value('vis_theta', source_result['vis_theta'], theta_chain, n_walkers, theta_prior)
+                    vis_theta_sigmas = sigmas(theta_chain)
+                    theta_sigmas = tuple([(float(theta * 180/np.pi) - 90) % 90 for theta in vis_theta_sigmas])
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi) - 90)
                     del source_result['vis_theta']
-                    source_result['theta'] = round_tuple((uimg_theta.n % 90, uimg_theta.s))
-                    if theta_limit is not None:
-                        source_result['theta'] = (source_result['theta'][0], source_result['theta'][1], \
-                                                 (theta_limit[0], sigfig.round(float(theta_limit[1] * 180/np.pi), sigfigs=3)))
+                    source_result['theta'] = (round_tuple((uimg_theta.n % 90, uimg_theta.s)), theta_sigmas)
 
-                    ratio_chain = source_chain[:, 4]
-                    ratio_prior = source_priors[4]
-                    ratio_limit = limiting_value('ratio', source_result['ratio'], ratio_chain, n_walkers, ratio_prior)
                     usigma_min = ufloat(source_result['sigma'][0], source_result['sigma'][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
                     usigma_maj = usigma_min / uratio
                     del source_result['sigma']
                     del source_result['ratio']
-                    source_result['sigma_maj'] = round_tuple((usigma_maj.n, usigma_maj.s))
-                    source_result['sigma_min'] = round_tuple((usigma_min.n, usigma_min.s))
-                    if ratio_limit is not None:
-                        comment = ratio_limit[0]
-                        if 'upper' in comment:
-                            comment = comment.replace('upper', 'lower') # because of sigma_maj = sigma_min / ratio
-                        elif 'lower' in comment:
-                            comment = comment.replace('lower', 'upper') # because of sigma_maj = sigma_min / ratio
-                        source_result['sigma_maj'] = (source_result['sigma_maj'][0], source_result['sigma_maj'][1], \
-                                                     (comment, sigfig.round((source_result['sigma_maj'][0] * uratio / ratio_limit[1]).n, sigfigs=3)))
+                    source_result['sigma_maj'] = round_tuple((usigma_maj.n, usigma_maj.s), tuple([width / uratio.n for width in width_sigmas]))
+                    source_result['sigma_min'] = round_tuple((usigma_min.n, usigma_min.s), width_sigmas)
 
                 del source_result['best']
 
