@@ -84,12 +84,20 @@ def d_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
 
 def all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain):
     if point_intensity is not None:
-        med_sd[0] = (point_intensity, med_sd[0][1])
+        new = (point_intensity, med_sd[0][1])
+        temp = [pair for pair in med_sd]
+        med_sd = tuple([new] + temp[1:])
     n_params = len(med_sd)
     if c_peak is not None and n_params == 6:
-        med_sd[0] = (c_peak, med_sd[0][1])
+        new = (point_intensity, med_sd[0][1])
+        temp = [pair for pair in med_sd]
+        med_sd = tuple([new] + temp[1:])
     if c_sigma is not None and n_params == 6:
-        med_sd[3] = (c_sigma, med_sd[3][1])
+        new = (c_sigma, med_sd[3][1])
+        temp = [pair for pair in med_sd]
+        temp1 = temp[:3]
+        temp2 = temp[4:]
+        med_sd = tuple(temp1 + [new] + temp2)
     p1 = np.zeros((n_walkers, n_params))
     for i in range(n_walkers):
         for j in range(n_params):
@@ -698,9 +706,10 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     if not resolved:
                         temp_perm = best_perm[:i] + ('p',) + best_perm[i+1:]
                         if temp_perm == best_perm:
-                            point_intensity = best_result[f'source_{i+1}']['best']['peak']
+                            temp = best_result[f'source_{i+1}']['best']['peak']
                         else:
-                            point_intensity = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
+                            temp = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
+                            point_intensity = temp if type(temp) is float else temp[0]
 
                     # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
                     c_peak = None
@@ -801,43 +810,42 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                 n_source_params = SOURCE_TYPES[source_type][0]
                 n_walkers = 2 * n_source_params
                 source_chain = permutation_chain[:, start:start+n_source_params]
-                source_priors = vis_priors[i]
 
                 # peak
                 peak_chain = source_chain[:, 0]
-                peak_sigmas = sigmas(peak_chain)
+                peak_sigmas = tuple([float(round(sigma, 3)) for sigma in sigmas(peak_chain)])
                 source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
 
                 # convert ra, dec to arcsec
                 ra_chain = source_chain[:, 1]
                 dec_chain = source_chain[:, 2]
-                ra_sigmas = sigmas(ra_chain)
-                dec_sigmas = sigmas(dec_chain)
+                ra_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(ra_chain)])
+                dec_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(dec_chain)])
                 source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
                 source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
 
                 if source_type != 'p': # convert visibility width to image width in arcsec
                     width_chain = source_chain[:, 3]
-                    width_sigmas = sigmas(width_chain)
+                    width_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(width_chain)])
                     source_result[source_params[3]] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
                                                     float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
 
                 if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
-                    theta_sigmas = tuple([(float(theta * 180/np.pi) - 90) % 90 for theta in vis_theta_sigmas])
+                    theta_sigmas = tuple([float(round((theta * 180/np.pi - 90) % 90, 3)) for theta in vis_theta_sigmas])
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi) - 90)
                     del source_result['vis_theta']
                     source_result['theta'] = (round_tuple((uimg_theta.n % 90, uimg_theta.s)), theta_sigmas)
 
-                    usigma_min = ufloat(source_result['sigma'][0], source_result['sigma'][1])
+                    usigma_min = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
                     usigma_maj = usigma_min / uratio
                     del source_result['sigma']
                     del source_result['ratio']
-                    source_result['sigma_maj'] = round_tuple((usigma_maj.n, usigma_maj.s), tuple([width / uratio.n for width in width_sigmas]))
-                    source_result['sigma_min'] = round_tuple((usigma_min.n, usigma_min.s), width_sigmas)
+                    source_result['sigma_maj'] = (round_tuple((usigma_maj.n, usigma_maj.s)), tuple([float(round(width / uratio.n, 3)) for width in width_sigmas]))
+                    source_result['sigma_min'] = (round_tuple((usigma_min.n, usigma_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
 
                 del source_result['best']
 
