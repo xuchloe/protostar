@@ -570,6 +570,8 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
         total_flux = total_flux_median
     else:
         total_flux = total_flux_mean
+    # TODO: resolved case, MRS
+    # TODO: total flux matching image peak, conclude unresolved; or median of smallest 5% within uncertainty of median of ofther 95%
 
     # All possible permutations
     n_sources = len(sources)
@@ -613,6 +615,10 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
             state = sampler.run_mcmc(p0, n_steps)
         except emcee.autocorr.AutocorrError:
             pass
+        except ValueError:
+            print(f"Error encountered during MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
         tau = sampler.get_autocorr_time(quiet=True)
         if np.isnan(tau).all():
             warnings.warn(f"Autocorrelation time for first run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
@@ -620,7 +626,12 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
             continue
         int_tau = math.ceil(np.nanmax(tau))
         steps_to_50_tau = abs(int_tau * 50 - n_steps)
-        sampler.run_mcmc(state, steps_to_50_tau)
+        try:
+            sampler.run_mcmc(state, steps_to_50_tau)
+        except ValueError:
+            print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
         chain = sampler.get_chain(discard = int_tau * 10, flat=True)
         log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
         max_prob_index = np.argmax(log_probs)
@@ -736,6 +747,10 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                 state = sampler1.run_mcmc(p1, n_steps)
             except emcee.autocorr.AutocorrError:
                 pass
+            except ValueError:
+                print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
             tau = sampler1.get_autocorr_time(quiet=True)
             if np.isnan(tau).all():
                 warnings.warn(f"Autocorrelation time for second run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
@@ -743,7 +758,12 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                 continue
             int_tau = math.ceil(np.nanmax(tau))
             steps_to_50_tau = abs(int_tau * 50 - n_steps)
-            sampler1.run_mcmc(state, steps_to_50_tau)
+            try:
+                sampler1.run_mcmc(state, steps_to_50_tau)
+            except ValueError:
+                print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
             chain1 = sampler1.get_chain(discard = int_tau * 10, flat=True)
             log_probs1 = sampler1.get_log_prob(discard = int_tau * 10, flat=True)
             max_prob_index1 = np.argmax(log_probs1)
@@ -813,27 +833,27 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
 
                 # peak
                 peak_chain = source_chain[:, 0]
-                peak_sigmas = tuple([float(round(sigma, 3)) for sigma in sigmas(peak_chain)])
+                peak_sigmas = tuple([float(sigfig.round(sigma, sigfigs=3)) for sigma in sigmas(peak_chain)])
                 source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
 
                 # convert ra, dec to arcsec
                 ra_chain = source_chain[:, 1]
                 dec_chain = source_chain[:, 2]
-                ra_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(ra_chain)])
-                dec_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(dec_chain)])
+                ra_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(ra_chain)])
+                dec_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(dec_chain)])
                 source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
                 source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
 
                 if source_type != 'p': # convert visibility width to image width in arcsec
                     width_chain = source_chain[:, 3]
-                    width_sigmas = tuple([float(round(Angle(sigma, units.radian).to(units.arcsec).value, 3)) for sigma in sigmas(width_chain)])
+                    width_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(width_chain)])
                     source_result[source_params[3]] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
                                                     float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
 
                 if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
-                    theta_sigmas = tuple([float(round((theta * 180/np.pi - 90) % 90, 3)) for theta in vis_theta_sigmas])
+                    theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi - 90) % 90, sigfigs=3)) for theta in vis_theta_sigmas])
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi) - 90)
                     del source_result['vis_theta']
@@ -844,7 +864,7 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     usigma_maj = usigma_min / uratio
                     del source_result['sigma']
                     del source_result['ratio']
-                    source_result['sigma_maj'] = (round_tuple((usigma_maj.n, usigma_maj.s)), tuple([float(round(width / uratio.n, 3)) for width in width_sigmas]))
+                    source_result['sigma_maj'] = (round_tuple((usigma_maj.n, usigma_maj.s)), tuple([float(sigfig.round(width / uratio.n, sigfigs=3)) for width in width_sigmas]))
                     source_result['sigma_min'] = (round_tuple((usigma_min.n, usigma_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
 
                 del source_result['best']
