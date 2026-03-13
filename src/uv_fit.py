@@ -37,7 +37,7 @@ def d_model(d_params, u, v, rad_bmaj, rad_barea):
         return peak / (np.pi * r* np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
     return peak * (np.pi * r**2) / (rad_barea * np.pi * r * np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
-def p_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
+def p_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption):
     p0 = np.zeros((n_walkers, 3))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
@@ -45,10 +45,13 @@ def p_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
     return p0
 
-def c_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
+def c_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption):
     p0 = np.zeros((n_walkers, 4))
-    source_area = rad_barea * total_flux / peak
-    sigma = np.sqrt(source_area / (2*np.pi))
+    if assumption is 'unresolved':
+        source_area = rad_barea * total_flux / peak
+        sigma = np.sqrt(source_area / (2*np.pi))
+    if assumption is 'resolved':
+        sigma = (1.22/small_q) / 2
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
@@ -56,10 +59,13 @@ def c_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
         p0[i,3] = np.random.uniform(0.95*sigma, 1.05*sigma)
     return p0
 
-def g_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
+def g_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption):
     p0 = np.zeros((n_walkers, 6))
-    source_area = rad_barea * total_flux / peak
-    sigma = np.sqrt(source_area / (2*np.pi))
+    if assumption is 'unresolved':
+        source_area = rad_barea * total_flux / peak
+        sigma = np.sqrt(source_area / (2*np.pi))
+    if assumption is 'resolved':
+        sigma = (1.22/small_q) /2
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
@@ -71,10 +77,13 @@ def g_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
         p0[i,5] = np.random.uniform(-np.pi/2, np.pi/2)
     return p0
 
-def d_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
+def d_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption):
     p0 = np.zeros((n_walkers, 4))
-    source_area = rad_barea * total_flux / peak
-    r = np.sqrt(source_area / np.pi)
+    if assumption is 'unresolved':
+        source_area = rad_barea * total_flux / peak
+        r = np.sqrt(source_area / np.pi)
+    if assumption is 'resolved':
+        r = (1.22/small_q) / 2
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
@@ -423,6 +432,523 @@ def round_tuple(tup):
 def sigmas(param_chain):
     return (np.percentile(param_chain,2.5), np.percentile(param_chain,16), np.percentile(param_chain,50),\
             np.percentile(param_chain,84), np.percentile(param_chain, 97.5))
+
+def single_source_uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
+    # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
+    # but (tuple) for exclusive and [list] for inclusive
+    # TODO: documentation
+    '''
+    Fit UV data from a FITS file with specified source types using MCMC.
+
+    Parameters
+    ----------
+    fits_file (str): Path to the UV FITS file.
+    sources (list): List of source types to fit. Each source type should be one of
+                    'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).
+    '''
+    # Check additional_runs
+    if additional_runs < 0:
+        raise ValueError("additional_runs must be a non-negative integer.")
+
+    # Check priors format
+    if priors is not None:
+        if len(priors) != len(sources):
+            raise ValueError("Length of priors must match length of sources.")
+        for i in range(len(priors)):
+            if priors[i] is not None:
+                if type(priors[i]) is not list:
+                    raise ValueError("Each element in priors must be None or a list corresponding to a source.")
+                if len(priors[i]) != 6:
+                    raise ValueError("Each prior list must have 6 elements corresponding to ranges for peak, RA, declination, width parameter, ratio, and angle.")
+                for i in range(len(priors[i])):
+                    if priors[i][i] is not None:
+                        if type(priors[i][i]) not in [list, tuple]:
+                            raise ValueError("Each prior range must be None, a list (inclusive), or a tuple (exclusive).")
+                        if len(priors[i][i]) != 2:
+                            raise ValueError("Each prior range list or tuple must have exactly two elements: min and max.")
+
+    # Check input source types
+    if len(sources) == 0:
+        raise ValueError("No sources specified. Try specifying one or more sources of type \
+                         'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).")
+    if len(sources) != 1:
+        raise ValueError("Multiple sources specified. This function is designed to fit a single source. Try specifying only one source of type \
+                         'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit), or try uv_fit instead.")
+    if sources[0] not in SOURCE_TYPES and sources[0] != 'any':
+            raise ValueError(f"Source type '{sources[0]}' is not recognized. Source type must be one of the following: \
+                            'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).")
+
+    vis_priors = []
+    if priors is None:
+        priors = [None]
+    for i in range(len(priors)):
+        mini_vis_priors = []
+        if priors[i] is not None:
+            for j in range(len(priors[i])):
+                if priors[i][j] is not None:
+                    if j == 0:  # peak, keep as is
+                        mini_vis_priors.append(priors[i][j])
+                    elif j in [1, 2, 3]:  # ra, dec, width parameter
+                        # convert from arcsec to radian
+                        rad_min = float(Angle(priors[i][j][0], units.arcsec).to(units.radian).value)
+                        rad_max = float(Angle(priors[i][j][1], units.arcsec).to(units.radian).value)
+                        if type(priors[i][j]) is tuple:
+                            mini_vis_priors.append((rad_min, rad_max))
+                        else:
+                            mini_vis_priors.append([rad_min, rad_max])
+                    elif j == 4:  # ratio
+                        mini_vis_priors.append(priors[i][j])
+                    elif j == 5:  # angle
+                        mini_vis_priors.append(priors[i][j] * np.pi/180) # convert from degrees to radians
+                else:
+                    mini_vis_priors.append(None)
+            vis_priors.append(mini_vis_priors)
+        else: # nothing to convert
+            vis_priors.append([[None, None]] * 6)
+
+    # Extract data from fits file
+    file = fits.open(fits_file)
+    cdelt1 = file[0].header['CDELT1']
+    cunit1 = file[0].header['CUNIT1']
+    naxis1 = file[0].header['NAXIS1']
+    data = file[1].data
+
+    summ = summary(fits_file, plot=False)
+    bmaj = file[0].header['BMAJ'] # cunit1
+    bmin = file[0].header['BMIN'] # cunit1
+    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+    int_peaks = summ['int_peak_val']
+    int_coords = summ['int_peak_coord']
+    ext_peaks = summ['ext_peak_val']
+    ext_coords = summ['ext_peak_coord']
+
+    int_info = list(zip(int_peaks, int_coords))
+    if type(ext_peaks) is list:
+        ext_info = list(zip(ext_peaks, ext_coords))
+    else:
+        ext_info = []
+    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
+    all_peaks.sort(reverse=True) # sort by peak value
+    n_peaks = len(all_peaks)
+    if n_peaks < len(sources):
+        warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({len(sources)}).")
+    if n_peaks > len(sources):
+        warnings.warn(f"Number of detected peaks ({n_peaks}) is greater than number of sources to fit ({len(sources)}). Consider fitting more sources with uv_fit.")
+
+    vis = np.array(data)
+    freq_bin, u, v, re, im, w = [], [], [], [], [], []
+    for row in vis:
+        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
+        freq_bin.append(int(freq_bin_data))
+        u.append(int(u_data))
+        v.append(int(v_data))
+        re.append(float(re_data/w_data))
+        im.append(float(im_data/w_data))
+        w.append(float(w_data))
+
+    # Adding in conjugate half of data
+    freq_bin *= 2
+    neg_u = [-1 * val for val in u]
+    u += neg_u
+    neg_v = [-1 * val for val in v]
+    v += neg_v
+    re *= 2
+    neg_im = [-1 * val for val in im]
+    im += neg_im
+    w *= 2
+
+    freq_bin = np.array(freq_bin)
+    u = np.array(u)
+    v = np.array(v)
+    re = np.array(re)
+    im = np.array(im)
+    w = np.array(w)
+
+    file.close() # good practice
+
+    # Estimate total flux from small baselines
+    small_baselines = []
+    q = np.sqrt(u**2 + v**2)
+    baseline_indices = np.argsort(q, axis=None)
+    small_baselines_indices = baseline_indices[:len(baseline_indices)//20]  # smallest 5% of baselines
+    for i in small_baselines_indices:
+        small_baselines.append(np.sqrt(im[i]**2 + re[i]**2))
+    total_flux_median = np.median(small_baselines)
+    total_flux_mean = np.mean(small_baselines)
+    total_flux_sd = np.std(small_baselines)
+    if abs(total_flux_median - total_flux_mean) > total_flux_sd:
+        total_flux = total_flux_median
+    else:
+        total_flux = total_flux_mean
+    small_q = [q[i] for i in small_baselines_indices]
+    small_q = np.mean(small_q)
+
+    # All possible permutations
+    sample_space = list(SOURCE_TYPES.keys())
+    all_permutations = list(itertools.permutations(sample_space, 1))
+    if sources[0] != 'any':
+        all_permutations = sources[0] # only use wanted permutations
+    all_permutations = list(set(all_permutations)) # remove duplicates
+
+    all_results = []
+    for permutation in all_permutations:
+        # Calculate n_params and n_walkers
+        source = permutation[0]
+        n_params = SOURCE_TYPES[source][0]
+        n_walkers = 2 * n_params
+
+        # Initial guesses
+        source = permutation[0]
+        peak = all_peaks[0][0]
+        coord0 = all_peaks[0][1]
+        rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
+        p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption='resolved')
+
+        # Set up and run MCMC
+        n_steps = 100
+        sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
+        try:
+            state = sampler.run_mcmc(p0, n_steps)
+        except emcee.autocorr.AutocorrError:
+            pass
+        except ValueError:
+            print(f"Error encountered during MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        tau = sampler.get_autocorr_time(quiet=True)
+        if np.isnan(tau).all():
+            warnings.warn(f"Autocorrelation time for first run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        int_tau = math.ceil(np.nanmax(tau))
+        steps_to_50_tau = abs(int_tau * 50 - n_steps)
+        try:
+            sampler.run_mcmc(state, steps_to_50_tau)
+        except ValueError:
+            print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        chain = sampler.get_chain(discard = int_tau * 10, flat=True)
+        log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
+        max_prob_index = np.argmax(log_probs)
+
+        # Find parameter estimates and uncertainties and calculate chi2
+        result = {}
+        source = permutation[0]
+        n_source_params = SOURCE_TYPES[source][0]
+        source_result = {'type': source}
+        temp_medians = [] # to store medians
+        temp_bests = {} # to store best values (that maximimize probability)
+        temp_max_probs = [] # to store max prob values
+        for j in range(n_source_params):
+            samples = chain[:, j]
+            temp_max_probs.append(samples[max_prob_index])
+            samples_med = np.median(samples)
+            samples_sd = np.nanstd(samples)
+            param_name = SOURCE_TYPES[source][4][j]
+            source_result[param_name] = (float(samples_med), float(samples_sd))
+            temp_bests[param_name] = float(samples[max_prob_index])
+            temp_medians.append(samples_med)
+        source_result['best'] = temp_bests
+        model = SOURCE_TYPES[source][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+        result[f'source_{i+1}'] = source_result
+        chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
+
+        all_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain})
+
+    assumption_retesters = []
+    if ['g'] in all_permutations:
+        assumption_retesters.append('g')
+    if ['c'] in all_permutations:
+        assumption_retesters.append('c')
+    if ['d'] in all_permutations:
+        assumption_retesters.append('d')
+
+    retest_results = []
+    for permutation in assumption_retesters:
+        # Calculate n_params and n_walkers
+        source = permutation[0]
+        n_params = SOURCE_TYPES[source][0]
+        n_walkers = 2 * n_params
+
+        # Initial guesses
+        source = permutation[0]
+        peak = all_peaks[0][0]
+        coord0 = all_peaks[0][1]
+        rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
+        p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, assumption='unresolved')
+
+        # Set up and run MCMC
+        n_steps = 100
+        sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
+        try:
+            state = sampler.run_mcmc(p0, n_steps)
+        except emcee.autocorr.AutocorrError:
+            pass
+        except ValueError:
+            print(f"Error encountered during assumption retest MCMC run for permutation {permutation}. Skipping this permutation.")
+            retest_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        tau = sampler.get_autocorr_time(quiet=True)
+        if np.isnan(tau).all():
+            warnings.warn(f"Autocorrelation time for assumption retest run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
+            retest_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        int_tau = math.ceil(np.nanmax(tau))
+        steps_to_50_tau = abs(int_tau * 50 - n_steps)
+        try:
+            sampler.run_mcmc(state, steps_to_50_tau)
+        except ValueError:
+            print(f"Error encountered during assumption retest MCMC run for permutation {permutation}. Skipping this permutation.")
+            retest_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        chain = sampler.get_chain(discard = int_tau * 10, flat=True)
+        log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
+        max_prob_index = np.argmax(log_probs)
+
+        # Find parameter estimates and uncertainties and calculate chi2
+        result = {}
+        source = permutation[0]
+        n_source_params = SOURCE_TYPES[source][0]
+        source_result = {'type': source}
+        temp_medians = [] # to store medians
+        temp_bests = {} # to store best values (that maximimize probability)
+        temp_max_probs = [] # to store max prob values
+        for j in range(n_source_params):
+            samples = chain[:, j]
+            temp_max_probs.append(samples[max_prob_index])
+            samples_med = np.median(samples)
+            samples_sd = np.nanstd(samples)
+            param_name = SOURCE_TYPES[source][4][j]
+            source_result[param_name] = (float(samples_med), float(samples_sd))
+            temp_bests[param_name] = float(samples[max_prob_index])
+            temp_medians.append(samples_med)
+        source_result['best'] = temp_bests
+        model = SOURCE_TYPES[source][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+        result[f'source_{i+1}'] = source_result
+        chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
+
+        retest_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain})
+
+    modified_assumptions = {}
+    for retested_source in assumption_retesters:
+        retest_temp = None
+        all_temp = None
+        for i in range(len(retest_results)):
+            if retest_results[i]['permutation'] == retested_source:
+                retest_temp = retest_results[i]['permutation']
+                del retest_results[i]
+        for j in range(len(all_results)):
+            if all_results[j]['permutation'] == retested_source:
+                all_temp = all_results[j]
+        if retest_temp['chi2'] < all_temp['chi2']:
+            modified_assumptions[retested_source] = 'unresolved'
+        else:
+            modified_assumptions[retested_source] = 'resolved'
+
+    # Rank permutations by chi2
+    all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
+    best_perm = all_results[0]['permutation']
+    best_result = all_results[0]['result']
+
+    # Do it again with refined initial guesses, if requested
+    for reps in range(additional_runs):  # two additional refinement iterations
+        second_results = []
+        for permutation_info in all_results:
+            # Calculate n_params and n_walkers
+            permutation = permutation_info['permutation']
+            chain = permutation_info['chain']
+            source = permutation[0]
+            n_params = SOURCE_TYPES[source][0]
+            n_walkers = 2 * n_params
+
+            # New initial guesses from previous results
+            source = permutation[0]
+            coord0 = all_peaks[0][1]
+            rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
+            if permutation_info['result'] is None: # fitting didn't happen, so can't actually refine
+                peak = all_peaks[0][0]
+                p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, rad_barea, total_flux, small_q, n_walkers, modified_assumptions[source])
+            else:
+                rad_position = best_result[f'source_1']['best']['ra'], best_result[f'source_1']['best']['dec']
+                source_result = permutation_info['result'][f'source_1']
+                best_params = []
+                med_sd = []
+                point_intensity = None
+                for param_name in SOURCE_TYPES[source][4]:
+                    med_sd.append(source_result[param_name])
+                    best_params.append(source_result[param_name][0])
+
+                # use p fitting to help c/g/d fitting if p chi2 was better than c/g/d chi2 in first run
+                resolved = True
+                if source != 'p':
+                    if best_params[3] < rad_bmaj/2:  # conditions for unresolved source
+                        resolved = False
+                if not resolved:
+                    if ['p'] == best_perm:
+                        temp = best_result[f'source_1']['best']['peak']
+                    else:
+                        temp = uv_fit(fits_file, list('p'), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_1']['peak'][0]
+                        point_intensity = temp if type(temp) is float else temp[0]
+
+                # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
+                c_peak = None
+                c_sigma = None
+                if source == 'g' and best_perm[0] == 'c':
+                    c_peak = best_result[f'source_1']['best']['peak']
+                    c_sigma = best_result[f'source_1']['best']['sigma']
+                p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
+
+                # edit vis_priors if unresolved source
+                if not resolved:
+                    if vis_priors[0] is None:
+                        vis_priors[0] = [(None, None)] * 6
+                    vis_priors[0][1] = (-rad_pix+rad_coord[0], rad_pix+rad_coord[0]) # ra within one pixel of image domain result
+                    vis_priors[0][2] = (-rad_pix+rad_coord[1], rad_pix+rad_coord[1]) # dec within one pixel of image domain result
+
+            # Set up and run MCMC
+            n_steps = 100
+            sampler1 = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
+            try:
+                state = sampler1.run_mcmc(p1, n_steps)
+            except emcee.autocorr.AutocorrError:
+                pass
+            except ValueError:
+                print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            tau = sampler1.get_autocorr_time(quiet=True)
+            if np.isnan(tau).all():
+                warnings.warn(f"Autocorrelation time for second run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            int_tau = math.ceil(np.nanmax(tau))
+            steps_to_50_tau = abs(int_tau * 50 - n_steps)
+            try:
+                sampler1.run_mcmc(state, steps_to_50_tau)
+            except ValueError:
+                print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            chain1 = sampler1.get_chain(discard = int_tau * 10, flat=True)
+            log_probs1 = sampler1.get_log_prob(discard = int_tau * 10, flat=True)
+            max_prob_index1 = np.argmax(log_probs1)
+
+            # Find parameter estimates and uncertainties and calculate chi2
+            result = {}
+            model = 0.0
+            source = permutation[0]
+            n_source_params = SOURCE_TYPES[source][0]
+            source_result = {'type': source}
+            temp_medians = [] # to store medians for chi2 calculation
+            temp_bests = {} # to store best values (that maximimize probability)
+            temp_max_probs = [] # to store max prob values
+            for j in range(n_source_params):
+                samples = chain1[:, j]
+                temp_max_probs.append(samples[max_prob_index1])
+                samples_med = np.median(samples)
+                samples_sd = np.nanstd(samples)
+                param_name = SOURCE_TYPES[source][4][j]
+                source_result[param_name] = (float(samples_med), float(samples_sd))
+                temp_bests[param_name] = float(samples[max_prob_index1])
+                temp_medians.append(samples_med)
+            source_result['best'] = temp_bests
+            model += SOURCE_TYPES[source][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+            result[f'source_1'] = source_result
+            start += n_source_params
+            chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
+            second_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain1})
+        all_results = []
+        for permutation_info in second_results:
+            all_results.append(permutation_info)
+        # Rank permutations by chi2
+        all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
+        best_perm = all_results[0]['permutation']
+        best_result = all_results[0]['result']
+
+    # Bayesian Information Criterion
+    n = len(re)
+    for permutation_info in all_results:
+        k = permutation_info['n_params']
+        chi2 = permutation_info['chi2']
+        if chi2 is np.inf:
+            permutation_info['bic'] = np.inf
+            continue
+        bic = k * np.log(n) + chi2
+        permutation_info['bic'] = float(bic)
+    all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
+
+    if clean_output:
+        for permutation_info in all_results:
+            result = permutation_info['result']
+            source_chain = permutation_info['chain']
+            if result is None:
+                continue
+            source_result = result['source_1']
+            source_type = source_result['type']
+            source_params = SOURCE_TYPES[source_type][4]
+            n_source_params = SOURCE_TYPES[source_type][0]
+            n_walkers = 2 * n_source_params
+
+            # peak
+            peak_chain = source_chain[:, 0]
+            peak_sigmas = tuple([float(sigfig.round(sigma, sigfigs=3)) for sigma in sigmas(peak_chain)])
+            source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
+
+            # convert ra, dec to arcsec
+            ra_chain = source_chain[:, 1]
+            dec_chain = source_chain[:, 2]
+            ra_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(ra_chain)])
+            dec_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(dec_chain)])
+            source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
+            source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
+
+            if source_type != 'p': # convert visibility width to image width in arcsec
+                width_chain = source_chain[:, 3]
+                width_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(width_chain)])
+                source_result[source_params[3]] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
+                                                float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
+
+            if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
+                theta_chain = source_chain[:, 5]
+                vis_theta_sigmas = sigmas(theta_chain)
+                theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi - 90) % 90, sigfigs=3)) for theta in vis_theta_sigmas])
+                uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
+                uimg_theta = (uvis_theta * (180/np.pi) - 90)
+                del source_result['vis_theta']
+                source_result['theta'] = (round_tuple((uimg_theta.n % 90, uimg_theta.s)), theta_sigmas)
+
+                usigma_min = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
+                uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
+                usigma_maj = usigma_min / uratio
+                del source_result['sigma']
+                del source_result['ratio']
+                source_result['sigma_maj'] = (round_tuple((usigma_maj.n, usigma_maj.s)), tuple([float(sigfig.round(width / uratio.n, sigfigs=3)) for width in width_sigmas]))
+                source_result['sigma_min'] = (round_tuple((usigma_min.n, usigma_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
+
+            del source_result['best']
+
+    if corner_plot:
+        for j in range(len(all_results)):
+            permutation_info = all_results[j]
+            result = permutation_info['result']
+            if result is None:
+                continue
+            chain = permutation_info['chain']
+            source_result = result['source_1']
+            source_type = source_result['type']
+            n_params = SOURCE_TYPES[source_type][0]
+            source_params = SOURCE_TYPES[source_type][4]
+            fig = corner.corner(chain, labels=source_params)
+            fig.suptitle(f'Permutation {1}: {permutation_info["permutation"]}')
+
+    for permutation_info in all_results:
+        del permutation_info['chain']
+
+    return all_results
 
 def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
