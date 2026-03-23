@@ -89,7 +89,7 @@ def all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad
         med_sd = tuple([new] + temp[1:])
     n_params = len(med_sd)
     if c_peak is not None and n_params == 6:
-        new = (point_intensity, med_sd[0][1])
+        new = (c_peak, med_sd[0][1])
         temp = [pair for pair in med_sd]
         med_sd = tuple([new] + temp[1:])
     if c_sigma is not None and n_params == 6:
@@ -424,12 +424,8 @@ def sigmas(param_chain):
     return (np.percentile(param_chain,2.5), np.percentile(param_chain,16), np.percentile(param_chain,50),\
             np.percentile(param_chain,84), np.percentile(param_chain, 97.5))
 
-def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
+def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clean_output=True, corner_plot=True):
     # Assume everything is a point source
-
-    # Check additional_runs
-    if additional_runs < 0:
-        raise ValueError("additional_runs must be a non-negative integer.")
 
     # Check priors format
     if priors is not None:
@@ -1122,11 +1118,11 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                 if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
-                    theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi - 90) % 90, sigfigs=3)) for theta in vis_theta_sigmas])
+                    theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi), sigfigs=3)) for theta in vis_theta_sigmas])
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
-                    uimg_theta = (uvis_theta * (180/np.pi) - 90)
+                    uimg_theta = (uvis_theta * (180/np.pi))
                     del source_result['vis_theta']
-                    source_result['theta'] = (round_tuple((uimg_theta.n % 90, uimg_theta.s)), theta_sigmas)
+                    source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
 
                     usigma_min = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
