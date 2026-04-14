@@ -512,3 +512,237 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
     #         sax[i].set_title(f'Sigma, {key}')
 
     return (round(float(np.mean(all_points)),2), round(float(np.std(all_points)),2), num_errors)
+
+def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, thetas=None, reps_per_snr=50, snr_vals=[3,4,5,6,7,8,9,10,20,50,100,200,500,1000]):
+    # single source only for now, can be extended to multiple sources in the future
+    pixel = 0.214255908880632
+    image_edge = pixel * 194
+    num_pixels = 194**2
+    beam_maj = 1.96
+    peaks_by_snr = []
+    peak_std_by_snr = []
+    ras_by_snr = []
+    ra_std_by_snr = []
+    decs_by_snr = []
+    dec_std_by_snr = []
+    # sigmas_by_snr = []
+    # sigma_std_by_snr = []
+    # snr_vals_for_sigma = []
+    points_by_snr = []
+    point_std_by_snr = []
+
+    for snr in snr_vals:
+        peaks = [snr * noise]
+
+        all_points = []
+        all_peaks = {}
+        all_ras = {}
+        all_decs = {}
+        # all_sigmas = {}
+        num_errors = 0
+        for i in range(reps_per_snr):
+            # give some variation to parameters
+            coords = [(ra + np.random.uniform(-beam_maj/2, beam_maj/2), dec + np.random.uniform(-beam_maj/2, beam_maj/2)) for ra, dec in coords] # plus or minus half beam major fwhm on position
+            info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
+
+            pts = 0
+            try:
+                result = sim_auto_detect(info, vis, corner_plot=False)[0]
+            except:
+                print(f"Error occurred while running simulation for rep {i}")
+                num_errors += 1
+                continue
+            counter = 0
+            # gaussians = 0
+            for key, res in result['result'].items():
+                if key not in all_peaks:
+                    all_peaks[key] = []
+                if key not in all_ras:
+                    all_ras[key] = []
+                if key not in all_decs:
+                    all_decs[key] = []
+                src_type = res['type']
+                peak = (float(res['peak'][0][0]), float(res['peak'][0][1]))
+                all_peaks[key].append(peak[0]-peaks[counter]) # the delta
+                ra = (float(res['ra'][0][0]), float(res['ra'][0][1]))
+                all_ras[key].append(ra[0]-coords[counter][0]) # the delta
+                dec = (float(res['dec'][0][0]), float(res['dec'][0][1]))
+                all_decs[key].append(dec[0]-coords[counter][1]) # the delta
+                # if src_type == 'c':
+                #     if key not in all_sigmas:
+                #         all_sigmas[key] = []
+                #     sigma = (float(res['sigma'][0][0]), float(res['sigma'][0][1]))
+                #     all_sigmas[key].append(sigma[0])
+
+                # immediately gets -1 point if spurious detection
+                significance_threshold = norm.ppf(-1/num_pixels, loc=0, scale=1) # threshold for being a once in image significant detection
+                z_peak = (peak[0]-peaks[counter]) / noise if peak[1] > 0 else float('inf')
+                if (abs(ra[0]-coords[counter][0])>5*(beam_maj/2) or abs(dec[0]-coords[counter][1])>5*(beam_maj/2)) and z_peak >= significance_threshold: # spurious detection if at least 5 sigma off in position and sigificant peak
+                    pts = -1
+                    counter += 1
+                    continue
+
+                # peak points
+                pts += score(z_peak)
+
+                # ra points
+                z_ra = (ra[0]-coords[counter][0]) / beam_maj if ra[1] > 0 else float('inf')
+                pts += score(z_ra)
+
+                # dec points
+                z_dec = (dec[0]-coords[counter][1]) / beam_maj if dec[1] > 0 else float('inf')
+                pts += score(z_dec)
+
+                counter += 1
+            all_points.append(pts)
+
+        if all_peaks:
+            peaks_by_snr.append(np.mean(list(all_peaks.values())))
+            peak_std_by_snr.append(np.std(list(all_peaks.values())))
+        if all_ras:
+            ras_by_snr.append(np.mean(list(all_ras.values())))
+            ra_std_by_snr.append(np.std(list(all_ras.values())))
+        if all_decs:
+            decs_by_snr.append(np.mean(list(all_decs.values())))
+            dec_std_by_snr.append(np.std(list(all_decs.values())))
+        # if all_sigmas:
+        #     sigmas_by_snr.append(np.mean(list(all_sigmas.values())))
+        #     sigma_std_by_snr.append(np.std(list(all_sigmas.values())))
+        #     snr_vals_for_sigma.append(snr)
+        points_by_snr.append(round(float(np.mean(all_points)),2))
+        point_std_by_snr.append(round(float(np.std(all_points)),2))
+
+    if peaks_by_snr:
+        pfig, pax = plt.subplots()
+        snr_measured = [peak/noise for peak in peaks_by_snr]
+        snr_std = [std/noise for std in peak_std_by_snr]
+        pax.errorbar(snr_vals, snr_measured, yerr=snr_std, fmt='o', color='b', ecolor='b', capsize=5)
+        pax.set_title('Measured SNR vs True SNR')
+    if ras_by_snr:
+        rfig, rax = plt.subplots()
+        rax.errorbar(snr_vals, ras_by_snr, yerr=ra_std_by_snr, fmt='o', color='g', ecolor='g', capsize=5)
+        rax.set_xscale('log')
+        rax.set_title('Average RA vs SNR')
+    if decs_by_snr:
+        dfig, dax = plt.subplots()
+        dax.errorbar(snr_vals, decs_by_snr, yerr=dec_std_by_snr, fmt='o', color='r', ecolor='r', capsize=5)
+        dax.set_xscale('log')
+        dax.set_title('Average Dec vs SNR')
+    # if sigmas_by_snr:
+    #     sfig, sax = plt.subplots()
+    #     sax.errorbar(snr_vals_for_sigma, sigmas_by_snr, yerr=sigma_std_by_snr, fmt='o', color='c', ecolor='c', capsize=5)
+    #     sax.set_xscale('log')
+    #     sax.set_title('Average Sigma vs SNR')
+    if points_by_snr:
+        ptsfig, ptsax = plt.subplots()
+        ptsax.errorbar(snr_vals, points_by_snr, yerr=point_std_by_snr, fmt='o', color='k', ecolor='k', capsize=5)
+        ptsax.set_xscale('log')
+        ptsax.set_title('Average Points vs SNR')
+
+def average_by_width(fits_file, sources, coords, peaks, noise, width_vals=[0.1,0.2,0.5,1,1.5,2,3,4,5], ratios=None, thetas=None, reps_per_width=50):
+    # single source only for now, can be extended to multiple sources in the future
+    pixel = 0.214255908880632
+    image_edge = pixel * 194
+    beam_maj = 1.96
+    peaks_by_width = []
+    peak_std_by_width = []
+    ras_by_width = []
+    ra_std_by_width = []
+    decs_by_width = []
+    dec_std_by_width = []
+    sigmas_by_width = []
+    sigma_std_by_width = []
+    width_vals_for_sigma = []
+    points_by_width = []
+    point_std_by_width = []
+
+    for w in width_vals:
+        widths = [w]
+        info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
+
+        all_points = []
+        all_peaks = {}
+        all_ras = {}
+        all_decs = {}
+        all_sigmas = {}
+        num_errors = 0
+        for i in range(reps_per_width):
+            pts = 0
+            result = sim_auto_detect(info, vis, corner_plot=False)[0]
+            try:
+                result = sim_auto_detect(info, vis, corner_plot=False)[0]
+            except:
+                print(f"Error occurred while running simulation for rep {i}")
+                num_errors += 1
+                continue
+            counter = 0
+            gaussians = 0
+            for key, res in result['result'].items():
+                if key not in all_peaks:
+                    all_peaks[key] = []
+                if key not in all_ras:
+                    all_ras[key] = []
+                if key not in all_decs:
+                    all_decs[key] = []
+                src_type = res['type']
+                peak = (float(res['peak'][0][0]), float(res['peak'][0][1]))
+                all_peaks[key].append(peak[0])
+                ra = (float(res['ra'][0][0]), float(res['ra'][0][1]))
+                all_ras[key].append(ra[0])
+                dec = (float(res['dec'][0][0]), float(res['dec'][0][1]))
+                all_decs[key].append(dec[0])
+                if src_type == 'c':
+                    if key not in all_sigmas:
+                        all_sigmas[key] = []
+                    sigma = (float(res['sigma'][0][0]), float(res['sigma'][0][1]))
+                    all_sigmas[key].append(sigma[0])
+                if peak[0] - 3*peak[1] > noise and abs(ra[0]) <= image_edge and abs(dec[0]) <= image_edge: # significant detection and within image bounds
+                    pts += 1
+                if np.sqrt((ra[0]-coords[counter][0])**2 + (dec[0]-coords[counter][1])**2) < beam_maj and abs(peak[0]-peaks[counter]) < 3*noise:
+                    if src_type == 'c':
+                        if widths is not None:
+                            if gaussians <= len(widths):
+                                if abs(sigma[0] - widths[gaussians]) < 3*noise:
+                                    pts += 1
+                                gaussians += 1
+                    else:
+                        pts += 1
+                counter += 1
+            all_points.append(pts)
+
+        if all_peaks:
+            peaks_by_width.append(np.mean(list(all_peaks.values())))
+            peak_std_by_width.append(np.std(list(all_peaks.values())))
+        if all_ras:
+            ras_by_width.append(np.mean(list(all_ras.values())))
+            ra_std_by_width.append(np.std(list(all_ras.values())))
+        if all_decs:
+            decs_by_width.append(np.mean(list(all_decs.values())))
+            dec_std_by_width.append(np.std(list(all_decs.values())))
+        if all_sigmas:
+            sigmas_by_width.append(np.mean(list(all_sigmas.values())))
+            sigma_std_by_width.append(np.std(list(all_sigmas.values())))
+            width_vals_for_sigma.append(w)
+        points_by_width.append(round(float(np.mean(all_points)),2))
+        point_std_by_width.append(round(float(np.std(all_points)),2))
+
+    if peaks_by_width:
+        pfig, pax = plt.subplots()
+        pax.errorbar(width_vals, peaks_by_width, yerr=peak_std_by_width, fmt='o', color='b', ecolor='b', capsize=5)
+        pax.set_title('Measured Peaks vs True Width')
+    if ras_by_width:
+        rfig, rax = plt.subplots()
+        rax.errorbar(width_vals, ras_by_width, yerr=ra_std_by_width, fmt='o', color='g', ecolor='g', capsize=5)
+        rax.set_title('Average RA vs Width')
+    if decs_by_width:
+        dfig, dax = plt.subplots()
+        dax.errorbar(width_vals, decs_by_width, yerr=dec_std_by_width, fmt='o', color='r', ecolor='r', capsize=5)
+        dax.set_title('Average Dec vs Width')
+    if sigmas_by_width:
+        sfig, sax = plt.subplots()
+        sax.errorbar(width_vals_for_sigma, sigmas_by_width, yerr=sigma_std_by_width, fmt='o', color='c', ecolor='c', capsize=5)
+        sax.set_title('Average Sigma vs Width')
+    if points_by_width:
+        ptsfig, ptsax = plt.subplots()
+        ptsax.errorbar(width_vals, points_by_width, yerr=point_std_by_width, fmt='o', color='k', ecolor='k', capsize=5)
+        ptsax.set_title('Average Points vs Width')
