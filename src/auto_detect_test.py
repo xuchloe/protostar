@@ -14,7 +14,7 @@ from uv_fit import *
 import sigfig
 from matplotlib import pyplot as plt
 
-# Source parameters for code -- do not change these
+# Source parameters -- do not change these
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
 G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
@@ -133,7 +133,6 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
             else:
-                print(clean_re)
                 clean_re[j] += model.real
                 clean_im[j] += model.imag
 
@@ -376,7 +375,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
             # start += n_source_params
 
     if corner_plot:
-        src_type = all_results[0]['result']
         result = all_results[0]['result']
         chain = all_results[0]['chain']
         start = 0
@@ -384,6 +382,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
         for i in range(n_sources):
             source_key = f'source_{i+1}'
             source_result = result[source_key]
+            src_type = source_result['type']
             n_params = SOURCE_TYPES[src_type][0]
             source_params = SOURCE_TYPES[src_type][4]
             end += n_params
