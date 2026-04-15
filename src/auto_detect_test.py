@@ -187,13 +187,14 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
 
     # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
 
+    int_peaks.sort(reverse=True) # descending peak value
     int_info = list(zip(int_peaks, int_coords))
     if type(ext_peaks) is list:
+        ext_peaks.sort(reverse=True) # descending peak value
         ext_info = list(zip(ext_peaks, ext_coords))
     else:
         ext_info = []
-    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
-    all_peaks.sort(reverse=True) # sort by peak value
+    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
     if n_sources is not None:
         if n_peaks != n_sources:
@@ -616,17 +617,18 @@ def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, 
         snr_measured = [peak/noise for peak in peaks_by_snr]
         snr_std = [std/noise for std in peak_std_by_snr]
         pax.errorbar(snr_vals, snr_measured, yerr=snr_std, fmt='o', color='b', ecolor='b', capsize=5)
-        pax.set_title('Measured SNR vs True SNR')
+        pax.set_xscale('log')
+        pax.set_title('Delta SNR vs True SNR')
     if ras_by_snr:
         rfig, rax = plt.subplots()
         rax.errorbar(snr_vals, ras_by_snr, yerr=ra_std_by_snr, fmt='o', color='g', ecolor='g', capsize=5)
         rax.set_xscale('log')
-        rax.set_title('Average RA vs SNR')
+        rax.set_title('Delta RA vs SNR')
     if decs_by_snr:
         dfig, dax = plt.subplots()
         dax.errorbar(snr_vals, decs_by_snr, yerr=dec_std_by_snr, fmt='o', color='r', ecolor='r', capsize=5)
         dax.set_xscale('log')
-        dax.set_title('Average Dec vs SNR')
+        dax.set_title('Delta Dec vs SNR')
     # if sigmas_by_snr:
     #     sfig, sax = plt.subplots()
     #     sax.errorbar(snr_vals_for_sigma, sigmas_by_snr, yerr=sigma_std_by_snr, fmt='o', color='c', ecolor='c', capsize=5)
