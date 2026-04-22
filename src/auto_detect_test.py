@@ -274,6 +274,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
     # Initial guesses
     for i in range(n_sources):
         peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
+        if not (i < n_peaks):
+            print(f"Source {i+1} has no corresponding peak.")
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
