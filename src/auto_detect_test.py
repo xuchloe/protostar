@@ -394,12 +394,13 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
 
         info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
         pts = 0
-        try:
-            result = sim_auto_detect(info, vis, corner_plot=False)[0]
-        except:
-            print(f"Error occurred while running simulation for rep {i}")
-            num_errors += 1
-            continue
+        result = sim_auto_detect(info, vis, corner_plot=False)[0]
+        # try:
+        #     result = sim_auto_detect(info, vis, corner_plot=False)[0]
+        # except:
+        #     print(f"Error occurred while running simulation for rep {i}")
+        #     num_errors += 1
+        #     continue
         counter = 0
         # gaussians = 0
         for key, res in result['result'].items():
