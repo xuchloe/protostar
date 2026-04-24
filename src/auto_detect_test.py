@@ -400,8 +400,12 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
         peaks.reverse() # FOR NOW
         coords.reverse() # FOR NOW
 
+        print(peaks, coords)
+
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
+
+        print(result)
         # try:
         #     result = sim_auto_detect(info, vis, corner_plot=False)[0]
         # except:
