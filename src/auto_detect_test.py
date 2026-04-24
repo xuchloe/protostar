@@ -77,9 +77,9 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     bmin = file[0].header['BMIN']
 
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
-    search_radius = arcsec_bmaj + 2
+    search_radius = arcsec_bmaj + 5
 
-    pix_field_center = ((naxis1-1)/2, (naxis2-1)/2)
+    pix_field_center = (0,0)
 
     int_peaks = []
     int_coords = []
