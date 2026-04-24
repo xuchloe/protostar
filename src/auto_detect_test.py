@@ -145,7 +145,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     return info, vis
 
 def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
-    return info
+
     # Extract data from fits file
     cdelt1 = info['CDELT1']
     cunit1 = info['CUNIT1']
@@ -398,6 +398,8 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
         coords = [(ra + np.random.uniform(-beam_maj/2, beam_maj/2), dec + np.random.uniform(-beam_maj/2, beam_maj/2)) for ra, dec in coords] # plus or minus half beam major fwhm on position
 
         info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
+
+        return info
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
         # try:
