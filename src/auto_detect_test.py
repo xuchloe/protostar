@@ -185,20 +185,20 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_sources = n_peaks
 
     vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
-    for i in range(n_sources):
-        snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
-        min_position_delta = rad_bmaj/20
-        position_delta = max(3*rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
-        img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
-        img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
-        temp_ra = Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value if i < n_peaks else None
-        temp_dec = Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value if i < n_peaks else None
-        ra_min = max(img_min, (temp_ra - position_delta)) if temp_ra is not None else img_min # loosest prior is image edges
-        ra_max = min(img_max, (temp_ra + position_delta)) if temp_ra is not None else img_max
-        dec_min = max(img_min, (temp_dec - position_delta)) if temp_dec is not None else img_min
-        dec_max = min(img_max, (temp_dec + position_delta)) if temp_dec is not None else img_max
-        vis_priors[i][1] = [ra_min, ra_max]
-        vis_priors[i][2] = [dec_min, dec_max]
+    # for i in range(n_sources):
+    #     snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
+    #     min_position_delta = rad_bmaj/20
+    #     position_delta = max(3*rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
+    #     img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
+    #     img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
+    #     temp_ra = Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value if i < n_peaks else None
+    #     temp_dec = Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value if i < n_peaks else None
+    #     ra_min = max(img_min, (temp_ra - position_delta)) if temp_ra is not None else img_min # loosest prior is image edges
+    #     ra_max = min(img_max, (temp_ra + position_delta)) if temp_ra is not None else img_max
+    #     dec_min = max(img_min, (temp_dec - position_delta)) if temp_dec is not None else img_min
+    #     dec_max = min(img_max, (temp_dec + position_delta)) if temp_dec is not None else img_max
+    #     vis_priors[i][1] = [ra_min, ra_max]
+    #     vis_priors[i][2] = [dec_min, dec_max]
 
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
