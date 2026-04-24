@@ -392,15 +392,15 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
     num_errors = 0
     for i in range(reps):
         # give some variation to parameters
-        peaks = [peak * np.random.uniform(0.95, 1.05) for peak in peaks] # plus or minus 5% on snr
-        coords = [(ra + np.random.uniform(-beam_maj/2, beam_maj/2), dec + np.random.uniform(-beam_maj/2, beam_maj/2)) for ra, dec in coords] # plus or minus half beam major fwhm on position
+        new_peaks = [peak * np.random.uniform(0.95, 1.05) for peak in peaks] # plus or minus 5% on snr
+        new_coords = [(ra + np.random.uniform(-beam_maj/2, beam_maj/2), dec + np.random.uniform(-beam_maj/2, beam_maj/2)) for ra, dec in coords] # plus or minus half beam major fwhm on position
 
-        info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
+        info, vis = generate_synthetic_info_vis(fits_file, sources, new_peaks, new_coords, noise, widths, ratios, thetas)
 
-        peaks.reverse() # FOR NOW
-        coords.reverse() # FOR NOW
+        new_peaks.reverse() # FOR NOW
+        new_coords.reverse() # FOR NOW
 
-        print(peaks, coords)
+        print(new_peaks, new_coords)
 
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
@@ -423,11 +423,11 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
                 all_decs[key] = []
             src_type = res['type']
             peak = (float(res['peak'][0][0]), float(res['peak'][0][1]))
-            all_peaks[key].append(peak[0]-peaks[counter]) # the delta
+            all_peaks[key].append(peak[0]-new_peaks[counter]) # the delta
             ra = (float(res['ra'][0][0]), float(res['ra'][0][1]))
-            all_ras[key].append(ra[0]-coords[counter][0]) # the delta
+            all_ras[key].append(ra[0]-new_coords[counter][0]) # the delta
             dec = (float(res['dec'][0][0]), float(res['dec'][0][1]))
-            all_decs[key].append(dec[0]-coords[counter][1]) # the delta
+            all_decs[key].append(dec[0]-new_coords[counter][1]) # the delta
             # if src_type == 'c':
             #     if key not in all_sigmas:
             #         all_sigmas[key] = []
@@ -436,8 +436,8 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
 
             # immediately gets -1 point if spurious detection
             significance_threshold = norm.ppf(-1/num_pixels, loc=0, scale=1) # threshold for being a once in image significant detection
-            z_peak = (peak[0]-peaks[counter]) / noise if peak[1] > 0 else float('inf')
-            if (abs(ra[0]-coords[counter][0])>5*(beam_maj/2) or abs(dec[0]-coords[counter][1])>5*(beam_maj/2)) and z_peak >= significance_threshold: # spurious detection if at least 5 sigma off in position and sigificant peak
+            z_peak = (peak[0]-new_peaks[counter]) / noise if peak[1] > 0 else float('inf')
+            if (abs(ra[0]-new_coords[counter][0])>5*(beam_maj/2) or abs(dec[0]-new_coords[counter][1])>5*(beam_maj/2)) and z_peak >= significance_threshold: # spurious detection if at least 5 sigma off in position and sigificant peak
                 pts = -1
                 peak_pts.append(-1/3)
                 ra_pts.append(-1/3)
@@ -450,12 +450,12 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             peak_pts.append(score(z_peak))
 
             # ra points
-            z_ra = (ra[0]-coords[counter][0]) / beam_maj if ra[1] > 0 else float('inf')
+            z_ra = (ra[0]-new_coords[counter][0]) / beam_maj if ra[1] > 0 else float('inf')
             pts += score(z_ra)
             ra_pts.append(score(z_ra))
 
             # dec points
-            z_dec = (dec[0]-coords[counter][1]) / beam_maj if dec[1] > 0 else float('inf')
+            z_dec = (dec[0]-new_coords[counter][1]) / beam_maj if dec[1] > 0 else float('inf')
             pts += score(z_dec)
             dec_pts.append(score(z_dec))
 
