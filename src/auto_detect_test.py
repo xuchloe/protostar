@@ -104,6 +104,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     info['int_peak_coord'] = int_coords
     info['ext_peak_val'] = ext_peaks
     info['ext_peak_coord'] = ext_coords
+    info['conservative_rms'] = noise
 
     vis_err = noise * np.sqrt(len(data)) * np.sqrt(2)
     weight = 1/(vis_err**2)
@@ -143,27 +144,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
     return info, vis
 
-def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean_output=True, corner_plot=True):
-    # Check priors format
-    if priors is not None:
-        if n_sources is not None:
-            if len(priors) != n_sources and len(priors) != 1:
-                raise ValueError("Length of priors list must match n_sources, or priors must be of length 1 (one set of priors for all sources).")
-        if n_sources is None:
-            if len(priors) != 1:
-                raise ValueError("If n_sources is not provided, priors must be None or of length 1 (one set of priors for the detected sources).")
-        for i in range(len(priors)):
-            if priors[i] is not None:
-                if type(priors[i]) is not list:
-                    raise ValueError("Each element in priors must be None or a list corresponding to a source.")
-                if len(priors[i]) != 3:
-                    raise ValueError("Each prior list must have 3 elements corresponding to ranges for peak, RA, and declination.")
-                for j in range(len(priors[i])):
-                    if priors[i][j] is not None:
-                        if type(priors[i][j]) not in [list, tuple]:
-                            raise ValueError("Each prior range must be None, a list (inclusive), or a tuple (exclusive).")
-                        if len(priors[i][j]) != 2:
-                            raise ValueError("Each prior range list or tuple must have exactly two elements: min and max.")
+def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
 
     # Extract data from fits file
     cdelt1 = info['CDELT1']
@@ -180,6 +161,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
     int_coords = info['int_peak_coord']
     ext_peaks = info['ext_peak_val']
     ext_coords = info['ext_peak_coord']
+    rms = info['conservative_rms']
 
     if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
         int_peaks = int_peaks[:1]
@@ -202,32 +184,19 @@ def sim_auto_detect(info, vis, n_sources: int = None, priors: list = None, clean
     else:
         n_sources = n_peaks
 
-    # Clean up priors
-    vis_priors = []
-    if priors is None:
-        priors = [None] * n_sources
-    if len(priors) == 1 and n_sources > 1: # if only one set of priors provided, use for all sources
-        priors = priors * n_sources
-    for i in range(len(priors)):
-        mini_vis_priors = []
-        if priors[i] is not None:
-            for j in range(len(priors[i])):
-                if priors[i][j] is not None:
-                    if j == 0:  # peak, keep as is
-                        mini_vis_priors.append(priors[i][j])
-                    else:  # ra, dec
-                        # convert from arcsec to radian
-                        rad_min = float(Angle(priors[i][j][0], units.arcsec).to(units.radian).value)
-                        rad_max = float(Angle(priors[i][j][1], units.arcsec).to(units.radian).value)
-                        if type(priors[i][j]) is tuple:
-                            mini_vis_priors.append((rad_min, rad_max))
-                        else:
-                            mini_vis_priors.append([rad_min, rad_max])
-                else:
-                    mini_vis_priors.append([None, None])
-            vis_priors.append(mini_vis_priors)
-        else: # nothing to convert
-            vis_priors.append([[None, None]] * 6)
+    vis_priors = [[[None, None]] * 6] * n_sources
+    for i in range(n_sources):
+        snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
+        min_position_delta = rad_bmaj/50
+        position_delta = min(rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
+        img_min = int(- naxis1 * rad_pix / 2) # assumes odd number of pixels and center pixel is at (0,0)
+        img_max = int(naxis1 * rad_pix / 2) # assumes odd number of pixels and center pixel is at (0,0)
+        ra_min = max(img_min, all_peaks[i][1][0] - position_delta) if i < n_peaks else img_min # loosest prior is image edges
+        ra_max = min(img_max, all_peaks[i][1][0] + position_delta) if i < n_peaks else img_max
+        dec_min = max(img_min, all_peaks[i][1][1] - position_delta) if i < n_peaks else img_min
+        dec_max = min(img_max, all_peaks[i][1][1] + position_delta) if i < n_peaks else img_max
+        vis_priors[i][1] = [ra_min, ra_max]
+        vis_priors[i][2] = [dec_min, dec_max]
 
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
