@@ -189,8 +189,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
         min_position_delta = rad_bmaj/50
         position_delta = min(rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
-        img_min = int(- naxis1 * rad_pix / 2) # assumes odd number of pixels and center pixel is at (0,0)
-        img_max = int(naxis1 * rad_pix / 2) # assumes odd number of pixels and center pixel is at (0,0)
+        img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
+        img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
         ra_min = max(img_min, all_peaks[i][1][0] - position_delta) if i < n_peaks else img_min # loosest prior is image edges
         ra_max = min(img_max, all_peaks[i][1][0] + position_delta) if i < n_peaks else img_max
         dec_min = max(img_min, all_peaks[i][1][1] - position_delta) if i < n_peaks else img_min
