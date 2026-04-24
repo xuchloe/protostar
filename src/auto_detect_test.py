@@ -200,6 +200,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         dec_max = min(img_max, (temp_dec + position_delta)) if temp_dec is not None else img_max
         vis_priors[i][1] = [ra_min, ra_max]
         vis_priors[i][2] = [dec_min, dec_max]
+    print(temp_ra - position_delta)
+    print(temp_ra + position_delta)
     print('vis_priors:', vis_priors)
     print('img_min:', img_min)
     print('img_max:', img_max)
