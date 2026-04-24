@@ -176,7 +176,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         ext_info = list(zip(ext_peaks, ext_coords))
     else:
         ext_info = []
-    all_peaks = ext_info + int_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks #FOR NOW
+    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
     if n_sources is not None:
         if n_peaks != n_sources:
@@ -266,7 +266,9 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         pass
     except ValueError:
         raise ValueError(f"Error encountered during MCMC run.")
-    tau = sampler.get_autocorr_time(quiet=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning, module="emcee.autocorr") # silence emcee chain length warning
+        tau = sampler.get_autocorr_time(quiet=True)
     if np.isnan(tau).all():
         raise RuntimeError(f"Autocorrelation time for parameters could not be estimated; all values are NaN.")
     int_tau = math.ceil(np.nanmax(tau))
@@ -397,15 +399,9 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
 
         info, vis = generate_synthetic_info_vis(fits_file, sources, new_peaks, new_coords, noise, widths, ratios, thetas)
 
-        new_peaks.reverse() # FOR NOW
-        new_coords.reverse() # FOR NOW
-
-        print(new_peaks, new_coords)
-
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
 
-        print(result)
         # try:
         #     result = sim_auto_detect(info, vis, corner_plot=False)[0]
         # except:
