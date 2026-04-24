@@ -186,6 +186,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_sources = n_peaks
 
     vis_priors = [[[None, None]] * 6] * n_sources
+    print(vis_priors)
     for i in range(n_sources):
         snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
         min_position_delta = rad_bmaj/10
