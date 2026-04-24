@@ -134,10 +134,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
             else:
-                print(clean_re[j])
                 clean_re[j] += model.real
-                print(clean_re[j])
-                print('---')
                 clean_im[j] += model.imag
 
     for i in range(len(data)):
@@ -397,10 +394,11 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
         # give some variation to parameters
         peaks = [peak * np.random.uniform(0.95, 1.05) for peak in peaks] # plus or minus 5% on snr
         coords = [(ra + np.random.uniform(-beam_maj/2, beam_maj/2), dec + np.random.uniform(-beam_maj/2, beam_maj/2)) for ra, dec in coords] # plus or minus half beam major fwhm on position
-        peaks.reverse() # FOR NOW
-        coords.reverse() # FOR NOW
 
         info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
+
+        peaks.reverse() # FOR NOW
+        coords.reverse() # FOR NOW
 
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
