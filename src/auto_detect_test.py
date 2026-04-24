@@ -379,6 +379,9 @@ def score(z):
 
 def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios=None, thetas=None, reps=100):
     all_points = []
+    peak_pts = []
+    ra_pts = []
+    dec_pts = []
     pixel = 0.214255908880632
     image_edge = pixel * 194
     num_pixels = 194**2
@@ -430,19 +433,25 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             z_peak = (peak[0]-peaks[counter]) / noise if peak[1] > 0 else float('inf')
             if (abs(ra[0]-coords[counter][0])>5*(beam_maj/2) or abs(dec[0]-coords[counter][1])>5*(beam_maj/2)) and z_peak >= significance_threshold: # spurious detection if at least 5 sigma off in position and sigificant peak
                 pts = -1
+                peak_pts.append(-1/3)
+                ra_pts.append(-1/3)
+                dec_pts.append(-1/3)
                 counter += 1
                 continue
 
             # peak points
             pts += score(z_peak)
+            peak_pts.append(score(z_peak))
 
             # ra points
             z_ra = (ra[0]-coords[counter][0]) / beam_maj if ra[1] > 0 else float('inf')
             pts += score(z_ra)
+            ra_pts.append(score(z_ra))
 
             # dec points
             z_dec = (dec[0]-coords[counter][1]) / beam_maj if dec[1] > 0 else float('inf')
             pts += score(z_dec)
+            dec_pts.append(score(z_dec))
 
             counter += 1
         all_points.append(pts)
@@ -485,7 +494,11 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
     #         sax[i].hist(all_sigmas[key], bins=20, color='c', edgecolor='k')
     #         sax[i].set_title(f'Sigma, {key}')
 
-    return (round(float(np.mean(all_points)),2), round(float(np.std(all_points)),2), num_errors)
+    return {'average total points': round(float(np.mean(all_points)),2), 'std total points': round(float(np.std(all_points)),2),\
+            'average peak points': round(float(np.mean(peak_pts)),2), 'std peak points': round(float(np.std(peak_pts)),2),\
+            'average ra points': round(float(np.mean(ra_pts)),2), 'std ra points': round(float(np.std(ra_pts)),2),\
+            'average dec points': round(float(np.mean(dec_pts)),2), 'std dec points': round(float(np.std(dec_pts)),2),\
+            'number of errors': num_errors}
 
 def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, thetas=None, reps_per_snr=50, snr_vals=[3,4,5,6,7,8,9,10,20,50,100,200,500,1000]):
     # single source only for now, can be extended to multiple sources in the future
