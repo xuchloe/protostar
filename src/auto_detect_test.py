@@ -312,7 +312,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
 
     # all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
-
+    return all_results
     if clean_output:
         result = all_results[0]['result']
         # start = 0
