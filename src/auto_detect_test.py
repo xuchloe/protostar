@@ -146,7 +146,6 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
 def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
 
-    print(info)
     # Extract data from fits file
     cdelt1 = info['CDELT1']
     cunit1 = info['CUNIT1']
@@ -186,7 +185,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_sources = n_peaks
 
     vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
-    print(vis_priors)
     for i in range(n_sources):
         snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
         min_position_delta = rad_bmaj/10
@@ -201,20 +199,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         dec_max = min(img_max, (temp_dec + position_delta)) if temp_dec is not None else img_max
         vis_priors[i][1] = [ra_min, ra_max]
         vis_priors[i][2] = [dec_min, dec_max]
-        print(vis_priors)
-    print('done')
-    print(temp_ra - position_delta)
-    print(temp_ra + position_delta)
-    print('vis_priors:', vis_priors)
-    print('img_min:', img_min)
-    print('img_max:', img_max)
-    print('all_peaks:', all_peaks)
-    print('position_delta:', position_delta)
-    print('ra_min:', ra_min)
-    print('dec_min:', dec_min)
-    print('ra_max:', ra_max)
-    print('dec_max:', dec_max)
-    print('naxis1:', naxis1)
 
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
