@@ -466,6 +466,7 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
     int_coords = summ['int_peak_coord']
     ext_peaks = summ['ext_peak_val']
     ext_coords = summ['ext_peak_coord']
+    rms = summ['conservative_rms']
 
     if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
         int_peaks = int_peaks[:1]
