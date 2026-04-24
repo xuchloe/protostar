@@ -190,7 +190,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     for i in range(n_sources):
         snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
         min_position_delta = rad_bmaj/10
-        position_delta = min(rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
+        position_delta = max(rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
         img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
         img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
         temp_ra = Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value if i < n_peaks else None
