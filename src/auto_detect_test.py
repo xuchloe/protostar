@@ -145,8 +145,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     return info, vis
 
 def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
-
-    # Extract data from fits file
+    # Extract data from info
     cdelt1 = info['CDELT1']
     cunit1 = info['CUNIT1']
     naxis1 = info['NAXIS1']
@@ -185,20 +184,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_sources = n_peaks
 
     vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
-    # for i in range(n_sources):
-    #     snr = all_peaks[i][0]/rms if i < n_peaks else all_peaks[-1][0]/rms
-    #     min_position_delta = rad_bmaj/20
-    #     position_delta = max(3*rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
-    #     img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
-    #     img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
-    #     temp_ra = Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value if i < n_peaks else None
-    #     temp_dec = Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value if i < n_peaks else None
-    #     ra_min = max(img_min, (temp_ra - position_delta)) if temp_ra is not None else img_min # loosest prior is image edges
-    #     ra_max = min(img_max, (temp_ra + position_delta)) if temp_ra is not None else img_max
-    #     dec_min = max(img_min, (temp_dec - position_delta)) if temp_dec is not None else img_min
-    #     dec_max = min(img_max, (temp_dec + position_delta)) if temp_dec is not None else img_max
-    #     vis_priors[i][1] = [ra_min, ra_max]
-    #     vis_priors[i][2] = [dec_min, dec_max]
 
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
@@ -228,19 +213,14 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     im = np.array(im)
     w = np.array(w)
 
-    all_results = []
-
     # Calculate n_params and n_walkers
-    src_type = 'p' # for now to do just point sources
-    permutation = tuple([src_type] * n_sources)
+    permutation = tuple(['p'] * n_sources)
     n_params = 0
     for i in range(n_sources):
-        n_params += SOURCE_TYPES[src_type][0]
+        n_params += SOURCE_TYPES['p'][0]
     n_walkers = 2 * n_params
 
     total_flux = None
-    # if src_type == 'c':
-    #     total_flux = 4 * all_results[0]['result'][f'source_1']['peak'][0] # so that sigma guess becomes roughly 1 beam major fwhm
 
     # Initial guesses
     for i in range(n_sources):
@@ -248,9 +228,9 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
-            p0 = SOURCE_TYPES[src_type][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
         else:
-            mini_p0 = SOURCE_TYPES[src_type][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
             if i >= n_peaks: # edit ra, dec initial guesses
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -258,6 +238,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
             p0 = np.append(p0, mini_p0, axis=1)
 
     # Set up and run MCMC
+    all_results = []
     n_steps = 100
     sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
     try:
@@ -266,9 +247,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         pass
     except ValueError:
         raise ValueError(f"Error encountered during MCMC run.")
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=UserWarning, module="emcee.autocorr") # silence emcee chain length warning
-        tau = sampler.get_autocorr_time(quiet=True)
+    tau = sampler.get_autocorr_time(quiet=True)
     if np.isnan(tau).all():
         raise RuntimeError(f"Autocorrelation time for parameters could not be estimated; all values are NaN.")
     int_tau = math.ceil(np.nanmax(tau))
@@ -286,9 +265,9 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     model = 0.0
     start = 0
     for i in range(n_sources):
-        n_source_params = SOURCE_TYPES[src_type][0]
+        n_source_params = SOURCE_TYPES['p'][0]
         source_chain = chain[:, start:start+n_source_params]
-        source_result = {'type': src_type}
+        source_result = {'type': 'p'}
         temp_medians = [] # to store medians
         temp_bests = {} # to store best values (that maximimize probability)
         temp_max_probs = [] # to store max prob values
@@ -297,12 +276,12 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
             temp_max_probs.append(samples[max_prob_index])
             samples_med = np.median(samples)
             samples_sd = np.nanstd(samples)
-            param_name = SOURCE_TYPES[src_type][4][j]
+            param_name = SOURCE_TYPES['p'][4][j]
             source_result[param_name] = (float(samples_med), float(samples_sd))
             temp_bests[param_name] = float(samples[max_prob_index])
             temp_medians.append(samples_med)
         source_result['best'] = temp_bests
-        model += SOURCE_TYPES[src_type][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+        model += SOURCE_TYPES['p'][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
         result[f'source_{i+1}'] = source_result
         start += n_source_params
     chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
@@ -320,9 +299,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         for i in range(n_sources):
             source_key = f'source_{i+1}'
             source_result = result[source_key]
-            src_type = source_result['type']
-            source_params = SOURCE_TYPES[src_type][4]
-            n_source_params = SOURCE_TYPES[src_type][0]
+            source_params = SOURCE_TYPES['p'][4]
+            n_source_params = SOURCE_TYPES['p'][0]
             n_walkers = 2 * n_source_params
             source_chain = permutation_chain[:, start:start+n_source_params]
 
@@ -339,11 +317,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
             source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
             source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
 
-            # if src_type == 'c':
-            #     # convert sigma to arcsec
-            #     sigma_chain = source_chain[:, 3]
-            #     sigma_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigma_chain])
-            #     source_result['sigma'] = (round_tuple(tuple([float(Angle(s, units.radian).to(units.arcsec).value) for s in source_result['sigma']])), sigma_sigmas)
             del source_result['best']
 
             start += n_source_params
@@ -356,9 +329,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         for i in range(n_sources):
             source_key = f'source_{i+1}'
             source_result = result[source_key]
-            src_type = source_result['type']
-            n_params = SOURCE_TYPES[src_type][0]
-            source_params = SOURCE_TYPES[src_type][4]
+            n_params = SOURCE_TYPES['p'][0]
+            source_params = SOURCE_TYPES['p'][4]
             end += n_params
             if i == n_sources-1:
                 fig = corner.corner(chain[:, start:], labels=source_params)

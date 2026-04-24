@@ -424,30 +424,8 @@ def sigmas(param_chain):
     return (np.percentile(param_chain,2.5), np.percentile(param_chain,16), np.percentile(param_chain,50),\
             np.percentile(param_chain,84), np.percentile(param_chain, 97.5))
 
-def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clean_output=True, corner_plot=True):
+def auto_detect(fits_file: str, n_sources: int = None, clean_output=True, corner_plot=True):
     # Assume everything is a point source
-
-    # Check priors format
-    if priors is not None:
-        if n_sources is not None:
-            if len(priors) != n_sources and len(priors) != 1:
-                raise ValueError("Length of priors list must match n_sources, or priors must be of length 1 (one set of priors for all sources).")
-        if n_sources is None:
-            if len(priors) != 1:
-                raise ValueError("If n_sources is not provided, priors must be None or of length 1 (one set of priors for the detected sources).")
-        for i in range(len(priors)):
-            if priors[i] is not None:
-                if type(priors[i]) is not list:
-                    raise ValueError("Each element in priors must be None or a list corresponding to a source.")
-                if len(priors[i]) != 3:
-                    raise ValueError("Each prior list must have 3 elements corresponding to ranges for peak, RA, and declination.")
-                for j in range(len(priors[i])):
-                    if priors[i][j] is not None:
-                        if type(priors[i][j]) not in [list, tuple]:
-                            raise ValueError("Each prior range must be None, a list (inclusive), or a tuple (exclusive).")
-                        if len(priors[i][j]) != 2:
-                            raise ValueError("Each prior range list or tuple must have exactly two elements: min and max.")
-
     # Extract data from fits file
     file = fits.open(fits_file)
     cdelt1 = file[0].header['CDELT1']
@@ -484,36 +462,11 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
     n_peaks = len(all_peaks)
     if n_sources is not None:
         if n_peaks != n_sources:
-            print(f"Warning: Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
+            warnings.warn(f"Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
     else:
         n_sources = n_peaks
 
-    # Clean up priors
-    vis_priors = []
-    if priors is None:
-        priors = [None] * n_sources
-    if len(priors) == 1 and n_sources > 1: # if only one set of priors provided, use for all sources
-        priors = priors * n_sources
-    for i in range(len(priors)):
-        mini_vis_priors = []
-        if priors[i] is not None:
-            for j in range(len(priors[i])):
-                if priors[i][j] is not None:
-                    if j == 0:  # peak, keep as is
-                        mini_vis_priors.append(priors[i][j])
-                    else:  # ra, dec
-                        # convert from arcsec to radian
-                        rad_min = float(Angle(priors[i][j][0], units.arcsec).to(units.radian).value)
-                        rad_max = float(Angle(priors[i][j][1], units.arcsec).to(units.radian).value)
-                        if type(priors[i][j]) is tuple:
-                            mini_vis_priors.append((rad_min, rad_max))
-                        else:
-                            mini_vis_priors.append([rad_min, rad_max])
-                else:
-                    mini_vis_priors.append([None, None])
-            vis_priors.append(mini_vis_priors)
-        else: # nothing to convert
-            vis_priors.append([[None, None]] * 6)
+    vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
 
     vis = np.array(data)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
@@ -546,27 +499,14 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
 
     file.close() # good practice
 
-    # Estimate total flux from small baselines
-    small_baselines = []
-    q = np.sqrt(u**2 + v**2)
-    baseline_indices = np.argsort(q, axis=None)
-    small_baselines_indices = baseline_indices[:len(baseline_indices)//20]  # smallest 5% of baselines
-    for i in small_baselines_indices:
-        small_baselines.append(np.sqrt(im[i]**2 + re[i]**2))
-    total_flux_median = np.median(small_baselines)
-    total_flux_mean = np.mean(small_baselines)
-    total_flux_sd = np.std(small_baselines)
-    if abs(total_flux_median - total_flux_mean) > total_flux_sd:
-        total_flux = total_flux_median
-    else:
-        total_flux = total_flux_mean
-
     # Calculate n_params and n_walkers
     permutation = tuple(['p'] * n_sources)
     n_params = 0
     for i in range(n_sources):
         n_params += SOURCE_TYPES['p'][0]
     n_walkers = 2 * n_params
+
+    total_flux = None
 
     # Initial guesses
     for i in range(n_sources):
@@ -613,7 +553,7 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
     for i in range(n_sources):
         n_source_params = SOURCE_TYPES['p'][0]
         source_chain = chain[:, start:start+n_source_params]
-        source_result = {}
+        source_result = {'type': 'p'}
         temp_medians = [] # to store medians
         temp_bests = {} # to store best values (that maximimize probability)
         temp_max_probs = [] # to store max prob values
@@ -633,9 +573,8 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
     chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
     n = len(re)
     k = n_params
-    red_chi2 = chi2 / (n - k)
-
-    all_results.append({'n_sources': n_sources, 'result': result, 'reduced_chi2': red_chi2, 'chain': chain})
+    bic = k * np.log(n) + chi2
+    all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
 
     if clean_output:
         result = all_results[0]['result']
@@ -643,6 +582,7 @@ def auto_detect(fits_file: str, n_sources: int = None, priors: list = None, clea
         permutation_chain = all_results[0]['chain']
         for i in range(n_sources):
             source_key = f'source_{i+1}'
+            source_results = result[source_key]
             source_result = result[source_key]
             source_params = SOURCE_TYPES['p'][4]
             n_source_params = SOURCE_TYPES['p'][0]
