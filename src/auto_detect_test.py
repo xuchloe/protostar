@@ -176,7 +176,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         ext_info = list(zip(ext_peaks, ext_coords))
     else:
         ext_info = []
-    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
+    all_peaks = ext_info + int_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
     if n_sources is not None:
         if n_peaks != n_sources:
@@ -399,7 +399,6 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
 
         info, vis = generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths, ratios, thetas)
 
-        return info
         pts = 0
         result = sim_auto_detect(info, vis, corner_plot=False)[0]
         # try:
