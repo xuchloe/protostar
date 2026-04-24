@@ -198,6 +198,11 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         vis_priors[i][1] = [ra_min, ra_max]
         vis_priors[i][2] = [dec_min, dec_max]
     print(vis_priors)
+    print(img_max)
+    print(all_peaks)
+    print(position_delta)
+    print(ra_max)
+    print(dec_max)
 
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
