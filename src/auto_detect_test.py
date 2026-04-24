@@ -145,7 +145,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     return info, vis
 
 def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
-
+    return info
     # Extract data from fits file
     cdelt1 = info['CDELT1']
     cunit1 = info['CUNIT1']
