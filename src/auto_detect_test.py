@@ -134,7 +134,10 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
             else:
+                print(clean_re[j])
                 clean_re[j] += model.real
+                print(clean_re[j])
+                print('---')
                 clean_im[j] += model.imag
 
     for i in range(len(data)):
@@ -245,8 +248,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     # Initial guesses
     for i in range(n_sources):
         peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
-        if not (i < n_peaks):
-            print(f"Source {i+1} has no corresponding peak.")
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
@@ -312,10 +313,10 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
 
     # all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
-    return all_results
+
     if clean_output:
         result = all_results[0]['result']
-        # start = 0
+        start = 0
         permutation_chain = all_results[0]['chain']
         for i in range(n_sources):
             source_key = f'source_{i+1}'
@@ -324,7 +325,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
             source_params = SOURCE_TYPES[src_type][4]
             n_source_params = SOURCE_TYPES[src_type][0]
             n_walkers = 2 * n_source_params
-            source_chain = permutation_chain #[:, start:start+n_source_params]
+            source_chain = permutation_chain[:, start:start+n_source_params]
 
             # peak
             peak_chain = source_chain[:, 0]
@@ -346,7 +347,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
             #     source_result['sigma'] = (round_tuple(tuple([float(Angle(s, units.radian).to(units.arcsec).value) for s in source_result['sigma']])), sigma_sigmas)
             del source_result['best']
 
-            # start += n_source_params
+            start += n_source_params
 
     if corner_plot:
         result = all_results[0]['result']
