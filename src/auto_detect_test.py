@@ -192,10 +192,12 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         position_delta = min(rad_bmaj/snr, min_position_delta) if snr > 0 else min_position_delta
         img_min = int(- naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
         img_max = int(naxis1/ 2)* rad_pix # assumes odd number of pixels and center pixel is at (0,0)
-        ra_min = max(img_min, Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value - position_delta) if i < n_peaks else img_min # loosest prior is image edges
-        ra_max = min(img_max, Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value + position_delta) if i < n_peaks else img_max
-        dec_min = max(img_min, Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value - position_delta) if i < n_peaks else img_min
-        dec_max = min(img_max, Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value + position_delta) if i < n_peaks else img_max
+        temp_ra = Angle(all_peaks[i][1][0], units.arcsec).to(units.radian).value if i < n_peaks else None
+        temp_dec = Angle(all_peaks[i][1][1], units.arcsec).to(units.radian).value if i < n_peaks else None
+        ra_min = max(img_min, temp_ra - position_delta) if temp_ra is not None else img_min # loosest prior is image edges
+        ra_max = min(img_max, temp_ra + position_delta) if temp_ra is not None else img_max
+        dec_min = max(img_min, temp_dec - position_delta) if temp_dec is not None else img_min
+        dec_max = min(img_max, temp_dec + position_delta) if temp_dec is not None else img_max
         vis_priors[i][1] = [ra_min, ra_max]
         vis_priors[i][2] = [dec_min, dec_max]
     print('vis_priors:', vis_priors)
@@ -203,6 +205,8 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     print('img_max:', img_max)
     print('all_peaks:', all_peaks)
     print('position_delta:', position_delta)
+    print('ra_min:', ra_min)
+    print('dec_min:', dec_min)
     print('ra_max:', ra_max)
     print('dec_max:', dec_max)
     print('naxis1:', naxis1)
