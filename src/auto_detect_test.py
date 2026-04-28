@@ -441,10 +441,10 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             key = peak_keys[i]
             pax[i].hist(all_peaks[key], bins=20, color='b', edgecolor='k', weights=np.ones(len(all_peaks[key]))/all_peaks[key])
             pax[i].set_title(f'Peak, {key}')
-            pax.yaxis.set_major_formatter(PercentFormatter())
-            pax.set_ylabel('Frequencies')
-            pax.set_xlabel('Difference from true value [Jy]')
-            pax.tick_params(axis='x', labelrotation=45)
+            pax[i].yaxis.set_major_formatter(PercentFormatter())
+            pax[i].set_ylabel('Frequencies')
+            pax[i].set_xlabel('Difference from true value [Jy]')
+            pax[i].tick_params(axis='x', labelrotation=45)
     if all_ras:
         ra_keys = list(all_ras.keys())
         rfig,rax = plt.subplots(nrows=1, ncols=len(ra_keys))
@@ -454,10 +454,10 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             key = ra_keys[i]
             rax[i].hist(all_ras[key], bins=20, color='g', edgecolor='k', weights=np.ones(len(all_ras[key]))/all_ras[key])
             rax[i].set_title(f'RA, {key}')
-            rax.yaxis.set_major_formatter(PercentFormatter())
-            rax.set_ylabel('Frequencies')
-            rax.set_xlabel('Difference from true value [arcsec]')
-            rax.tick_params(axis='x', labelrotation=45)
+            rax[i].yaxis.set_major_formatter(PercentFormatter())
+            rax[i].set_ylabel('Frequencies')
+            rax[i].set_xlabel('Difference from true value [arcsec]')
+            rax[i].tick_params(axis='x', labelrotation=45)
     if all_decs:
         dec_keys = list(all_decs.keys())
         dfig,dax = plt.subplots(nrows=1, ncols=len(dec_keys))
@@ -467,10 +467,10 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             key = dec_keys[i]
             dax[i].hist(all_decs[key], bins=20, color='r', edgecolor='k', weights=np.ones(len(all_decs[key]))/all_decs[key])
             dax[i].set_title(f'Dec, {key}')
-            dax.yaxis.set_major_formatter(PercentFormatter())
-            dax.set_ylabel('Frequencies')
-            dax.set_xlabel('Difference from true value [arcsec]')
-            dax.tick_params(axis='x', labelrotation=45)
+            dax[i].yaxis.set_major_formatter(PercentFormatter())
+            dax[i].set_ylabel('Frequencies')
+            dax[i].set_xlabel('Difference from true value [arcsec]')
+            dax[i].tick_params(axis='x', labelrotation=45)
     # if all_sigmas:
     #     sigma_keys = list(all_sigmas.keys())
     #     sfig,sax = plt.subplots(nrows=1, ncols=len(sigma_keys))
