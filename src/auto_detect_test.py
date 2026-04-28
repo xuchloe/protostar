@@ -439,7 +439,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             pax = [pax]
         for i in range(len(peak_keys)):
             key = peak_keys[i]
-            pax[i].hist(all_peaks[key], bins=20, color='b', edgecolor='k', weights=np.ones(len(all_peaks[key]))/all_peaks[key])
+            pax[i].hist(all_peaks[key], bins=20, color='b', edgecolor='k', weights=np.ones(len(all_peaks[key]))/len(all_peaks[key]))
             pax[i].set_title(f'Peak, {key}')
             pax[i].yaxis.set_major_formatter(PercentFormatter())
             pax[i].set_ylabel('Frequencies')
@@ -452,7 +452,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             rax = [rax]
         for i in range(len(ra_keys)):
             key = ra_keys[i]
-            rax[i].hist(all_ras[key], bins=20, color='g', edgecolor='k', weights=np.ones(len(all_ras[key]))/all_ras[key])
+            rax[i].hist(all_ras[key], bins=20, color='g', edgecolor='k', weights=np.ones(len(all_ras[key]))/len(all_ras[key]))
             rax[i].set_title(f'RA, {key}')
             rax[i].yaxis.set_major_formatter(PercentFormatter())
             rax[i].set_ylabel('Frequencies')
@@ -465,7 +465,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             dax = [dax]
         for i in range(len(dec_keys)):
             key = dec_keys[i]
-            dax[i].hist(all_decs[key], bins=20, color='r', edgecolor='k', weights=np.ones(len(all_decs[key]))/all_decs[key])
+            dax[i].hist(all_decs[key], bins=20, color='r', edgecolor='k', weights=np.ones(len(all_decs[key]))/len(all_decs[key]))
             dax[i].set_title(f'Dec, {key}')
             dax[i].yaxis.set_major_formatter(PercentFormatter())
             dax[i].set_ylabel('Frequencies')
