@@ -13,6 +13,7 @@ from uncertainties import ufloat
 from uv_fit import *
 import sigfig
 from matplotlib import pyplot as plt
+from matplotlib.ticker import PercentFormatter
 
 # Source parameters -- do not change these
 P_PARAMS = ['peak', 'ra', 'dec']
@@ -438,8 +439,12 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             pax = [pax]
         for i in range(len(peak_keys)):
             key = peak_keys[i]
-            pax[i].hist(all_peaks[key], bins=20, color='b', edgecolor='k')
+            pax[i].hist(all_peaks[key], bins=20, color='b', edgecolor='k', weights=np.ones(len(all_peaks[key]))/all_peaks[key])
             pax[i].set_title(f'Peak, {key}')
+            pax.yaxis.set_major_formatter(PercentFormatter())
+            pax.set_ylabel('Frequencies')
+            pax.set_xlabel('Difference from true value [Jy]')
+            pax.tick_params(axis='x', labelrotation=45)
     if all_ras:
         ra_keys = list(all_ras.keys())
         rfig,rax = plt.subplots(nrows=1, ncols=len(ra_keys))
@@ -447,8 +452,12 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             rax = [rax]
         for i in range(len(ra_keys)):
             key = ra_keys[i]
-            rax[i].hist(all_ras[key], bins=20, color='g', edgecolor='k')
+            rax[i].hist(all_ras[key], bins=20, color='g', edgecolor='k', weights=np.ones(len(all_ras[key]))/all_ras[key])
             rax[i].set_title(f'RA, {key}')
+            rax.yaxis.set_major_formatter(PercentFormatter())
+            rax.set_ylabel('Frequencies')
+            rax.set_xlabel('Difference from true value [arcsec]')
+            rax.tick_params(axis='x', labelrotation=45)
     if all_decs:
         dec_keys = list(all_decs.keys())
         dfig,dax = plt.subplots(nrows=1, ncols=len(dec_keys))
@@ -456,8 +465,12 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             dax = [dax]
         for i in range(len(dec_keys)):
             key = dec_keys[i]
-            dax[i].hist(all_decs[key], bins=20, color='r', edgecolor='k')
+            dax[i].hist(all_decs[key], bins=20, color='r', edgecolor='k', weights=np.ones(len(all_decs[key]))/all_decs[key])
             dax[i].set_title(f'Dec, {key}')
+            dax.yaxis.set_major_formatter(PercentFormatter())
+            dax.set_ylabel('Frequencies')
+            dax.set_xlabel('Difference from true value [arcsec]')
+            dax.tick_params(axis='x', labelrotation=45)
     # if all_sigmas:
     #     sigma_keys = list(all_sigmas.keys())
     #     sfig,sax = plt.subplots(nrows=1, ncols=len(sigma_keys))
@@ -579,17 +592,23 @@ def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, 
         snr_std = [std/noise for std in peak_std_by_snr]
         pax.errorbar(snr_vals, snr_measured, yerr=snr_std, fmt='o', color='b', ecolor='b', capsize=5)
         pax.set_xscale('log')
-        pax.set_title('Delta SNR vs True SNR')
+        pax.set_title('Difference in SNR vs True SNR')
+        pax.set_ylabel('Difference in SNR')
+        pax.set_xlabel('True SNR')
     if ras_by_snr:
         rfig, rax = plt.subplots()
         rax.errorbar(snr_vals, ras_by_snr, yerr=ra_std_by_snr, fmt='o', color='g', ecolor='g', capsize=5)
         rax.set_xscale('log')
-        rax.set_title('Delta RA vs SNR')
+        rax.set_title('Difference in RA vs SNR')
+        rax.set_ylabel('Difference in SNR')
+        rax.set_xlabel('True SNR')
     if decs_by_snr:
         dfig, dax = plt.subplots()
         dax.errorbar(snr_vals, decs_by_snr, yerr=dec_std_by_snr, fmt='o', color='r', ecolor='r', capsize=5)
         dax.set_xscale('log')
-        dax.set_title('Delta Dec vs SNR')
+        dax.set_title('Difference in Dec vs SNR')
+        dax.set_ylabel('Difference in SNR')
+        dax.set_xlabel('True SNR')
     # if sigmas_by_snr:
     #     sfig, sax = plt.subplots()
     #     sax.errorbar(snr_vals_for_sigma, sigmas_by_snr, yerr=sigma_std_by_snr, fmt='o', color='c', ecolor='c', capsize=5)
