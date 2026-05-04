@@ -433,7 +433,7 @@ def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True,
     rad_barea = info['rad_barea']
     naxis1 = info['naxis1']
     rad_bmaj = info['rad_bmaj']
-    rad_bmin = info['rad_bin']
+    rad_bmin = info['rad_bmin']
 
     vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)] # no priors for auto-detection
 
