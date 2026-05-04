@@ -649,6 +649,7 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
         try:
             results += auto_detect(vis=input_vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
         except:
+            print(f'oops for {i+1}')
             continue
 
     if results:
