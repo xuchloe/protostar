@@ -646,14 +646,10 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
 
     results = []
     for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
-        if i == 0:
-            continue
         try:
-            results += auto_detect(vis=input_vis, info=info, n_sources=i, clean_output=clean_output, corner_plot=corner_plot)
+            results += auto_detect(vis=input_vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
         except:
             continue
-
-    print(n_peaks)
 
     if results:
         results.sort(key=lambda x: x['bic']) # lowest to highest bic
