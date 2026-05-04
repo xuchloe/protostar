@@ -445,7 +445,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             pax[i].set_ylabel('Frequencies')
             pax[i].set_xlabel('Difference from true value [Jy]')
             pax[i].tick_params(axis='x', labelrotation=45)
-            pfig[i].tight_layout(pad=2.0)
+            pfig.tight_layout(pad=2.0)
     if all_ras:
         ra_keys = list(all_ras.keys())
         rfig,rax = plt.subplots(nrows=1, ncols=len(ra_keys))
@@ -459,7 +459,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             rax[i].set_ylabel('Frequencies')
             rax[i].set_xlabel('Difference from true value [arcsec]')
             rax[i].tick_params(axis='x', labelrotation=45)
-            rfig[i].tight_layout(pad=2.0)
+            rfig.tight_layout(pad=2.0)
     if all_decs:
         dec_keys = list(all_decs.keys())
         dfig,dax = plt.subplots(nrows=1, ncols=len(dec_keys))
@@ -473,7 +473,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             dax[i].set_ylabel('Frequencies')
             dax[i].set_xlabel('Difference from true value [arcsec]')
             dax[i].tick_params(axis='x', labelrotation=45)
-            dfig[i].tight_layout(pad=2.0)
+            dfig.tight_layout(pad=2.0)
     # if all_sigmas:
     #     sigma_keys = list(all_sigmas.keys())
     #     sfig,sax = plt.subplots(nrows=1, ncols=len(sigma_keys))
