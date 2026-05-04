@@ -443,7 +443,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             pax[i].set_title(f'Peak, {key}')
             pax[i].yaxis.set_major_formatter(PercentFormatter(xmax=1))
             pax[i].set_ylabel('Frequencies')
-            pax[i].set_xlabel('Difference from true value [Jy]')
+            pax[i].set_xlabel('Difference from \ntrue value [Jy]')
             pax[i].tick_params(axis='x', labelrotation=45)
             pfig.tight_layout(pad=2.0)
     if all_ras:
@@ -457,7 +457,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             rax[i].set_title(f'RA, {key}')
             rax[i].yaxis.set_major_formatter(PercentFormatter(xmax=1))
             rax[i].set_ylabel('Frequencies')
-            rax[i].set_xlabel('Difference from true value [arcsec]')
+            rax[i].set_xlabel('Difference from \ntrue value [arcsec]')
             rax[i].tick_params(axis='x', labelrotation=45)
             rfig.tight_layout(pad=2.0)
     if all_decs:
@@ -471,7 +471,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             dax[i].set_title(f'Dec, {key}')
             dax[i].yaxis.set_major_formatter(PercentFormatter(xmax=1))
             dax[i].set_ylabel('Frequencies')
-            dax[i].set_xlabel('Difference from true value [arcsec]')
+            dax[i].set_xlabel('Difference from \ntrue value [arcsec]')
             dax[i].tick_params(axis='x', labelrotation=45)
             dfig.tight_layout(pad=2.0)
     # if all_sigmas:
