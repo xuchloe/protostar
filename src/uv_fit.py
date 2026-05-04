@@ -653,6 +653,8 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
         except:
             continue
 
+    print(n_peaks)
+
     if results:
         results.sort(key=lambda x: x['bic']) # lowest to highest bic
         return results[0]
