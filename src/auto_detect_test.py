@@ -445,6 +445,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             pax[i].set_ylabel('Frequencies')
             pax[i].set_xlabel('Difference from true value [Jy]')
             pax[i].tick_params(axis='x', labelrotation=45)
+            pfig[i].tight_layout(pad=2.0)
     if all_ras:
         ra_keys = list(all_ras.keys())
         rfig,rax = plt.subplots(nrows=1, ncols=len(ra_keys))
@@ -458,6 +459,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             rax[i].set_ylabel('Frequencies')
             rax[i].set_xlabel('Difference from true value [arcsec]')
             rax[i].tick_params(axis='x', labelrotation=45)
+            rfig[i].tight_layout(pad=2.0)
     if all_decs:
         dec_keys = list(all_decs.keys())
         dfig,dax = plt.subplots(nrows=1, ncols=len(dec_keys))
@@ -471,6 +473,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             dax[i].set_ylabel('Frequencies')
             dax[i].set_xlabel('Difference from true value [arcsec]')
             dax[i].tick_params(axis='x', labelrotation=45)
+            dfig[i].tight_layout(pad=2.0)
     # if all_sigmas:
     #     sigma_keys = list(all_sigmas.keys())
     #     sfig,sax = plt.subplots(nrows=1, ncols=len(sigma_keys))
@@ -600,14 +603,14 @@ def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, 
         rax.errorbar(snr_vals, ras_by_snr, yerr=ra_std_by_snr, fmt='o', color='g', ecolor='g', capsize=5)
         rax.set_xscale('log')
         rax.set_title('Difference in RA vs SNR')
-        rax.set_ylabel('Difference in SNR')
+        rax.set_ylabel('Difference in RA')
         rax.set_xlabel('True SNR')
     if decs_by_snr:
         dfig, dax = plt.subplots()
         dax.errorbar(snr_vals, decs_by_snr, yerr=dec_std_by_snr, fmt='o', color='r', ecolor='r', capsize=5)
         dax.set_xscale('log')
         dax.set_title('Difference in Dec vs SNR')
-        dax.set_ylabel('Difference in SNR')
+        dax.set_ylabel('Difference in Dec')
         dax.set_xlabel('True SNR')
     # if sigmas_by_snr:
     #     sfig, sax = plt.subplots()
