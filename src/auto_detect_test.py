@@ -288,7 +288,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
     n = len(re)
     k = n_params
-    bic = k * np.log(n) + chi2
+    bic = float(k * np.log(n) + chi2)
     all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
 
     # all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
