@@ -424,80 +424,18 @@ def sigmas(param_chain):
     return (np.percentile(param_chain,2.5), np.percentile(param_chain,16), np.percentile(param_chain,50),\
             np.percentile(param_chain,84), np.percentile(param_chain, 97.5))
 
-def auto_detect(fits_file: str, n_sources: int = None, clean_output=True, corner_plot=True):
+def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True, corner_plot=True):
     # Assume everything is a point source
-    # Extract data from fits file
-    file = fits.open(fits_file)
-    cdelt1 = file[0].header['CDELT1']
-    cunit1 = file[0].header['CUNIT1']
-    naxis1 = file[0].header['NAXIS1']
-    data = file[1].data
+    u, v, re, im, w = vis
+    all_peaks = info['all_peaks']
+    n_peaks = info['n_peaks']
+    rad_pix = info['rad_pix']
+    rad_barea = info['rad_barea']
+    naxis1 = info['naxis1']
+    rad_bmaj = info['rad_bmaj']
+    rad_bmin = info['rad_bin']
 
-    summ = summary(fits_file, plot=False)
-    bmaj = file[0].header['BMAJ'] # cunit1
-    bmin = file[0].header['BMIN'] # cunit1
-    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
-    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
-    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
-    int_peaks = summ['int_peak_val']
-    int_coords = summ['int_peak_coord']
-    ext_peaks = summ['ext_peak_val']
-    ext_coords = summ['ext_peak_coord']
-    rms = summ['conservative_rms']
-
-    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
-        int_peaks = int_peaks[:1]
-        int_coords = int_coords[:1]
-
-    # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
-
-    int_info = list(zip(int_peaks, int_coords))
-    if type(ext_peaks) is list:
-        ext_info = list(zip(ext_peaks, ext_coords))
-    else:
-        ext_info = []
-    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
-    all_peaks.sort(reverse=True) # sort by peak value
-    n_peaks = len(all_peaks)
-    if n_sources is not None:
-        if n_peaks != n_sources:
-            warnings.warn(f"Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
-    else:
-        n_sources = n_peaks
-
-    vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
-
-    vis = np.array(data)
-    freq_bin, u, v, re, im, w = [], [], [], [], [], []
-    for row in vis:
-        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
-        freq_bin.append(int(freq_bin_data))
-        u.append(int(u_data))
-        v.append(int(v_data))
-        re.append(float(re_data/w_data))
-        im.append(float(im_data/w_data))
-        w.append(float(w_data))
-
-    # Adding in conjugate half of data
-    freq_bin *= 2
-    neg_u = [-1 * val for val in u]
-    u += neg_u
-    neg_v = [-1 * val for val in v]
-    v += neg_v
-    re *= 2
-    neg_im = [-1 * val for val in im]
-    im += neg_im
-    w *= 2
-
-    freq_bin = np.array(freq_bin)
-    u = np.array(u)
-    v = np.array(v)
-    re = np.array(re)
-    im = np.array(im)
-    w = np.array(w)
-
-    file.close() # good practice
+    vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)] # no priors for auto-detection
 
     # Calculate n_params and n_walkers
     permutation = tuple(['p'] * n_sources)
@@ -627,6 +565,99 @@ def auto_detect(fits_file: str, n_sources: int = None, clean_output=True, corner
     del all_results[0]['chain']
 
     return all_results
+
+def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner_plot=True):
+    # input a not None n_sources is like an override for the searching for best fit
+
+    # Extract data from fits file
+    file = fits.open(fits_file)
+    cdelt1 = file[0].header['CDELT1']
+    cunit1 = file[0].header['CUNIT1']
+    naxis1 = file[0].header['NAXIS1']
+    data = file[1].data
+
+    summ = summary(fits_file, plot=False)
+    bmaj = file[0].header['BMAJ'] # cunit1
+    bmin = file[0].header['BMIN'] # cunit1
+    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+    int_peaks = summ['int_peak_val']
+    int_coords = summ['int_peak_coord']
+    ext_peaks = summ['ext_peak_val']
+    ext_coords = summ['ext_peak_coord']
+    rms = summ['conservative_rms']
+
+    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+        int_peaks = int_peaks[:1]
+        int_coords = int_coords[:1]
+
+    # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
+
+    int_info = list(zip(int_peaks, int_coords))
+    if type(ext_peaks) is list:
+        ext_info = list(zip(ext_peaks, ext_coords))
+    else:
+        ext_info = []
+    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
+    all_peaks.sort(reverse=True) # sort by peak value
+    n_peaks = len(all_peaks)
+    if n_sources is not None:
+        if n_peaks != n_sources:
+            warnings.warn(f"Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
+    else:
+        n_sources = n_peaks
+
+    vis = np.array(data)
+    freq_bin, u, v, re, im, w = [], [], [], [], [], []
+    for row in vis:
+        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
+        freq_bin.append(int(freq_bin_data))
+        u.append(int(u_data))
+        v.append(int(v_data))
+        re.append(float(re_data/w_data))
+        im.append(float(im_data/w_data))
+        w.append(float(w_data))
+
+    # Adding in conjugate half of data
+    freq_bin *= 2
+    neg_u = [-1 * val for val in u]
+    u += neg_u
+    neg_v = [-1 * val for val in v]
+    v += neg_v
+    re *= 2
+    neg_im = [-1 * val for val in im]
+    im += neg_im
+    w *= 2
+
+    freq_bin = np.array(freq_bin)
+    u = np.array(u)
+    v = np.array(v)
+    re = np.array(re)
+    im = np.array(im)
+    w = np.array(w)
+
+    file.close() # good practice
+
+    input_vis = [u,v,re,im,w]
+    info = {'all_peaks': all_peaks, 'n_peaks': n_peaks, 'rad_pix': rad_pix, 'rad_barea': rad_barea, 'naxis1': naxis1,\
+            'rad_bmaj': rad_bmaj, 'rad_bmin': rad_bmin}
+
+    results = []
+    for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
+        if i == 0:
+            continue
+        try:
+            results += auto_detect(vis=input_vis, info=info, n_sources=i, clean_output=clean_output, corner_plot=corner_plot)
+        except:
+            continue
+
+    if results:
+        results.sort(key=lambda x: x['bic']) # lowest to highest bic
+        return results[0]
+    else:
+        raise ValueError('All attempts failed to converge.')
 
 def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
