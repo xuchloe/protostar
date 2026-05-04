@@ -622,6 +622,8 @@ def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, 
         ptsax.errorbar(snr_vals, points_by_snr, yerr=point_std_by_snr, fmt='o', color='k', ecolor='k', capsize=5)
         ptsax.set_xscale('log')
         ptsax.set_title('Average Points vs SNR')
+        ptsax.set_ylabel('Average Points')
+        ptsax.set_xlabel('True SNR')
 
 def average_by_width(fits_file, sources, coords, peaks, noise, width_vals=[0.1,0.2,0.5,1,1.5,2,3,4,5], ratios=None, thetas=None, reps_per_width=50):
     # single source only for now, can be extended to multiple sources in the future
