@@ -74,11 +74,11 @@ def thumbnail(fits_file: str, peak_coord: tuple, pts_bw_nodes: int = 4):
     header_data = fits.getheader(fits_file)
 
     beam_maj = Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec')
-    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = Angle(abs(header_data['CDELT1']), header_data['CUNIT1']).to_value('arcsec')
     x_dim = header_data['NAXIS1']
     y_dim = header_data['NAXIS2']
 
-    center = (round(x_dim/2), round(y_dim/2))
+    center = ((x_dim-1)/2, (y_dim-1)/2)
 
     # unnormalized the normalized coordinates
     unnorm_x = round((peak_coord[0] / pixel_scale) + center[0])

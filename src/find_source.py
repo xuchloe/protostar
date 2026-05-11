@@ -176,7 +176,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #keep center pixel coordinates if specified, set to default if unspecified
     center_pix = center
-    field_center = (round(x_dim/2), round(y_dim/2))
+    field_center = ((x_dim-1)/2, (y_dim-1)/2)
     if center == []:
         center_pix = [field_center]
         if len(radius) > 1:
@@ -187,8 +187,8 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
     y_unit = info.header['CUNIT2']
 
     #find cell size (units of arcsec)
-    x_cell_size = (Angle(info.header['CDELT1'], x_unit)).to(u.arcsec)
-    y_cell_size = (Angle(info.header['CDELT2'], y_unit)).to(u.arcsec)
+    x_cell_size = (Angle(abs(info.header['CDELT1']), x_unit)).to(u.arcsec)
+    y_cell_size = (Angle(abs(info.header['CDELT2']), y_unit)).to(u.arcsec)
 
     #find beam size (unitless but in arcsec^2)
     beam_size = float(((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)\
@@ -235,39 +235,11 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
     #fit for peak and coordinates assuming Gaussian
     #use data from 5x5 region if internal peak
-    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) <= x_dim and (peak_y - 2) >= 0 and (peak_y + 2) <= y_dim:
-        neg2_2 = data[0][peak_x - 2][peak_y + 2]
-        neg2_1 = data[0][peak_x - 2][peak_y + 1]
-        neg2_0 = data[0][peak_x - 2][peak_y]
-        neg2_neg1 = data[0][peak_x - 2][peak_y - 1]
-        neg2_neg2 = data[0][peak_x - 2][peak_y - 2]
-        neg1_2 = data[0][peak_x - 1][peak_y + 2]
-        neg1_1 = data[0][peak_x - 1][peak_y + 1]
-        neg1_0 = data[0][peak_x - 1][peak_y]
-        neg1_neg1 = data[0][peak_x - 1][peak_y - 1]
-        neg1_neg2 = data[0][peak_x - 1][peak_y - 2]
-        zero_2 = data[0][peak_x][peak_y + 2]
-        zero_1 = data[0][peak_x][peak_y + 1]
-        zero_neg1 = data[0][peak_x][peak_y - 1]
-        zero_neg2 = data[0][peak_x][peak_y - 2]
-        pos1_2 = data[0][peak_x + 1][peak_y + 2]
-        pos1_1 = data[0][peak_x + 1][peak_y + 1]
-        pos1_0 = data[0][peak_x + 1][peak_y]
-        pos1_neg1 = data[0][peak_x + 1][peak_y - 1]
-        pos1_neg2 = data[0][peak_x + 1][peak_y - 2]
-        pos2_2 = data[0][peak_x + 2][peak_y + 2]
-        pos2_1 = data[0][peak_x + 2][peak_y + 1]
-        pos2_0 = data[0][peak_x + 2][peak_y]
-        pos2_neg1 = data[0][peak_x + 2][peak_y - 1]
-        pos2_neg2 = data[0][peak_x + 2][peak_y - 2]
-
-        z_data = [neg2_2, neg2_1, neg2_0, neg2_neg1, neg2_neg2,\
-                neg1_2, neg1_1, neg1_0, neg1_neg1, neg1_neg2,\
-                zero_2, zero_1, peak, zero_neg1, zero_neg2,\
-                pos1_2, pos1_1, pos1_0, pos1_neg1, pos1_neg2,\
-                pos2_2, pos2_1, pos2_0, pos2_neg1, pos2_neg2]
-        x_data = [-2]*5 + [-1]*5 + [0]*5 + [1]*5 + [2]*5
-        y_data = [2, 1, 0, -1, -2]*5
+    data_array = np.array(data[0])
+    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) < x_dim and (peak_y - 2) >= 0 and (peak_y + 2) < y_dim:
+        z_data = data_array[peak_y - 2:peak_y + 3, peak_x - 2:peak_x + 3].flatten()
+        y_data = [-2]*5 + [-1]*5 + [0]*5 + [1]*5 + [2]*5
+        x_data = [-2,-1,0,1,2]*5
 
         try:
             popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
@@ -278,19 +250,10 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
             pass
 
     #use data from 3x3 region if external peak
-    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) <= x_dim and (peak_y - 1) >= 0 and (peak_y + 1) <= y_dim:
-        left_top = data[0][peak_x - 1][peak_y + 1]
-        left_middle = data[0][peak_x - 1][peak_y]
-        left_bottom = data[0][peak_x - 1][peak_y - 1]
-        middle_top = data[0][peak_x][peak_y + 1]
-        middle_bottom = data[0][peak_x][peak_y - 1]
-        right_top = data[0][peak_x + 1][peak_y + 1]
-        right_middle = data[0][peak_x + 1][peak_y]
-        right_bottom = data[0][peak_x + 1][peak_y - 1]
-
-        z_data = [left_top, left_middle, left_bottom, middle_top, peak, middle_bottom, right_top, right_middle, right_bottom]
-        x_data = [-1]*3 + [0]*3 + [1]*3
-        y_data = [1, 0, -1] * 3
+    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) < x_dim and (peak_y - 1) >= 0 and (peak_y + 1) < y_dim:
+        z_data = data_array[peak_y - 1:peak_y + 2, peak_x - 1:peak_x + 2].flatten()
+        y_data = [-1]*3 + [0]*3 + [1]*3
+        x_data = [-1,0,1]*3
 
         try:
             popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
@@ -502,18 +465,24 @@ next_ext_peak: 0.11062327027320862
     prob_dict['rms_val'] = rms
 
     #find prob for 1st internal peak using updated rms
-    prob_dict['int_peak_val'].append(int_peak1)
-    prob_dict['int_peak_coord'].append(int_coord1)
     int_prob1 = calc_prob_from_rms_uncert(peak=int_peak1, rms=rms, n_excl=n_excl, n_incl=n_incl)
-    prob_dict['int_prob'].append(int_prob1)
-    prob_dict['int_snr'].append(int_peak1 / rms)
 
     if threshold == None:
         threshold = 0.01
     int_significant = (int_prob1 < threshold)
 
+    if int_significant: # Gaussian interpolation for internal peak to get better estimate of its flux and coordinates, using updated rms
+        int_stats_final = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=True, internal=True)
+        int_coord_final = int_stats_final['peak_coord']
+        int_peak_final = int_stats_final['peak']
+        prob_dict['int_peak_val'].append(int_peak_final)
+        prob_dict['int_peak_coord'].append(int_coord_final)
+        int_prob1 = calc_prob_from_rms_uncert(peak=int_peak_final, rms=rms, n_excl=n_excl, n_incl=n_incl)
+        prob_dict['int_prob'].append(int_prob1)
+        prob_dict['int_snr'].append(int_peak_final / rms)
+
     #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
-    center = [int_coord1]
+    center = [int_coord_final]
     radius = [beam_fwhm]
 
     #find internal peaks in addition to 1st internal peak
@@ -522,7 +491,7 @@ next_ext_peak: 0.11062327027320862
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
         int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
-        if int_prob < threshold and (int_peak > int_snr1 / 100):
+        if int_prob < threshold and (int_peak > (int_peak_final/rms) / 100):
             int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
                                      outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
@@ -790,7 +759,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
     center = info['field_center']
 
     header_data = fits.getheader(fits_file)
-    pixel_scale = Angle(header_data['CDELT1'], header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = Angle(abs(header_data['CDELT1']), header_data['CUNIT1']).to_value('arcsec')
 
     int_x_coords = []
     int_y_coords = []
@@ -885,7 +854,10 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                                 edgecolor='k', angle=header_data['BPA'], hatch='/////', lw=1)
         ax.add_artist(beam)
 
-        title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
+        try:
+            title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
+        except:
+            title = fits_file
         ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {conservative_snr}', horizontalalignment='left', verticalalignment='top',\
                 fontsize=10, bbox=dict(facecolor='w'))
 
