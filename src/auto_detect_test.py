@@ -363,10 +363,12 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
     if n_sources is not None:
         for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
             temp = sim_auto_detect(vis=vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
-            if results:
-                if temp:
+            if temp:
+                if results:
                     if results['bic'] - temp['bic'] > 10:
                         results = temp
+                else:
+                    results = temp
     else:
         results = sim_auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
 
