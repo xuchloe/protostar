@@ -362,9 +362,9 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
     results = []
     if n_sources is not None:
         for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
-            results += auto_detect(vis=vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
+            results += sim_auto_detect(vis=vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
     else:
-        results = auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
+        results = sim_auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
 
     if results:
         results.sort(key=lambda x: x['bic']) # lowest to highest bic
