@@ -447,9 +447,11 @@ def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True,
     total_flux = None
 
     # Initial guesses
+    fluxes = [flux_coord[0] for flux_coord in all_peaks]
+    min_index = np.argmin(fluxes)
     for i in range(n_sources):
-        peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
-        coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+        peak = all_peaks[i][0] if i < n_peaks else all_peaks[min_index][0]
+        coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
             p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
