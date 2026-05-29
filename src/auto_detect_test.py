@@ -360,7 +360,7 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
         n_peaks += len(ext_peaks)
 
     results = []
-    if n_sources is not None:
+    if n_sources is None:
         for i in range(n_peaks,0,-1): # assumption: summary more often has false positives than false negatives
             temp = sim_auto_detect(vis=vis, info=info, n_sources=i, clean_output=clean_output, corner_plot=corner_plot)
             if temp:
