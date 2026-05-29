@@ -365,7 +365,7 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
             temp = sim_auto_detect(vis=vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
             if temp:
                 if results:
-                    if results['bic'] - temp['bic'] > 10:
+                    if results[0]['bic'] - temp[0]['bic'] > 10:
                         results = temp
                 else:
                     results = temp
