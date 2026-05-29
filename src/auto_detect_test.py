@@ -344,6 +344,34 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
 
     return all_results
 
+def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
+
+    int_peaks = info['int_peak_val']
+    int_coords = info['int_peak_coord']
+    ext_peaks = info['ext_peak_val']
+    ext_coords = info['ext_peak_coord']
+
+    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+        int_peaks = int_peaks[:1]
+        int_coords = int_coords[:1]
+
+    n_peaks = len(int_peaks)
+    if type(ext_peaks) is list:
+        n_peaks += len(ext_peaks)
+
+    results = []
+    if n_sources is not None:
+        for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
+            results += auto_detect(vis=vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
+    else:
+        results = auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
+
+    if results:
+        results.sort(key=lambda x: x['bic']) # lowest to highest bic
+        return results[0]
+    else:
+        raise ValueError('All attempts failed to converge.')
+
 def score(z):
     k = int(abs(z)) # sigma bin
     numerator = 2 * (norm.cdf(k+1) - norm.cdf(k)) # probability of being in this sigma bin

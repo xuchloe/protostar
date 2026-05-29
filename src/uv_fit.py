@@ -567,7 +567,7 @@ def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True,
     return all_results
 
 def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner_plot=True):
-    # input a not None n_sources is like an override for the searching for best fit
+    # inputting a non-None n_sources is like an override for the searching for best fit
 
     # Extract data from fits file
     file = fits.open(fits_file)
@@ -603,10 +603,7 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
     all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
     all_peaks.sort(reverse=True) # sort by peak value
     n_peaks = len(all_peaks)
-    if n_sources is not None:
-        if n_peaks != n_sources:
-            warnings.warn(f"Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
-    else:
+    if n_sources is None:
         n_sources = n_peaks
 
     vis = np.array(data)
@@ -645,13 +642,11 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
             'rad_bmaj': rad_bmaj, 'rad_bmin': rad_bmin}
 
     results = []
-    for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
-        results += auto_detect(vis=input_vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
-        # try:
-        #     results += auto_detect(vis=input_vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
-        # except:
-        #     print(f'oops for {i+1}')
-        #     continue
+    if n_sources is not None:
+        for i in range(n_peaks): # assumption: summary more often has false positives than false negatives
+            results += auto_detect(vis=input_vis, info=info, n_sources=i+1, clean_output=clean_output, corner_plot=corner_plot)
+    else:
+        results = auto_detect(vis=input_vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
 
     if results:
         results.sort(key=lambda x: x['bic']) # lowest to highest bic
