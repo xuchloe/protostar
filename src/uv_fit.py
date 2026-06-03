@@ -32,10 +32,16 @@ def g_model(g_params, u, v, rad_bmaj, rad_barea):
             * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
 def d_model(d_params, u, v, rad_bmaj, rad_barea):
-    peak, ra, dec, r = d_params
-    if r <= rad_bmaj / 2: # unresolved
-        return peak / (np.pi * r* np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    return peak * (np.pi * r**2) / (rad_barea * np.pi * r * np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    peak, ra, dec, r, ratio, vis_theta = d_params
+    u_theta = u*np.cos(vis_theta) + v*np.sin(vis_theta)
+    v_theta = -u*np.sin(vis_theta) + v*np.cos(vis_theta)
+    q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
+    if r <= rad_bmaj / 2 : # unresolved:
+        return peak * (np.pi * r**2 * ratio) / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    return peak * (np.pi * r**2 * ratio) / (rad_barea*np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    # if r <= rad_bmaj / 2: # unresolved
+    #     return peak / (np.pi * r* np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    # return peak * (np.pi * r**2) / (rad_barea * np.pi * r * np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
 def p_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
     p0 = np.zeros((n_walkers, 3))
@@ -50,7 +56,7 @@ def c_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
     source_area = rad_barea * total_flux / peak
     sigma = np.sqrt(source_area / (2*np.pi))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
+        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
         p0[i,3] = np.random.uniform(0.95*sigma, 1.05*sigma)
@@ -61,7 +67,7 @@ def g_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
     source_area = rad_barea * total_flux / peak
     sigma = np.sqrt(source_area / (2*np.pi))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
+        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
         p0[i,3] = np.random.uniform(0.95*sigma, 1.05*sigma)
@@ -76,10 +82,14 @@ def d_p0(peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers):
     source_area = rad_barea * total_flux / peak
     r = np.sqrt(source_area / np.pi)
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak) # biased higher to account for missing small baselines
+        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
         p0[i,3] = np.random.uniform(0.95*r, 1.05*r)
+        p0[i,4] = np.random.uniform(0, 1)
+        while p0[i,4] == 0:
+            p0[i,4] = np.random.uniform(0, 1)
+        p0[i,5] = np.random.uniform(-np.pi/2, np.pi/2)
     return p0
 
 def all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain):
@@ -317,18 +327,31 @@ def g_prior(params, vis_priors, rad_bmaj, rad_bmin):
     return 0.0
 
 def d_prior(params, vis_priors, rad_bmaj, rad_bmin):
-    peak, ra, dec, r = params
-    if r <= 0: # hardcoded prior
+    peak, ra, dec, r, ratio, vis_theta = params
+    # hardcoded priors
+    if r <= 0:
+        return -np.inf
+    if ratio <= 0:
+        return -np.inf
+    if ratio > 1:
+        return -np.inf
+    if vis_theta < -np.pi/2:
+        return -np.inf
+    if vis_theta > np.pi/2:
         return -np.inf
     if vis_priors is not None:
         peak_priors = vis_priors[0]
         ra_priors = vis_priors[1]
         dec_priors = vis_priors[2]
         r_priors = vis_priors[3]
+        ratio_priors = vis_priors[4]
+        vis_theta_priors = vis_priors[5]
         peak_min, peak_max = peak_priors
         ra_min, ra_max = ra_priors
         dec_min, dec_max = dec_priors
         r_min, r_max = r_priors
+        ratio_min, ratio_max = ratio_priors
+        vis_theta_min, vis_theta_max = vis_theta_priors
 
         if peak_min is not None and peak < peak_min:
             return -np.inf
@@ -366,6 +389,24 @@ def d_prior(params, vis_priors, rad_bmaj, rad_bmin):
                 return -np.inf
             if r_max is not None and r == r_max:
                 return -np.inf
+        if ratio_min is not None and ratio < ratio_min:
+            return -np.inf
+        if ratio_max is not None and ratio > ratio_max:
+            return -np.inf
+        if type(ratio_priors) is tuple:
+            if ratio_min is not None and ratio == ratio_min:
+                return -np.inf
+            if ratio_max is not None and ratio == ratio_max:
+                return -np.inf
+        if vis_theta_min is not None and vis_theta < vis_theta_min:
+            return -np.inf
+        if vis_theta_max is not None and vis_theta > vis_theta_max:
+            return -np.inf
+        if type(vis_theta_priors) is tuple:
+            if vis_theta_min is not None and vis_theta == vis_theta_min:
+                return -np.inf
+            if vis_theta_max is not None and vis_theta == vis_theta_max:
+                return -np.inf
     return 0.0
 
 def log_likelihood(model, re, im, u, v, w):
@@ -374,12 +415,12 @@ def log_likelihood(model, re, im, u, v, w):
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
 G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
-D_PARAMS = ['peak', 'ra', 'dec', 'r']
+D_PARAMS = ['peak', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
 
 SOURCE_TYPES = {'p': [3, p_p0, p_prior, p_model, P_PARAMS], \
                 'c': [4, c_p0, c_prior, c_model, C_PARAMS], \
                 'g': [6, g_p0, g_prior, g_model, G_PARAMS], \
-                'd': [4, d_p0, d_prior, d_model, D_PARAMS]}
+                'd': [6, d_p0, d_prior, d_model, D_PARAMS]}
 
 def log_probability(params, sources, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin):
     log_prior = 0.0
@@ -656,7 +697,7 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
     else:
         raise ValueError('All attempts failed to converge.')
 
-def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True, corner_plot=True, additional_runs: int = 2):
+def uv_fit(fits_file: str, sources: list, width: float=None, priors: list=None, clean_output=True, corner_plot=True, additional_runs: int = 2):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
     # but (tuple) for exclusive and [list] for inclusive
     # TODO: documentation
@@ -698,6 +739,11 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
         if source not in SOURCE_TYPES and source != 'any':
             raise ValueError(f"Source type '{source}' is not recognized. Source type must be one of the following: \
                             'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).")
+
+    # Require a width guess for all models except point source
+    point_sources = [_ == 'p' for _ in sources]
+    if not all(point_sources) and width is None:
+        raise ValueError("Value required for argument width unless only fitting point sources.")
 
     vis_priors = []
     if priors is None:
@@ -1084,7 +1130,7 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     source_result[source_params[3]] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
                                                     float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
 
-                if source_type == 'g': # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
+                if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
                     theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi), sigfigs=3)) for theta in vis_theta_sigmas])
@@ -1093,13 +1139,14 @@ def uv_fit(fits_file: str, sources: list, priors: list = None, clean_output=True
                     del source_result['vis_theta']
                     source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
 
-                    usigma_min = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
+                    width_index = 'sigma' if source_type == 'g' else 'r'
+                    uwidth_min = ufloat(source_result[width_index][0][0], source_result[width_index][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
-                    usigma_maj = usigma_min / uratio
+                    uwidth_maj = uwidth_min / uratio
                     del source_result['sigma']
                     del source_result['ratio']
-                    source_result['sigma_maj'] = (round_tuple((usigma_maj.n, usigma_maj.s)), tuple([float(sigfig.round(width / uratio.n, sigfigs=3)) for width in width_sigmas]))
-                    source_result['sigma_min'] = (round_tuple((usigma_min.n, usigma_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
+                    source_result['sigma_maj'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width / uratio.n, sigfigs=3)) for width in width_sigmas]))
+                    source_result['sigma_min'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
 
                 del source_result['best']
 
