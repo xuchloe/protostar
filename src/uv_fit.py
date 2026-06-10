@@ -26,7 +26,7 @@ def g_model(g_params, u, v, rad_bmaj, rad_barea):
     peak, ra, dec, sigma, ratio, vis_theta = g_params
     if sigma <= rad_bmaj / 2: # unresolved
         return peak * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
-            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2/ratio**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2 *ratio**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
     return peak * 2*np.pi*sigma**2 * ratio / rad_barea * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
             (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2 * ratio**2)) \
             * np.exp(-2*np.pi*1j*(u*ra + v*dec))
@@ -1013,36 +1013,36 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                         med_sd.append(source_result[param_name])
                         best_params.append(source_result[param_name][0])
 
-                    # use p fitting to help c/g/d fitting if p chi2 was better than c/g/d chi2 in first run
-                    resolved = True
-                    if source != 'p':
-                        if best_params[3] < rad_bmaj/2:  # conditions for unresolved source
-                            resolved = False
-                    if not resolved:
-                        temp_perm = best_perm[:i] + ('p',) + best_perm[i+1:]
-                        if temp_perm == best_perm:
-                            temp = best_result[f'source_{i+1}']['best']['peak']
-                        else:
-                            temp = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
-                            point_intensity = temp if type(temp) is float else temp[0]
+                    # # use p fitting to help c/g/d fitting if p chi2 was better than c/g/d chi2 in first run
+                    # resolved = True
+                    # if source != 'p':
+                    #     if best_params[3] < rad_bmaj/2:  # conditions for unresolved source
+                    #         resolved = False
+                    # if not resolved:
+                    #     temp_perm = best_perm[:i] + ('p',) + best_perm[i+1:]
+                    #     if temp_perm == best_perm:
+                    #         temp = best_result[f'source_{i+1}']['best']['peak']
+                    #     else:
+                    #         temp = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
+                    #         point_intensity = temp if type(temp) is float else temp[0]
 
-                    # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
-                    c_peak = None
-                    c_sigma = None
-                    if source == 'g' and best_perm[i] == 'c':
-                        c_peak = best_result[f'source_{i+1}']['best']['peak']
-                        c_sigma = best_result[f'source_{i+1}']['best']['sigma']
-                    if i == 0:
-                        p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
-                    else:
-                        p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
+                    # # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
+                    # c_peak = None
+                    # c_sigma = None
+                    # if source == 'g' and best_perm[i] == 'c':
+                    #     c_peak = best_result[f'source_{i+1}']['best']['peak']
+                    #     c_sigma = best_result[f'source_{i+1}']['best']['sigma']
+                    # if i == 0:
+                    #     p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
+                    # else:
+                    #     p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
 
-                    # edit vis_priors if unresolved source
-                    if not resolved:
-                        if vis_priors[i] is None:
-                            vis_priors[i] = [(None, None)] * 6
-                        vis_priors[i][1] = (-rad_pix+rad_coord[0], rad_pix+rad_coord[0]) # ra within one pixel of image domain result
-                        vis_priors[i][2] = (-rad_pix+rad_coord[1], rad_pix+rad_coord[1]) # dec within one pixel of image domain result
+                    # # edit vis_priors if unresolved source
+                    # if not resolved:
+                    #     if vis_priors[i] is None:
+                    #         vis_priors[i] = [(None, None)] * 6
+                    #     vis_priors[i][1] = (-rad_pix+rad_coord[0], rad_pix+rad_coord[0]) # ra within one pixel of image domain result
+                    #     vis_priors[i][2] = (-rad_pix+rad_coord[1], rad_pix+rad_coord[1]) # dec within one pixel of image domain result
 
             # Set up and run MCMC
             n_steps = 100
