@@ -880,6 +880,7 @@ def uv_fit(fits_file: str, sources: list, width: float=None, ratio: float=None, 
             all_permutations = [p for p in all_permutations if p[i] == sources[i]] # remove unwanted permutations
     all_permutations = list(set(all_permutations)) # remove duplicates
 
+    print(rad_width)
     all_results = []
     for permutation in all_permutations:
         # Calculate n_params and n_walkers
