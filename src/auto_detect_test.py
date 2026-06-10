@@ -221,9 +221,10 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_params += SOURCE_TYPES['p'][0]
     n_walkers = 2 * n_params
 
-    total_flux = None
-
     # Initial guesses
+    width_guess = None
+    ratio_guess = None
+    theta_guess = None
     fluxes = [flux_coord[0] for flux_coord in all_peaks]
     min_index = np.argmin(fluxes)
     for i in range(n_sources):
@@ -231,9 +232,9 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
-            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
         else:
-            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
             if i >= n_peaks: # edit ra, dec initial guesses
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -292,8 +293,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     k = n_params
     bic = float(k * np.log(n) + chi2)
     all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
-
-    # all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
 
     if clean_output:
         result = all_results[0]['result']
