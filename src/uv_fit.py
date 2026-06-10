@@ -1149,6 +1149,10 @@ def uv_fit(fits_file: str, sources: list, width: float=None, ratio: float=None, 
                     width_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(width_chain)])
                     source_result['hwhm'] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
                                                     float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
+                    if source_type == 'd':
+                        del source_result['r']
+                    else:
+                        del source_result['sigma']
 
                 if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
