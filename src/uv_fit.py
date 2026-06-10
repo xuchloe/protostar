@@ -1154,12 +1154,10 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                 if source_type != 'p': # convert visibility width to image width in arcsec
                     width_chain = source_chain[:, 3]
                     width_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(width_chain)])
-                    source_result['hwhm'] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
+                    source_result['sigma'] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
                                                     float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
                     if source_type == 'd':
                         del source_result['r']
-                    else:
-                        del source_result['sigma']
 
                 if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
@@ -1170,11 +1168,10 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     del source_result['vis_theta']
                     source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
 
-                    width_index = 'hwhm'
-                    uwidth_maj = ufloat(source_result[width_index][0][0], source_result[width_index][0][1])
+                    uwidth_maj = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
                     uwidth_min = uwidth_maj * uratio
-                    del source_result[width_index]
+                    del source_result['sigma']
                     del source_result['ratio']
                     source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width, sigfigs=3)) for width in width_sigmas]))
                     source_result['minor_axis'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(sigfig.round(width * uratio.n, sigfigs=3)) for width in width_sigmas]))
