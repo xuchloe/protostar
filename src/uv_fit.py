@@ -763,19 +763,19 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
             if width[i] is None:
                 raise ValueError("Value required for width initial guess unless only fitting point sources.")
             # Convert width from arcsec to radians, if needed
-            if width < 0:
-                raise ValueError("Width initial guess may not be negative.")
-            rad_width.append(float(Angle(width, units.arcsec).to(units.radian).value))
+            if width[i] < 0:
+                raise ValueError("Width initial guesses may not be negative.")
+            rad_width.append(float(Angle(width[i], units.arcsec).to(units.radian).value))
         else:
             rad_width.append(None)
         if sources[i] not in ['p', 'c']:
             if ratio[i] is None:
-                raise ValueError("Value required for ratio initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any'.")
+                raise ValueError("Value required for ratio initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
             # Ensure ratio is in correct range
             if ratio[i] <= 0 or ratio[i] > 1:
-                raise ValueError("Ratio initial guess must be greater than 0 and less than or equal to 1.")
+                raise ValueError("If not None, ratio initial guesses must be greater than 0 and less than or equal to 1.")
             if pa[i] is None:
-                raise ValueError("Value required for position angle initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any'.")
+                raise ValueError("Value required for position angle initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
             # Convert position angle from degrees to radians, if needed
             temp_pa = ((pa[i]+90)%180) - 90 # now angle is between -90 and 90
             rad_theta.append(temp_pa * np.pi/180)
