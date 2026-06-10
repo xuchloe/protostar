@@ -27,8 +27,8 @@ def g_model(g_params, u, v, rad_bmaj, rad_barea):
     if sigma <= rad_bmaj / 2: # unresolved
         return peak * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
             (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2/ratio**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    return peak * 2*np.pi*sigma**2 / rad_barea * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
-            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2/ratio**2)) \
+    return peak * 2*np.pi*sigma**2 * ratio / rad_barea * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
+            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2 * ratio**2)) \
             * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
 def d_model(d_params, u, v, rad_bmaj, rad_barea):
@@ -39,9 +39,6 @@ def d_model(d_params, u, v, rad_bmaj, rad_barea):
     if r <= rad_bmaj / 2 : # unresolved:
         return peak * (np.pi * r**2 * ratio) / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
     return peak * (np.pi * r**2 * ratio) / (rad_barea*np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    # if r <= rad_bmaj / 2: # unresolved
-    #     return peak / (np.pi * r* np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    # return peak * (np.pi * r**2) / (rad_barea * np.pi * r * np.sqrt(u**2+v**2)) * sp.j1(2*np.pi* r * np.sqrt(u**2+v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
 def p_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
     p0 = np.zeros((n_walkers, 3))
@@ -1176,7 +1173,7 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     uwidth_maj = uwidth_min / uratio
                     del source_result[width_index]
                     del source_result['ratio']
-                    source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width / uratio.n, sigfigs=3)) for width in width_sigmas]))
+                    source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width * uratio.n, sigfigs=3)) for width in width_sigmas]))
                     source_result['minor_axis'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
 
                 del source_result['best']
