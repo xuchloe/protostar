@@ -80,7 +80,7 @@ def g_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walk
     return p0
 
 def d_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
-    p0 = np.zeros((n_walkers, 4))
+    p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
