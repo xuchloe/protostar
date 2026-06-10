@@ -1176,8 +1176,8 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     uwidth_maj = uwidth_min / uratio
                     del source_result[width_index]
                     del source_result['ratio']
-                    source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width * uratio.n, sigfigs=3)) for width in width_sigmas]))
-                    source_result['minor_axis'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(round(width, 3)) for width in width_sigmas]))
+                    source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width, sigfigs=3)) for width in width_sigmas]))
+                    source_result['minor_axis'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(sigfig.round(width * uratio.n, sigfigs=3)) for width in width_sigmas]))
 
                 del source_result['best']
 
