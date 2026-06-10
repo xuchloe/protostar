@@ -1171,9 +1171,9 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
 
                     width_index = 'hwhm'
-                    uwidth_min = ufloat(source_result[width_index][0][0], source_result[width_index][0][1])
+                    uwidth_maj = ufloat(source_result[width_index][0][0], source_result[width_index][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
-                    uwidth_maj = uwidth_min / uratio
+                    uwidth_min = uwidth_maj * uratio
                     del source_result[width_index]
                     del source_result['ratio']
                     source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width, sigfigs=3)) for width in width_sigmas]))
