@@ -115,13 +115,13 @@ def all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad
     for i in range(n_walkers):
         for j in range(n_params):
             if resolved:
-                if j in [3, 4]:  # ensure non-negative width parameter, ratio
+                if j in [3, 4]: # ensure non-negative width parameter, ratio
                     p1[i,j] = np.random.uniform(max(-2*med_sd[j][1]+med_sd[j][0], 0), 2*med_sd[j][1]+med_sd[j][0])
                     if j == 4:
                         if p1[i,j] == 0:
-                            p1[i,j] = np.random.uniform(0.01, 0.05)  # avoid zero ratio
+                            p1[i,j] = 1e-3 # avoid zero ratio
                         if p1[i,j] > 1:
-                            p1[i,j] = np.random.uniform(0.96, 1.0)  # cap ratio at 1
+                            p1[i,j] = 1 # cap ratio at 1
                 elif j == 5 and med_sd[j][1] > 10 * np.pi/180:  # vis_theta standard devation > 10 degrees
                     vis_theta_samples = [params[j] for params in chain]
                     neg_vis_thetas = [theta for theta in vis_theta_samples if theta < 0]
@@ -1032,10 +1032,13 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     # if source == 'g' and best_perm[i] == 'c':
                     #     c_peak = best_result[f'source_{i+1}']['best']['peak']
                     #     c_sigma = best_result[f'source_{i+1}']['best']['sigma']
-                    # if i == 0:
-                    #     p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
-                    # else:
-                    #     p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
+                    resolved = True
+                    c_peak = None
+                    c_sigma = None
+                    if i == 0:
+                        p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
+                    else:
+                        p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
 
                     # # edit vis_priors if unresolved source
                     # if not resolved:
