@@ -793,17 +793,31 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     if j == 0:  # peak, keep as is
                         mini_vis_priors.append(priors[i][j])
                     elif j in [1, 2, 3]:  # ra, dec, width parameter
-                        # convert from arcsec to radian
-                        rad_min = float(Angle(priors[i][j][0], units.arcsec).to(units.radian).value)
-                        rad_max = float(Angle(priors[i][j][1], units.arcsec).to(units.radian).value)
+                        # convert from arcsec to radian, if needed
+                        rad_min = None
+                        rad_max = None
+                        if priors[i][j][0] is not None:
+                            rad_min = float(Angle(priors[i][j][0], units.arcsec).to(units.radian).value)
+                        if priors[i][j][1] is not None:
+                            rad_max = float(Angle(priors[i][j][1], units.arcsec).to(units.radian).value)
                         if type(priors[i][j]) is tuple:
                             mini_vis_priors.append((rad_min, rad_max))
-                        else:
+                        else: # is list
                             mini_vis_priors.append([rad_min, rad_max])
                     elif j == 4:  # ratio
                         mini_vis_priors.append(priors[i][j])
                     elif j == 5:  # angle
-                        mini_vis_priors.append(priors[i][j] * np.pi/180) # convert from degrees to radians
+                        # convert from degrees to radians, if needed
+                        theta_min = None
+                        theta_max = None
+                        if priors[i][j][0] is not None:
+                            theta_min = priors[i][j][0] * np.pi/180
+                        if priors[i][j][1] is not None:
+                            theta_max = priors[i][j][1] * np.pi/180
+                        if type(priors[i][j]) is tuple:
+                            mini_vis_priors.append((theta_min, theta_max))
+                        else: # is list
+                            mini_vis_priors.append([theta_min, theta_max])
                 else:
                     mini_vis_priors.append([None, None])
             vis_priors.append(mini_vis_priors)
