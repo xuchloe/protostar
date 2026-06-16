@@ -37,7 +37,7 @@ def d_model(d_params, u, v, rad_bmaj, rad_barea):
     v_theta = u*np.sin(vis_theta) + v*np.cos(vis_theta)
     q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
     if r <= rad_bmaj / 2 : # unresolved:
-        return peak * (np.pi * r**2 * ratio) / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+        return peak / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
     return peak * (np.pi * r**2 * ratio) / (rad_barea*np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
 def p_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
