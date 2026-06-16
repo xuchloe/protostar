@@ -33,8 +33,8 @@ def g_model(g_params, u, v, rad_bmaj, rad_barea):
 
 def d_model(d_params, u, v, rad_bmaj, rad_barea):
     peak, ra, dec, r, ratio, vis_theta = d_params
-    u_theta = u*np.cos(vis_theta) + v*np.sin(vis_theta)
-    v_theta = -u*np.sin(vis_theta) + v*np.cos(vis_theta)
+    u_theta = u*np.cos(vis_theta) - v*np.sin(vis_theta)
+    v_theta = u*np.sin(vis_theta) + v*np.cos(vis_theta)
     q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
     if r <= rad_bmaj / 2 : # unresolved:
         return peak * (np.pi * r**2 * ratio) / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
