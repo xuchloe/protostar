@@ -148,9 +148,15 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 clean_re[j] += model.real
                 clean_im[j] += model.imag
 
+    freq_name = 'Frequency'
+    try:
+        temp = row[freq_name]
+    except KeyError:
+        freq_name = 'Frequency bin'
+
     for i in range(len(data)):
         row = data[i]
-        new_row = (row['Frequency'], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        new_row = (row[freq_name], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
         vis.append(new_row)
 
     return info, vis
