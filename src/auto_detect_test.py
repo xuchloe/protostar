@@ -19,12 +19,12 @@ from matplotlib.ticker import PercentFormatter
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
 G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
-D_PARAMS = ['peak', 'ra', 'dec', 'r']
+D_PARAMS = ['peak', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
 
 SOURCE_TYPES = {'p': [3, p_p0, p_prior, p_model, P_PARAMS], \
                 'c': [4, c_p0, c_prior, c_model, C_PARAMS], \
                 'g': [6, g_p0, g_prior, g_model, G_PARAMS], \
-                'd': [4, d_p0, d_prior, d_model, D_PARAMS]}
+                'd': [6, d_p0, d_prior, d_model, D_PARAMS]}
 
 def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths=None, ratios=None, thetas=None):
     # peak in Jy, coords in arcsec, noise in Jy, widths in arcsec, ratios unitless, thetas in degrees
@@ -54,7 +54,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     for source in sources:
         if source in ['c', 'd', 'g']:
             num_widths += 1
-            if source == 'g':
+            if source in ['d', 'g']:
                 num_ratios += 1
                 num_thetas += 1
 
