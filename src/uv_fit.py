@@ -850,8 +850,9 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
         ext_info = []
     all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
-    if n_peaks < len(sources):
-        warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({len(sources)}).")
+    n_sources = len(sources)
+    if n_peaks < n_sources:
+        warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({n_sources}).")
 
     vis = np.array(data)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
@@ -885,7 +886,6 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
     file.close() # good practice
 
     # All possible permutations
-    n_sources = len(sources)
     sample_space = list(SOURCE_TYPES.keys()) * n_sources
     all_permutations = list(itertools.permutations(sample_space, n_sources))
 
@@ -1283,11 +1283,10 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
         ext_info = []
     all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
-    if n_sources is not None:
-        if n_peaks != n_sources:
-            print(f"Warning: Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
-    else:
-        n_sources = n_peaks
+    n_sources = len(sources)
+    if n_peaks < n_sources:
+        warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({n_sources}).")
+
 
     vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
 
@@ -1320,7 +1319,6 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
     w = np.array(w)
 
     # All possible permutations
-    n_sources = len(sources)
     sample_space = list(SOURCE_TYPES.keys()) * n_sources
     all_permutations = list(itertools.permutations(sample_space, n_sources))
 
