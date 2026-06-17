@@ -121,6 +121,12 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     clean_re = []
     clean_im = []
 
+    u_index = False
+    try:
+        data[0]['U']
+    except KeyError:
+        u_index = True
+
     width_counter = 0
     g_counter = 0
     for i in range(num_sources):
@@ -137,9 +143,9 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
-            try:
+            if not u_index:
                 model = model_func(source_info, row['U'], row['V'], bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
-            except KeyError:
+            else:
                 model = model_func(source_info, row['indexU']*u_res, row['indexV']*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
             if i == 0:
                 clean_re.append(model.real)
@@ -150,13 +156,16 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
     freq_name = 'Frequency'
     try:
-        temp = row[freq_name]
+        temp = data[0][freq_name]
     except KeyError:
         freq_name = 'Frequency bin'
 
     for i in range(len(data)):
         row = data[i]
-        new_row = (row[freq_name], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        if not u_index:
+            new_row = (row[freq_name], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        else:
+            new_row = (row[freq_name], row['indexU']*u_res, row['indexV']*v_res, (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
         vis.append(new_row)
 
     return info, vis
