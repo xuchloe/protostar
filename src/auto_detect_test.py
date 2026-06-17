@@ -77,11 +77,21 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     bmaj = file[0].header['BMAJ']
     bmin = file[0].header['BMIN']
 
+    u_res = 1
+    v_res = 1
+    u_index = 'U'
+    v_index = 'V'
     try:
+        data[0][u_index]
+    except KeyError:
+        u_index = 'indexU'
         u_res = file[1].header['U_RES']
+    try:
+        data[0][v_index]
+    except KeyError:
+        v_index = 'indexV'
         v_res = file[1].header['V_RES']
-    except:
-        pass
+
     file.close() # good practice
 
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
@@ -121,12 +131,6 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     clean_re = []
     clean_im = []
 
-    u_index = False
-    try:
-        data[0]['U']
-    except KeyError:
-        u_index = True
-
     width_counter = 0
     g_counter = 0
     for i in range(num_sources):
@@ -143,10 +147,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
-            if not u_index:
-                model = model_func(source_info, row['U'], row['V'], bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
-            else:
-                model = model_func(source_info, row['indexU']*u_res, row['indexV']*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
+            model = model_func(source_info, row[u_index]*u_res, row[v_index]*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
             if i == 0:
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
@@ -162,10 +163,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
     for i in range(len(data)):
         row = data[i]
-        if not u_index:
-            new_row = (row[freq_name], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
-        else:
-            new_row = (row[freq_name], row['indexU']*u_res, row['indexV']*v_res, (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        new_row = (row[freq_name], row[u_index]*u_res, row[v_index]*v_res, (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
         vis.append(new_row)
 
     return info, vis
