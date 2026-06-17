@@ -77,6 +77,13 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     bmaj = file[0].header['BMAJ']
     bmin = file[0].header['BMIN']
 
+    try:
+        u_res = file[1].header['U_RES']
+        v_res = file[1].header['V_RES']
+    except:
+        pass
+    file.close() # good practice
+
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
     search_radius = arcsec_bmaj + 2
 
@@ -130,7 +137,10 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
-            model = model_func(source_info, row['U'], row['V'], bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
+            try:
+                model = model_func(source_info, row['U'], row['V'], bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
+            except KeyError:
+                model = model_func(source_info, row['indexU']*u_res, row['indexV']*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
             if i == 0:
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
