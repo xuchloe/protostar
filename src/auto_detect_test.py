@@ -77,20 +77,18 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     bmaj = file[0].header['BMAJ']
     bmin = file[0].header['BMIN']
 
-    u_res = 1
-    v_res = 1
-    u_index = 'U'
-    v_index = 'V'
-    try:
-        data[0][u_index]
-    except KeyError:
+    if file[1].header['TTYPE2'] == 'indexU':
         u_index = 'indexU'
         u_res = file[1].header['U_RES']
-    try:
-        data[0][v_index]
-    except KeyError:
+    else:
+        u_index = 'U'
+        u_res = 1
+    if file[1].header['TTYPE3'] == 'indexV':
         v_index = 'indexV'
         v_res = file[1].header['V_RES']
+    else:
+        v_index = 'V'
+        v_res = 1
 
     file.close() # good practice
 

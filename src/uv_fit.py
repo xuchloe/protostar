@@ -867,12 +867,15 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
         warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({n_sources}).")
 
     # to account for different visiblity conventions
-    try:
+    if file[1].header['TTYPE2'] == 'indexU':
         u_res = file[1].header['U_RES']
-        v_res = file[1].header['V_RES']
-    except KeyError:
+    else:
         u_res = 1
+    if file[1].header['TTYPE3'] == 'indexV':
+        v_res = file[1].header['V_RES']
+    else:
         v_res = 1
+
     vis = np.array(data)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
