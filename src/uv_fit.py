@@ -1205,7 +1205,7 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     for i in range(len(modded_theta_sigmas)):
                         if modded_theta_sigmas[i] > 90:
                             modded_theta_sigmas[i] -= 180
-                        modded_theta_sigmas[i] = float(sigfig.round(modded_theta_sigmas[i]), sigfigs=3)
+                        modded_theta_sigmas[i] = float(sigfig.round(modded_theta_sigmas[i], sigfigs=3))
                     del source_result['vis_theta']
                     source_result['theta'] = (round_tuple((modded_theta, uimg_theta.s)), modded_theta_sigmas)
 
