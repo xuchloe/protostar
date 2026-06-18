@@ -734,7 +734,7 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                 if type(priors[i]) is not list:
                     raise ValueError("Each element in priors must be None or a list corresponding to a source.")
                 if len(priors[i]) != 6:
-                    raise ValueError("Each prior list must have 6 elements corresponding to ranges for peak, RA, declination, width parameter, ratio, and angle.")
+                    raise ValueError("Each prior list must have 6 elements corresponding to ranges for peak, RA, declination, width parameter, ratio, and position angle.")
                 for j in range(len(priors[i])):
                     if priors[i][j] is not None:
                         if type(priors[i][j]) not in [list, tuple]:
@@ -773,8 +773,12 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                 raise ValueError("If not None, ratio initial guesses must be greater than 0 and less than or equal to 1.")
             if pa[i] is None:
                 raise ValueError("Value required for position angle initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
+            if pa[i] < -90 or pa[i] > 90:
+                raise ValueError("Position angle initial guess must be between -90 and 90 degrees, inclusive.")
             # Convert position angle from degrees to radians, if needed
             temp_pa = ((pa[i]+90)%180) - 90 # now angle is between -90 and 90
+            if pa[i] == 90:
+                temp_pa = 90 # because mod sets it to -90
             rad_theta.append(temp_pa * np.pi/180)
         else:
             rad_theta.append(None)
@@ -811,9 +815,17 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                         theta_min = None
                         theta_max = None
                         if priors[i][j][0] is not None:
-                            theta_min = priors[i][j][0] * np.pi/180
+                            if priors[i][j][0] < -90 or priors[i][j][0] > 90:
+                                raise ValueError("Position angle prior must be between -90 and 90 degrees, inclusive.")
+                            theta_min = (((priors[i][j][0]+90)%180) - 90) * np.pi/180
+                            if priors[i][j][0] == 90:
+                                theta_min = 90 # because mod sets it to -90
                         if priors[i][j][1] is not None:
-                            theta_max = priors[i][j][1] * np.pi/180
+                            if priors[i][j][1] < -90 or priors[i][j][1] > 90:
+                                raise ValueError("Position angle prior must be between -90 and 90 degrees, inclusive.")
+                            theta_max = (((priors[i][j][1]+90)%180) - 90) * np.pi/180
+                            if priors[i][j][1] == 90:
+                                theta_max = 90 # because mod sets it to -90
                         if type(priors[i][j]) is tuple:
                             mini_vis_priors.append((theta_min, theta_max))
                         else: # is list
@@ -866,8 +878,8 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
     for row in vis:
         freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
         freq_bin.append(int(freq_bin_data))
-        u.append(int(u_data)*u_res)
-        v.append(int(v_data)*v_res)
+        u.append(int(u_data*u_res))
+        v.append(int(v_data*v_res))
         re.append(float(re_data/w_data))
         im.append(float(im_data/w_data))
         w.append(float(w_data))
@@ -1186,8 +1198,10 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi), sigfigs=3)) for theta in vis_theta_sigmas])
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi))
+                    modded_theta = ((uimg_theta.n+90)%180)-90
+                    modded_theta_sigmas = tuple([((_ + 90)%180)-90 for _ in theta_sigmas])
                     del source_result['vis_theta']
-                    source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
+                    source_result['theta'] = (round_tuple((modded_theta, uimg_theta.s)), modded_theta_sigmas)
 
                     uwidth_maj = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
                     uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
