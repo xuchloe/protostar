@@ -1195,11 +1195,17 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                 if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
-                    theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi), sigfigs=3)) for theta in vis_theta_sigmas])
+                    theta_sigmas = [theta * 180/np.pi for theta in vis_theta_sigmas]
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi))
-                    modded_theta = ((uimg_theta.n+90)%180)-90
-                    modded_theta_sigmas = tuple([((_ + 90)%180)-90 for _ in theta_sigmas])
+                    modded_theta = ((uimg_theta.n+90)%180)
+                    if modded_theta > 90:
+                        modded_theta = modded_theta-180
+                    modded_theta_sigmas = [((_ + 90)%180) for _ in theta_sigmas]
+                    for i in range(len(modded_theta_sigmas)):
+                        if modded_theta_sigmas[i] > 90:
+                            modded_theta_sigmas[i] -= 180
+                        modded_theta_sigmas[i] = float(sigfig.round(modded_theta_sigmas[i]), sigfigs=3)
                     del source_result['vis_theta']
                     source_result['theta'] = (round_tuple((modded_theta, uimg_theta.s)), modded_theta_sigmas)
 
