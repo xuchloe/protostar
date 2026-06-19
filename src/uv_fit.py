@@ -776,9 +776,9 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
             if pa[i] < -90 or pa[i] > 90:
                 raise ValueError("Position angle initial guess must be between -90 and 90 degrees, inclusive.")
             # Convert position angle from degrees to radians, if needed
-            temp_pa = ((pa[i]+90)%180) - 90 # now angle is between -90 and 90
-            if pa[i] == 90:
-                temp_pa = 90 # because mod sets it to -90
+            temp_pa = pa[i] - 90 # shift by 90 to go from image to visibility angle
+            if temp_pa < -90:
+                temp_pa += 180 # because -90 to -180 is the same as 90 to 0
             rad_theta.append(temp_pa * np.pi/180)
         else:
             rad_theta.append(None)
@@ -816,20 +816,28 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                         theta_max = None
                         if priors[i][j][0] is not None:
                             if priors[i][j][0] < -90 or priors[i][j][0] > 90:
-                                raise ValueError("Position angle prior must be between -90 and 90 degrees, inclusive.")
-                            theta_min = (((priors[i][j][0]+90)%180) - 90) * np.pi/180
-                            if priors[i][j][0] == 90:
-                                theta_min = 90 # because mod sets it to -90
+                                raise ValueError("Position angle prior lower bound must be between -90 and 90 degrees, inclusive.")
+                            theta_min = (priors[i][j][0] - 90) * np.pi/180 # shift by 90 to go from image to visibility angle
+                            if theta_min < -90:
+                                theta_min += 180 # because -90 to -180 is the same as 90 to 0
                         if priors[i][j][1] is not None:
                             if priors[i][j][1] < -90 or priors[i][j][1] > 90:
-                                raise ValueError("Position angle prior must be between -90 and 90 degrees, inclusive.")
-                            theta_max = (((priors[i][j][1]+90)%180) - 90) * np.pi/180
-                            if priors[i][j][1] == 90:
-                                theta_max = 90 # because mod sets it to -90
+                                raise ValueError("Position angle prior upper bound must be between -90 and 90 degrees, inclusive.")
+                            theta_max = (priors[i][j][1] - 90) * np.pi/180 # shift by 90 to go from image to visibility angle
+                            if theta_max < -90:
+                                theta_max += 180 # because -90 to -180 is the same as 90 to 0
                         if type(priors[i][j]) is tuple:
-                            mini_vis_priors.append((theta_min, theta_max))
+                            if theta_max is not None and theta_min is not None:
+                                if theta_max >= theta_min: # check because upper bound may now be less than lower bound due to the conversion above
+                                    mini_vis_priors.append((theta_min, theta_max))
+                                else:
+                                    mini_vis_priors.append((theta_max, theta_min))
                         else: # is list
-                            mini_vis_priors.append([theta_min, theta_max])
+                            if theta_max is not None and theta_min is not None:
+                                if theta_max >= theta_min: # check because upper bound may now be less than lower bound due to the conversion above
+                                    mini_vis_priors.append([theta_min, theta_max])
+                                else:
+                                    mini_vis_priors.append([theta_max, theta_min])
                 else:
                     mini_vis_priors.append([None, None])
             vis_priors.append(mini_vis_priors)
@@ -1195,16 +1203,16 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                     if source_type == 'd':
                         del source_result['r']
 
-                if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
+                if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor axes
                     theta_chain = source_chain[:, 5]
                     vis_theta_sigmas = sigmas(theta_chain)
                     theta_sigmas = [theta * 180/np.pi for theta in vis_theta_sigmas]
                     uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
                     uimg_theta = (uvis_theta * (180/np.pi))
-                    modded_theta = ((uimg_theta.n+90)%180)
+                    modded_theta = uimg_theta.n + 90 # visibility to image theta
                     if modded_theta > 90:
-                        modded_theta = modded_theta-180
-                    modded_theta_sigmas = [((_ + 90)%180) for _ in theta_sigmas]
+                        modded_theta -= 180 # put theta back in [-90,90] range
+                    modded_theta_sigmas = [_ + 90 for _ in theta_sigmas]
                     for i in range(len(modded_theta_sigmas)):
                         if modded_theta_sigmas[i] > 90:
                             modded_theta_sigmas[i] -= 180
