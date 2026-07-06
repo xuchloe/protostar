@@ -95,64 +95,34 @@ def d_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walk
             p0[i,5] = np.pi/2
     return p0
 
-def all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain):
-    if point_intensity is not None:
-        new = (point_intensity, med_sd[0][1])
-        temp = [pair for pair in med_sd]
-        med_sd = tuple([new] + temp[1:])
+def all_p1(med_sd, n_walkers, chain):
     n_params = len(med_sd)
-    if c_peak is not None and n_params == 6:
-        new = (c_peak, med_sd[0][1])
-        temp = [pair for pair in med_sd]
-        med_sd = tuple([new] + temp[1:])
-    if c_sigma is not None and n_params == 6:
-        new = (c_sigma, med_sd[3][1])
-        temp = [pair for pair in med_sd]
-        temp1 = temp[:3]
-        temp2 = temp[4:]
-        med_sd = tuple(temp1 + [new] + temp2)
     p1 = np.zeros((n_walkers, n_params))
     for i in range(n_walkers):
         for j in range(n_params):
-            if resolved:
-                if j in [3, 4]: # ensure non-negative width parameter, ratio
-                    p1[i,j] = np.random.uniform(max(-2*med_sd[j][1]+med_sd[j][0], 0), 2*med_sd[j][1]+med_sd[j][0])
-                    if j == 4:
-                        if p1[i,j] == 0:
-                            p1[i,j] = 1e-3 # avoid zero ratio
-                        if p1[i,j] > 1:
-                            p1[i,j] = 1 # cap ratio at 1
-                elif j == 5 and med_sd[j][1] > 10 * np.pi/180:  # vis_theta standard devation > 10 degrees
-                    vis_theta_samples = [params[j] for params in chain]
-                    neg_vis_thetas = [theta for theta in vis_theta_samples if theta < 0]
-                    pos_vis_thetas = [theta for theta in vis_theta_samples if theta >= 0]
-                    neg_med = np.median(neg_vis_thetas) if neg_vis_thetas else None
-                    pos_med = np.median(pos_vis_thetas) if pos_vis_thetas else None
-                    if neg_med is not None and pos_med is not None:
-                        if abs(abs(neg_med) - pos_med) < 10 * np.pi/180:
-                            theta_guess = -np.pi/2
-                        else:
-                            theta_guess = np.median(vis_theta_samples)
-                        p1[i,j] = np.random.uniform(max(theta_guess - np.pi/36, -np.pi/2), theta_guess + np.pi/36)
-                    else: # at least all between -90 and 0 or all between 0 and 90 degrees
-                        p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
-                else:
-                    p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
-            else: # source is unresolved, most likely a point source
-                if j == 0:
-                    p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
-                if j == 1:
-                    p1[i,j] = np.random.uniform(-rad_pix/2+rad_position[0], rad_pix/2+rad_position[0])
-                if j == 2:
-                    p1[i,j] = np.random.uniform(-rad_pix/2+rad_position[1], rad_pix/2+rad_position[1])
-                if j == 3:
-                    p1[i,j] = np.random.uniform(med_sd[j][0]/2, med_sd[j][0]) # width parameter smaller than best fit to simulate point source
+            if j in [3, 4]: # ensure non-negative width parameter, ratio
+                p1[i,j] = np.random.uniform(max(-2*med_sd[j][1]+med_sd[j][0], 0), 2*med_sd[j][1]+med_sd[j][0])
                 if j == 4:
-                    p1[i,j] = np.random.uniform(0.75, 1.0) # bias ratio towards 1 for unresolved source
-                    while p1[i,4] == 0:
-                        p1[i,4] = np.random.uniform(0, 1)
-                if j == 5:
-                    p1[i,j] = np.random.uniform(-np.pi/2, np.pi/2)
+                    if p1[i,j] == 0:
+                        p1[i,j] = 1e-3 # avoid zero ratio
+                    if p1[i,j] > 1:
+                        p1[i,j] = 1 # cap ratio at 1
+            elif j == 5 and med_sd[j][1] > 10 * np.pi/180:  # vis_theta standard devation > 10 degrees
+                vis_theta_samples = [params[j] for params in chain]
+                neg_vis_thetas = [theta for theta in vis_theta_samples if theta < 0]
+                pos_vis_thetas = [theta for theta in vis_theta_samples if theta >= 0]
+                neg_med = np.median(neg_vis_thetas) if neg_vis_thetas else None
+                pos_med = np.median(pos_vis_thetas) if pos_vis_thetas else None
+                if neg_med is not None and pos_med is not None:
+                    if abs(abs(neg_med) - pos_med) < 10 * np.pi/180:
+                        theta_guess = -np.pi/2
+                    else:
+                        theta_guess = np.median(vis_theta_samples)
+                    p1[i,j] = np.random.uniform(max(theta_guess - np.pi/36, -np.pi/2), theta_guess + np.pi/36)
+                else: # at least all between -90 and 0 or all between 0 and 90 degrees
+                    p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
+            else:
+                p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
     return p1
 
 def p_prior(params, vis_priors):
@@ -1057,39 +1027,13 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                         med_sd.append(source_result[param_name])
                         best_params.append(source_result[param_name][0])
 
-                    # # use p fitting to help c/g/d fitting if p chi2 was better than c/g/d chi2 in first run
-                    # resolved = True
-                    # if source != 'p':
-                    #     if best_params[3] < rad_bmaj/2:  # conditions for unresolved source
-                    #         resolved = False
-                    # if not resolved:
-                    #     temp_perm = best_perm[:i] + ('p',) + best_perm[i+1:]
-                    #     if temp_perm == best_perm:
-                    #         temp = best_result[f'source_{i+1}']['best']['peak']
-                    #     else:
-                    #         temp = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
-                    #         point_intensity = temp if type(temp) is float else temp[0]
-
-                    # # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
-                    # c_peak = None
-                    # c_sigma = None
-                    # if source == 'g' and best_perm[i] == 'c':
-                    #     c_peak = best_result[f'source_{i+1}']['best']['peak']
-                    #     c_sigma = best_result[f'source_{i+1}']['best']['sigma']
                     resolved = True
                     c_peak = None
                     c_sigma = None
                     if i == 0:
-                        p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
+                        p1 = all_p1(med_sd, n_walkers, chain)
                     else:
-                        p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
-
-                    # # edit vis_priors if unresolved source
-                    # if not resolved:
-                    #     if vis_priors[i] is None:
-                    #         vis_priors[i] = [(None, None)] * 6
-                    #     vis_priors[i][1] = (-rad_pix+rad_coord[0], rad_pix+rad_coord[0]) # ra within one pixel of image domain result
-                    #     vis_priors[i][2] = (-rad_pix+rad_coord[1], rad_pix+rad_coord[1]) # dec within one pixel of image domain result
+                        p1 = np.append(p1, all_p1(med_sd, n_walkers, chain), axis=1)
 
             # Set up and run MCMC
             n_steps = 100
@@ -1497,39 +1441,13 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
                         med_sd.append(source_result[param_name])
                         best_params.append(source_result[param_name][0])
 
-                    # # use p fitting to help c/g/d fitting if p chi2 was better than c/g/d chi2 in first run
-                    # resolved = True
-                    # if source != 'p':
-                    #     if best_params[3] < rad_bmaj/2:  # conditions for unresolved source
-                    #         resolved = False
-                    # if not resolved:
-                    #     temp_perm = best_perm[:i] + ('p',) + best_perm[i+1:]
-                    #     if temp_perm == best_perm:
-                    #         temp = best_result[f'source_{i+1}']['best']['peak']
-                    #     else:
-                    #         temp = uv_fit(fits_file, list(temp_perm), priors=priors, clean_output=True, corner_plot=False, additional_runs=0)[0]['result'][f'source_{i+1}']['peak'][0]
-                    #         point_intensity = temp if type(temp) is float else temp[0]
-
-                    # # use c fitting to help g fitting if c chi2 was better than g chi2 in first run
-                    # c_peak = None
-                    # c_sigma = None
-                    # if source == 'g' and best_perm[i] == 'c':
-                    #     c_peak = best_result[f'source_{i+1}']['best']['peak']
-                    #     c_sigma = best_result[f'source_{i+1}']['best']['sigma']
                     resolved = True
                     c_peak = None
                     c_sigma = None
                     if i == 0:
-                        p1 = all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain)
+                        p1 = all_p1(med_sd, n_walkers, chain)
                     else:
-                        p1 = np.append(p1, all_p1(med_sd, resolved, point_intensity, c_peak, c_sigma, rad_position, rad_bmaj, rad_pix, n_walkers, chain), axis=1)
-
-                    # # edit vis_priors if unresolved source
-                    # if not resolved:
-                    #     if vis_priors[i] is None:
-                    #         vis_priors[i] = [(None, None)] * 6
-                    #     vis_priors[i][1] = (-rad_pix+rad_coord[0], rad_pix+rad_coord[0]) # ra within one pixel of image domain result
-                    #     vis_priors[i][2] = (-rad_pix+rad_coord[1], rad_pix+rad_coord[1]) # dec within one pixel of image domain result
+                        p1 = np.append(p1, all_p1(med_sd, n_walkers, chain), axis=1)
 
             # Set up and run MCMC
             n_steps = 100
