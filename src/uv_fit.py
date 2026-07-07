@@ -1140,12 +1140,12 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
         permutation_info['red_chi2'] = red_chi2
     all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
 
-    # use reduced chi2 of lowest BIC model to estimate how well fitting occurred
-    if all_results[0]['red_chi2'] > 10:
-        print(all_results[0]['red_chi2'])
-        warnings.warn("Based on reduced chi2, the fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
-
     if extreme_case_check:
+        # use reduced chi2 of lowest BIC model to estimate how well fitting occurred
+        # inside if loop to silence this warning for recursive cases (when checking the extreme cases)
+        if all_results[0]['red_chi2'] > 10:
+            warnings.warn("Based on reduced chi2, the fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
+
         # case: brightest source is very resolved
         large_width = float(Angle(2 * rad_bmaj, units.radian).to(units.arcsec).value) # guess 2x beam major axis for a very resolved source
         amplitudes = np.sqrt(re**2 + im**2)
