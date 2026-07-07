@@ -40,7 +40,7 @@ def d_model(d_params, u, v, rad_bmaj, rad_barea):
         return peak / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
     return peak * (np.pi * r**2 * ratio) / (rad_barea*np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
 
-def p_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
+def p_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
     p0 = np.zeros((n_walkers, 3))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
@@ -48,47 +48,47 @@ def p_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walk
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
     return p0
 
-def c_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
+def c_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
     p0 = np.zeros((n_walkers, 4))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_guess, 1.2*width_guess)
+        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
     return p0
 
-def g_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
+def g_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_guess, 1.2*width_guess)
-        p0[i,4] = np.random.uniform(ratio_guess-0.15, ratio_guess+0.15)
+        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
+        p0[i,4] = np.random.uniform(ratio_p0-0.15, ratio_p0+0.15)
         if p0[i,4] == 0:
             p0[i,4] = 1e-3
         elif p0[i,4] > 1:
             p0[1,4] = 1
-        p0[i,5] = np.random.uniform(theta_guess-np.pi/15, theta_guess+np.pi/15)
+        p0[i,5] = np.random.uniform(theta_p0-np.pi/15, theta_p0+np.pi/15)
         if p0[i,5] < -np.pi/2:
             p0[1,4] = -np.pi/2
         elif p0[i,5] > np.pi/2:
             p0[i,5] = np.pi/2
     return p0
 
-def d_p0(peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers):
+def d_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
         p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
         p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
         p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_guess, 1.2*width_guess)
-        p0[i,4] = np.random.uniform(ratio_guess-0.15, ratio_guess+0.15)
+        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
+        p0[i,4] = np.random.uniform(ratio_p0-0.15, ratio_p0+0.15)
         if p0[i,4] == 0:
             p0[i,4] = 1e-3
         elif p0[i,4] > 1:
             p0[1,4] = 1
-        p0[i,5] = np.random.uniform(theta_guess-np.pi/15, theta_guess+np.pi/15)
+        p0[i,5] = np.random.uniform(theta_p0-np.pi/15, theta_p0+np.pi/15)
         if p0[i,5] < -np.pi/2:
             p0[1,4] = -np.pi/2
         elif p0[i,5] > np.pi/2:
@@ -115,10 +115,10 @@ def all_p1(med_sd, n_walkers, chain):
                 pos_med = np.median(pos_vis_thetas) if pos_vis_thetas else None
                 if neg_med is not None and pos_med is not None:
                     if abs(abs(neg_med) - pos_med) < 10 * np.pi/180:
-                        theta_guess = -np.pi/2
+                        theta_p0 = -np.pi/2
                     else:
-                        theta_guess = np.median(vis_theta_samples)
-                    p1[i,j] = np.random.uniform(max(theta_guess - np.pi/36, -np.pi/2), theta_guess + np.pi/36)
+                        theta_p0 = np.median(vis_theta_samples)
+                    p1[i,j] = np.random.uniform(max(theta_p0 - np.pi/36, -np.pi/2), theta_p0 + np.pi/36)
                 else: # at least all between -90 and 0 or all between 0 and 90 degrees
                     p1[i,j] = np.random.uniform(-2*med_sd[j][1]+med_sd[j][0], 2*med_sd[j][1]+med_sd[j][0])
             else:
@@ -459,9 +459,9 @@ def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True,
     n_walkers = 2 * n_params
 
     # Initial guesses
-    width_guess = None
-    ratio_guess = None
-    theta_guess = None
+    width_p0 = None
+    ratio_p0 = None
+    theta_p0 = None
     fluxes = [flux_coord[0] for flux_coord in all_peaks]
     min_index = np.argmin(fluxes)
     for i in range(n_sources):
@@ -469,9 +469,9 @@ def auto_detect(vis: dict, info: dict, n_sources: int = None, clean_output=True,
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
-            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
         else:
-            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
             if i >= n_peaks: # edit ra, dec initial guesses
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -675,8 +675,9 @@ def best_auto_detect(fits_file: str, n_sources = None, clean_output=True, corner
     else:
         raise ValueError('All attempts failed to converge.')
 
-def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa: list=None, priors: list=None, \
-    clean_output=True, corner_plot=True, additional_runs: int = 2):
+def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=None, dec_guess: list=None, width_guess: list=None, \
+    ratio_guess: list=None, pa_guess: list=None, priors: list=None, clean_output=True, corner_plot=True, additional_runs: int = 2, \
+    extreme_case_check=True):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
     # but (tuple) for exclusive and [list] for inclusive
     # TODO: documentation
@@ -691,13 +692,15 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
     sources (list): List of source types to fit. Each source type should be one of
                     'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).
     '''
+    n_sources = len(sources)
+
     # Check additional_runs
     if additional_runs < 0:
         raise ValueError("additional_runs must be a non-negative integer.")
 
     # Check priors format
     if priors is not None:
-        if len(priors) != len(sources) or len(priors) != 1:
+        if len(priors) != n_sources or len(priors) != 1:
             raise ValueError("Length of priors must match length of sources, or priors must be of length 1 (one set of priors for all sources).")
         for i in range(len(priors)):
             if priors[i] is not None:
@@ -713,7 +716,7 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                             raise ValueError("Each prior range list or tuple must have exactly two elements: min and max.")
 
     # Check input source types
-    if len(sources) == 0:
+    if n_sources == 0:
         raise ValueError("No sources specified. Try specifying one or more sources of type \
                          'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).")
     for source in sources:
@@ -721,32 +724,52 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
             raise ValueError(f"Source type '{source}' is not recognized. Source type must be one of the following: \
                             'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).")
 
+    # make sure guesses, if they exist, have proper length to match source list
+    user_guesses = [peak_guess, ra_guess, dec_guess, width_guess, ratio_guess, pa_guess]
+    for guess in user_guesses:
+        if guess is not None:
+            if len(guess) != n_sources:
+                raise ValueError(f"Length of {guess} is {len(guess)}, which does not match the length of sources ({n_sources}).")
+
+    # convert ra_guess, dec_guess from relative (to field center) arcsec to relative radians
+    rad_ra_guess = []
+    rad_dec_guess = []
+    for i in range(n_sources):
+        temp_ra_guess = None
+        temp_dec_guess = None
+        if ra_guess[i] is not None:
+            temp_ra_guess = float(Angle(ra_guess[i], units.arcsec).to(units.radian).value)
+        if dec_guess[i] is not None:
+            temp_dec_guess = float(Angle(dec_guess[i], units.arcsec).to(units.radian).value)
+        rad_ra_guess.append(temp_ra_guess)
+        rad_dec_guess.append(temp_dec_guess)
+
     # Require a width guess for all models except point source
     # Require a ratio and position angle guess for all models except point source and circular gaussian
     rad_width = []
     rad_theta = []
-    for i in range(len(sources)):
+    for i in range(n_sources):
         if sources[i] != 'p':
-            if width[i] is None:
+            if width_guess[i] is None:
                 raise ValueError("Value required for width initial guess unless only fitting point sources.")
             # Convert width from arcsec to radians, if needed
-            if width[i] < 0:
+            if width_guess[i] < 0:
                 raise ValueError("Width initial guesses may not be negative.")
-            rad_width.append(float(Angle(width[i], units.arcsec).to(units.radian).value))
+            rad_width.append(float(Angle(width_guess[i], units.arcsec).to(units.radian).value))
         else:
             rad_width.append(None)
         if sources[i] not in ['p', 'c']:
-            if ratio[i] is None:
+            if ratio_guess[i] is None:
                 raise ValueError("Value required for ratio initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
             # Ensure ratio is in correct range
-            if ratio[i] <= 0 or ratio[i] > 1:
+            if ratio_guess[i] <= 0 or ratio_guess[i] > 1:
                 raise ValueError("If not None, ratio initial guesses must be greater than 0 and less than or equal to 1.")
-            if pa[i] is None:
+            if pa_guess[i] is None:
                 raise ValueError("Value required for position angle initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
-            if pa[i] < -90 or pa[i] > 90:
+            if pa_guess[i] < -90 or pa_guess[i] > 90:
                 raise ValueError("Position angle initial guess must be between -90 and 90 degrees, inclusive.")
             # Convert position angle from degrees to radians, if needed
-            temp_pa = pa[i] - 90 # shift by 90 to go from image to visibility angle
+            temp_pa = pa_guess[i] - 90 # shift by 90 to go from image to visibility angle
             if temp_pa < -90:
                 temp_pa += 180 # because -90 to -180 is the same as 90 to 0
             rad_theta.append(temp_pa * np.pi/180)
@@ -756,9 +779,9 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
     # clean up priors and convert units
     vis_priors = []
     if priors is None:
-        priors = [None] * len(sources)
-    if len(priors) == 1 and len(sources) > 1: # if only one set of priors provided, use for all sources
-        priors = priors * len(sources)
+        priors = [None] * n_sources
+    if len(priors) == 1 and n_sources > 1: # if only one set of priors provided, use for all sources
+        priors = priors * n_sources
     for i in range(len(priors)):
         mini_vis_priors = []
         if priors[i] is not None:
@@ -840,7 +863,6 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
         ext_info = []
     all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
     n_peaks = len(all_peaks)
-    n_sources = len(sources)
     if n_peaks < n_sources:
         warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({n_sources}).")
 
@@ -905,17 +927,31 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
 
         # Initial guesses
         for i in range(n_sources):
-            width_guess = rad_width[i]
-            ratio_guess = ratio[i]
-            theta_guess = rad_theta[i]
+            peak_p0 = peak_guess[i]
+            ra_p0 = rad_ra_guess[i]
+            dec_p0 = rad_dec_guess[i]
+            width_p0 = rad_width[i]
+            ratio_p0 = ratio_guess[i]
+            theta_p0 = rad_theta[i]
             source = permutation[i]
-            peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
-            coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
-            rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
-            if i == 0:
-                p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+            if peak_p0 is None:
+                peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
             else:
-                mini_p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                peak = peak_p0
+            coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+            if ra_p0 is None:
+                temp_ra = float(Angle(coord0[0], units.arcsec).to(units.radian).value)
+            else:
+                temp_ra = ra_p0
+            if dec_p0 is None:
+                temp_dec = float(Angle(coord0[1], units.arcsec).to(units.radian).value)
+            else:
+                temp_dec = dec_p0
+            rad_coord = (temp_ra, temp_dec)
+            if i == 0:
+                p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
+            else:
+                mini_p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                 if i >= n_peaks: # edit ra, dec initial guesses to be the entire image
                     for j in range(n_walkers):
                         mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -976,13 +1012,7 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
             result[f'source_{i+1}'] = source_result
             start += n_source_params
         chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
-
         all_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain})
-
-    # Rank permutations by chi2
-    all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
-    best_perm = all_results[0]['permutation']
-    best_result = all_results[0]['result']
 
     # Do it again with refined initial guesses, if requested
     for reps in range(additional_runs):
@@ -1004,32 +1034,27 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
                 rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
                 if permutation_info['result'] is None: # fitting didn't happen, so can't actually refine
                     # Keep inputted guesses since we have nothing better right now
-                    width_guess = rad_width[i]
-                    ratio_guess = ratio[i]
-                    theta_guess = rad_theta[i]
+                    width_p0 = rad_width[i]
+                    ratio_p0 = ratio_guess[i]
+                    theta_p0 = rad_theta[i]
                     peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
                     if i == 0:
-                        p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                        p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                     else:
-                        mini_p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                        mini_p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                         if i >= n_peaks: # edit ra, dec initial guesses
                             for j in range(n_walkers):
                                 mini_p1[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
                                 mini_p1[j,2] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
                         p1 = np.append(p1, mini_p1, axis=1)
                 else:
-                    rad_position = best_result[f'source_{i+1}']['best']['ra'], best_result[f'source_{i+1}']['best']['dec']
                     source_result = permutation_info['result'][f'source_{i+1}']
                     best_params = []
                     med_sd = []
-                    point_intensity = None
                     for param_name in SOURCE_TYPES[source][4]:
                         med_sd.append(source_result[param_name])
                         best_params.append(source_result[param_name][0])
 
-                    resolved = True
-                    c_peak = None
-                    c_sigma = None
                     if i == 0:
                         p1 = all_p1(med_sd, n_walkers, chain)
                     else:
@@ -1093,22 +1118,90 @@ def uv_fit(fits_file: str, sources: list, width: list=None, ratio: list=None, pa
         all_results = []
         for permutation_info in second_results:
             all_results.append(permutation_info)
-        # Rank permutations by chi2
-        all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
-        best_perm = all_results[0]['permutation']
-        best_result = all_results[0]['result']
 
-    # Bayesian Information Criterion
+    # Bayesian Information Criterion and reduced chi2
     n = len(re)
     for permutation_info in all_results:
         k = permutation_info['n_params']
         chi2 = permutation_info['chi2']
         if chi2 is np.inf:
+            permutation_info['red_chi2'] = np.inf
             permutation_info['bic'] = np.inf
             continue
         bic = k * np.log(n) + chi2
+        red_chi2 = chi2 / (n-k)
         permutation_info['bic'] = float(bic)
+        permutation_info['red_chi2'] = red_chi2
     all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
+
+    # use reduced chi2 of lowest BIC model to estimate how well fitting occurred
+    if all_results[0]['red_chi2'] > 10:
+        warnings.warn("Based on reduced chi2, the fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
+
+    if extreme_case_check:
+        # case: brightest source is very resolved
+        large_width = float(Angle(2 * rad_bmaj, units.radian).to(units.arcsec)) # guess 2x beam major axis for a very resolved source
+        amplitudes = np.sqrt(re**2 + im**2)
+        median_amp = np.nanmedian(amplitudes) # use median amplitude as flux guess for very resolved source case
+        large_width_guess = [large_width] + width_guess[1:]
+        if ratio_guess is not None:
+            new_ratio_guess = ratio_guess # keep guesses if they exist
+        else:
+            new_ratio_guess = [0.8] + (n_sources - 1) * [None] # reasonable value to guess when we have no idea
+        if pa_guess is not None:
+            new_pa_guess = pa_guess # keep guesses if they exist
+        else:
+            new_pa_guess = [0] + (n_sources - 1) * [None] # reasonable value to guess when we have no idea
+        new_priors = None
+        if priors is not None:
+            if priors[0] is not None:
+                if priors[0][3] is not None:
+                    new_priors = [priors[0][:3] + [None] + priors[0][4:]] + priors[1:] # get rid of prior on this width, if it exists
+        if new_priors is None:
+            new_priors = priors
+
+        # subcase: very resolved gaussian
+        g_peak_from_amp = median_amp * rad_barea / (2*np.pi*large_width**2)
+        if peak_guess is not None:
+            large_g_peak_guess = [g_peak_from_amp] + peak_guess[1:]
+        else:
+            large_g_peak_guess = [g_peak_from_amp] + (n_sources - 1) * [None]
+        large_g_sources = ['g'] + sources[1:]
+        large_gaussian_result = uv_fit(fits_file=fits_file, sources=large_g_sources, peak_guess=large_g_peak_guess, ra_guess=ra_guess, \
+                                dec_guess=dec_guess, width_guess=large_width_guess, ratio_guess=new_ratio_guess, pa_guess=new_pa_guess,
+                                priors=new_priors, clean_output=True, corner_plot=False, additional_runs=additional_runs, \
+                                extreme_case_check=False)
+
+        # subcase: very resolved disk
+        d_peak_from_amp = median_amp * rad_barea / (np.pi*large_width**2)
+        if peak_guess is not None:
+            large_d_peak_guess = [d_peak_from_amp] + peak_guess[1:]
+        else:
+            large_d_peak_guess = [d_peak_from_amp] + (n_sources - 1) * [None]
+        large_d_sources = ['d'] + sources [1:]
+        large_disk_result = uv_fit(fits_file=fits_file, sources=large_d_sources, peak_guess=large_d_peak_guess, ra_guess=ra_guess, \
+                            dec_guess=dec_guess, width_guess=large_width_guess, ratio_guess=new_ratio_guess, pa_guess=new_pa_guess,
+                            priors=new_priors, clean_output=True, corner_plot=False, additional_runs=additional_runs, \
+                            extreme_case_check=False)
+
+        # case: brightest source is a point source
+        point_result = None
+        if not (sources[0] in ['p', 'any']): # make sure we haven't already tested this
+            p_sources = ['p'] + sources[1:]
+            point_result = uv_fit(fits_file=fits_file, sources=p_sources, peak_guess=peak_guess, ra_guess=ra_guess, dec_guess=dec_guess, \
+                            width_guess=width_guess, ratio_guess=ratio_guess, pa_guess=pa_guess, priors=priors, clean_output=True, \
+                            corner_plot=False, additional_runs=additional_runs, extreme_case_check=False)
+
+        # compare BICs of these extreme cases to BICs of the other results
+        best_other_bic = all_results[0]['bic']
+        extreme_cases = [{'info': large_gaussian_result[0], 'case': 'very large gaussian'}, {'info': large_disk_result[0], 'case': 'very large disk'}]
+        if point_result is not None:
+            extreme_cases.append({'info': point_result[0], 'case': 'point source'})
+        extreme_cases.sort(key=lambda x: x['info']['bic'])
+        best_extreme = extreme_cases[0]
+        if best_extreme['info']['bic'] < best_other_bic:
+            best_extreme_case = best_extreme['case']
+            warnings.warn(f"The brightest source might be a {best_extreme_case}. Consider re-running with edited inputted guesses, especially if the fit was poor.")
 
     if clean_output:
         for permutation_info in all_results:
@@ -1319,17 +1412,17 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
 
         # Initial guesses
         for i in range(n_sources):
-            width_guess = rad_width[i]
-            ratio_guess = ratio[i]
-            theta_guess = rad_theta[i]
+            width_p0 = rad_width[i]
+            ratio_p0 = ratio[i]
+            theta_p0 = rad_theta[i]
             source = permutation[i]
             peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
             coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
             rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
             if i == 0:
-                p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
             else:
-                mini_p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                mini_p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                 if i >= n_peaks: # edit ra, dec initial guesses to be the entire image
                     for j in range(n_walkers):
                         mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -1393,11 +1486,6 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
 
         all_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain})
 
-    # Rank permutations by chi2
-    all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
-    best_perm = all_results[0]['permutation']
-    best_result = all_results[0]['result']
-
     # Do it again with refined initial guesses, if requested
     for reps in range(additional_runs):
         second_results = []
@@ -1418,32 +1506,27 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
                 rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
                 if permutation_info['result'] is None: # fitting didn't happen, so can't actually refine
                     # Keep inputted guesses since we have nothing better right now
-                    width_guess = rad_width[i]
-                    ratio_guess = ratio[i]
-                    theta_guess = rad_theta[i]
+                    width_p0 = rad_width[i]
+                    ratio_p0 = ratio[i]
+                    theta_p0 = rad_theta[i]
                     peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
                     if i == 0:
-                        p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                        p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                     else:
-                        mini_p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
+                        mini_p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
                         if i >= n_peaks: # edit ra, dec initial guesses
                             for j in range(n_walkers):
                                 mini_p1[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
                                 mini_p1[j,2] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
                         p1 = np.append(p1, mini_p1, axis=1)
                 else:
-                    rad_position = best_result[f'source_{i+1}']['best']['ra'], best_result[f'source_{i+1}']['best']['dec']
                     source_result = permutation_info['result'][f'source_{i+1}']
                     best_params = []
                     med_sd = []
-                    point_intensity = None
                     for param_name in SOURCE_TYPES[source][4]:
                         med_sd.append(source_result[param_name])
                         best_params.append(source_result[param_name][0])
 
-                    resolved = True
-                    c_peak = None
-                    c_sigma = None
                     if i == 0:
                         p1 = all_p1(med_sd, n_walkers, chain)
                     else:
@@ -1507,10 +1590,6 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
         all_results = []
         for permutation_info in second_results:
             all_results.append(permutation_info)
-        # Rank permutations by chi2
-        all_results.sort(key=lambda x: x['chi2']) # lowest to highest chi2
-        best_perm = all_results[0]['permutation']
-        best_result = all_results[0]['result']
 
     # Bayesian Information Criterion
     n = len(re)
