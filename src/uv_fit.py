@@ -1142,6 +1142,7 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
 
     # use reduced chi2 of lowest BIC model to estimate how well fitting occurred
     if all_results[0]['red_chi2'] > 10:
+        print(all_results[0]['red_chi2'])
         warnings.warn("Based on reduced chi2, the fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
 
     if extreme_case_check:
