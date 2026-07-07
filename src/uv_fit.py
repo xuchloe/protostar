@@ -1146,7 +1146,7 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
 
     if extreme_case_check:
         # case: brightest source is very resolved
-        large_width = float(Angle(2 * rad_bmaj, units.radian).to(units.arcsec)) # guess 2x beam major axis for a very resolved source
+        large_width = float(Angle(2 * rad_bmaj, units.radian).to(units.arcsec).value) # guess 2x beam major axis for a very resolved source
         amplitudes = np.sqrt(re**2 + im**2)
         median_amp = np.nanmedian(amplitudes) # use median amplitude as flux guess for very resolved source case
         large_width_guess = [large_width] + width_guess[1:]
