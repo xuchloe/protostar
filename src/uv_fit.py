@@ -933,7 +933,7 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
 
         # Initial guesses
         for i in range(n_sources):
-            peak_p0 = peak_guess[i]
+            peak_p0 = peak_guess[i] if peak_guess is not None else None
             ra_p0 = rad_ra_guess[i]
             dec_p0 = rad_dec_guess[i]
             width_p0 = rad_width[i]
