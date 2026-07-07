@@ -734,12 +734,18 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
     # convert ra_guess, dec_guess from relative (to field center) arcsec to relative radians
     rad_ra_guess = []
     rad_dec_guess = []
+    ra_guess_inputted = False
+    dec_guess_inputted = False
+    if ra_guess is not None:
+        ra_guess_inputted = True
+    if dec_guess is not None:
+        dec_guess_inputted = True
     for i in range(n_sources):
         temp_ra_guess = None
         temp_dec_guess = None
-        if ra_guess[i] is not None:
+        if ra_guess_inputted and ra_guess[i] is not None:
             temp_ra_guess = float(Angle(ra_guess[i], units.arcsec).to(units.radian).value)
-        if dec_guess[i] is not None:
+        if dec_guess_inputted and dec_guess[i] is not None:
             temp_dec_guess = float(Angle(dec_guess[i], units.arcsec).to(units.radian).value)
         rad_ra_guess.append(temp_ra_guess)
         rad_dec_guess.append(temp_dec_guess)
