@@ -41,8 +41,8 @@ def fits_data_index(fits_file: str) -> int:
         raise OSError(f'Unable to open FITS file: {fits_file}') from err
     raise ValueError(f'No HDU containing image data found in {fits_file}.')
 
-def gaussian_theta(coord: tuple, amp: float, sigma: float, theta: float, mu_x: float, mu_y: float):
-    '''Evaluate a rotated 2D Gaussian at one or more coordinates.
+def gaussian_2d(coord: tuple, amp: float, sigma: float, mu_x: float, mu_y: float):
+    '''Evaluate an isotropic 2D Gaussian at one or more coordinates.
 
     Parameters
     ----------
@@ -53,8 +53,6 @@ def gaussian_theta(coord: tuple, amp: float, sigma: float, theta: float, mu_x: f
         The amplitude of the Gaussian.
     sigma : float
         The standard deviation of the Gaussian.
-    theta : float
-        The rotation angle of the Gaussian, in radians.
     mu_x : float
         The x-coordinate of the Gaussian center.
     mu_y : float
@@ -63,13 +61,11 @@ def gaussian_theta(coord: tuple, amp: float, sigma: float, theta: float, mu_x: f
     Returns
     -------
     float or ndarray
-        The value of the Gaussian evaluated at the given coordinate(s).
+        The Gaussian evaluated at the given coordinate(s).
     '''
 
     x, y = coord
-    x_rot = (x - mu_x) * math.cos(theta) + (y - mu_y) * math.sin(theta)
-    y_rot = -(x - mu_x) * math.sin(theta) + (y - mu_y) * math.cos(theta)
-    return amp * np.exp(-(x_rot**2 + y_rot**2)/(2 * sigma**2))
+    return amp * np.exp(-((x - mu_x)**2 + (y - mu_y)**2) / (2 * sigma**2))
 
 
 def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True,\
@@ -237,7 +233,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         x_data = [-2,-1,0,1,2]*5
 
         try:
-            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
             amp, sigma, theta, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
@@ -251,7 +247,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
         x_data = [-1,0,1]*3
 
         try:
-            popt, pcov = curve_fit(gaussian_theta, (x_data, y_data), z_data, bounds=([peak,0,0,-1,-1],[float('inf'),float('inf'),2*np.pi,1,1]))
+            popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
             amp, sigma, theta, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
