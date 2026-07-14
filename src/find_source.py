@@ -10,42 +10,36 @@ import matplotlib.ticker as ticker
 import math
 
 
-def fits_data_index(fits_file: str):
-    '''
-    Finds the location of a FITS file's image data array.
+def fits_data_index(fits_file: str) -> int:
+    '''Return the index of the first HDU containing image data.
 
     Parameters
     ----------
     fits_file : str
-        The path of the FITS file to be searched.
+        The path to the FITS file.
 
     Returns
     -------
     int
-        The index of the image data array in the FITS file.
+        The index of the first HDU whose `data` attribute is not `None`.
+
+    Raises
+    ------
+    OSError
+        If the FITS file cannot be opened.
+    ValueError
+        If the FITS file contains no HDU with data.
     '''
-
-    file_index = 0
-
-    #open FITS file
     try:
-        file = fits.open(fits_file)
-    except:
-        print(f'Unable to open {fits_file}')
-
-    info = file[file_index]
-    data = info.data
-    while data is None:
-        #going through the indices of file to find the array
-        try:
-            file_index += 1
-            info = file[file_index]
-            data = info.data
-        except:
-            print(f'Error in locating data index of {fits_file}')
-
-    return file_index
-
+        with fits.open(fits_file) as file:
+            # Iterate through the HDUs until one containing data is found.
+            # Assumes the first HDU with data contains the image.
+            for file_index, hdu in enumerate(file):
+                if hdu.data is not None:
+                    return file_index
+    except OSError as err:
+        raise OSError(f'Unable to open FITS file: {fits_file}') from err
+    raise ValueError(f'No HDU containing image data found in {fits_file}.')
 
 def gaussian_theta(coord, amp, sigma, theta, mu_x, mu_y):
     '''
