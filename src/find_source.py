@@ -234,7 +234,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
         try:
             popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
-            amp, sigma, theta, mu_x, mu_y = popt
+            amp, sigma, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
@@ -248,7 +248,7 @@ def region_stats(fits_file: str, center: list = [], radius: list = [], invert: b
 
         try:
             popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
-            amp, sigma, theta, mu_x, mu_y = popt
+            amp, sigma, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
