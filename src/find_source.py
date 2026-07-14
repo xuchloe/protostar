@@ -41,34 +41,35 @@ def fits_data_index(fits_file: str) -> int:
         raise OSError(f'Unable to open FITS file: {fits_file}') from err
     raise ValueError(f'No HDU containing image data found in {fits_file}.')
 
-def gaussian_theta(coord, amp, sigma, theta, mu_x, mu_y):
-    '''
-    Finds the value at a point on a 2D Gaussian.
+def gaussian_theta(coord: tuple, amp: float, sigma: float, theta: float, mu_x: float, mu_y: float):
+    '''Evaluate a rotated 2D Gaussian at one or more coordinates.
 
     Parameters
     ----------
     coord : tuple
-        The coordinate(s) of the point(s) where the first entry is the x-coordinate or a list of x-coordinates
-        and the second entry is the y-coordinate or a list of y-coordinates.
+        A tuple `(x, y)` containing the x- and y-coordinates at which to
+        evaluate the Gaussian. `x` and `y` may be scalars or array-like.
     amp : float
-        The factor in front of the 2D Gaussian's exponent.
+        The amplitude of the Gaussian.
     sigma : float
-        The standard deviation of the 2D Gaussian.
+        The standard deviation of the Gaussian.
     theta : float
-        The angle of rotation of the 2D Gaussian.
+        The rotation angle of the Gaussian, in radians.
     mu_x : float
-        The x-value of the peak of the 2D Gaussian.
+        The x-coordinate of the Gaussian center.
     mu_y : float
-        The y-value of the peak of the 2D Gaussian.
+        The y-coordinate of the Gaussian center.
 
     Returns
     -------
-    float
-        The value of the 2D Gaussian evaluated at the given point.
+    float or ndarray
+        The value of the Gaussian evaluated at the given coordinate(s).
     '''
 
     x, y = coord
-    return amp * np.exp(-(((x-mu_x)*math.cos(theta)+(y-mu_y)*math.sin(theta))**2+(-(x-mu_x)*math.sin(theta)+(y-mu_y)*math.cos(theta))**2)/(2*sigma**2))
+    x_rot = (x - mu_x) * math.cos(theta) + (y - mu_y) * math.sin(theta)
+    y_rot = -(x - mu_x) * math.sin(theta) + (y - mu_y) * math.cos(theta)
+    return amp * np.exp(-(x_rot**2 + y_rot**2)/(2 * sigma**2))
 
 
 def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True,\
