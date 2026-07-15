@@ -31,17 +31,27 @@ def fits_data_index(fits_file: str) -> int:
         If the FITS file contains no HDU with data.
     '''
     try:
-        with fits.open(fits_file) as file:
+        with fits.open(fits_file) as hdulist:
             # Iterate through the HDUs until one containing data is found.
-            # Assumes the first HDU with data contains the image.
-            for file_index, hdu in enumerate(file):
+            # Assume the first HDU with data contains the image.
+            for file_index, hdu in enumerate(hdulist):
                 if hdu.data is not None:
                     return file_index
     except OSError as err:
-        raise OSError(f'Unable to open FITS file: {fits_file}') from err
-    raise ValueError(f'No HDU containing image data found in {fits_file}.')
+        raise OSError(
+            f"Unable to open FITS file: {fits_file}"
+            ) from err
+    raise ValueError(
+        f"No HDU containing image data found in {fits_file}."
+        )
 
-def gaussian_2d(coord: tuple, amp: float, sigma: float, mu_x: float, mu_y: float):
+def gaussian_2d(
+    coord: tuple,
+    amp: float,
+    sigma: float,
+    mu_x: float,
+    mu_y: float
+):
     '''Evaluate an isotropic 2D Gaussian at one or more coordinates.
 
     Parameters
@@ -65,201 +75,287 @@ def gaussian_2d(coord: tuple, amp: float, sigma: float, mu_x: float, mu_y: float
     '''
 
     x, y = coord
-    return amp * np.exp(-((x - mu_x)**2 + (y - mu_y)**2) / (2 * sigma**2))
+    return amp * np.exp(-((x - mu_x) ** 2 + (y - mu_y) ** 2) / (2 * sigma ** 2))
 
 
-def region_stats(fits_file: str, center: list = [], radius: list = [], invert: bool = False, Gaussian: bool = True, internal: bool = True,\
-                 outer_radius: float = None):
-    '''
-    Finds the statistics of a region of an image.
+def region_stats(
+    fits_file: str,
+    radius: list,
+    center: list=None,
+    invert: bool=False,
+    gaussian: bool=True,
+    internal: bool=True,
+    outer_radius: float=None
+) -> dict:
+    '''Find the statistics of a region of an image.
 
     Parameters
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    center : list (optional)
-        A list of center coordinates in units of pixels.
-        If no center coordinates are given, eventually defaults to [((length of x-axis)/2, (length of y-axis)/2)], rounded up.
-    radius : list (optional)
-        A list of search radii in units of arcsec.
-        If no radius list is given, defaults to an empty list.
-    invert : bool (optional)
+    center : list, optional
+        Sequence of `(x, y)` pixel coordinates defining the centers of the
+        circular regions.
+        If `None` or empty, the image center is used.
+    radius : list
+        Sequence of radii, in arcseconds, corresponding to each center
+        coordinate.
+        If centers are provided, `center` and `radius` must have the same
+        length.
+    invert : bool, optional
         Whether to swap the inclusion and exclusion regions.
-        If no value is given, defaults to False.
-    Gaussian : bool (optional)
-        Whether to use a 2D Gaussian fit to estimate the true maximum flux and its corresponding coordinates.
-        If no value is given, defaults to True.
-    internal : bool (optional)
-        Whether the peak to search for is internal (in which case to use a 5x5 pixel region if using a Gaussian fit)
-        or external (in which case to use a 3x3 pixel region if using a Gaussian fit).
-        If no value is given, defaults to True.
-    outer radius : float (optional)
-        The radius outside of which everything will be excluded. This is not affected by value invert.
-        If no value is given, defaults to None and will not be used to exclude data.
+    gaussian : bool, optional
+        Whether to use a 2D Gaussian fit to estimate the true maximum flux and
+        its corresponding coordinates.
+        If `False`, the brightest pixel is returned without subpixel refinement.
+    internal : bool, optional
+        Determines the fitting window used for Gaussian refinement.
+        If `True`, a 5x5 pixel neighborhood is used. Otherwise, a 3x3
+        neighborhood is used.
+    outer_radius : float, optional
+        Circular mask centered on the image center. Pixels outside this radius
+        are excluded regardless of `invert`.
 
     Returns
     -------
     dict
-        A dictionary with:
-            float
-                The region's maximum flux in Jy.
-            tuple (int, int)
-                The coordinates in pixels of the image's center.
-            tuple (int, int)
-                The coordinates in pixels of the region's maximum flux.
-            float
-                The region's rms in Jy.
-            float
-                The image's beam size in arcseconds squared.
-            float
-                The image's x-axis length in arcsec.
-            float
-                The image's y-axis length in arcsec.
-            float
-                The area included in the mask in arcseconds squared.
-            float
-                The area excluded by the mask in arcseconds squared.
-            float
-                The number of measurements included in the mask.
-            float
-                The number of measurements excluded by the mask.
-            float
-                The median absolute deviation of the flux of the image.
-            float
-                The standard deviation of the flux of the image, as estimated by the MAD.
-            float
-                The most negative flux in the image, if such a flux exists. If not, this is None.
+        Dictionary with the following keys:
+
+        `peak` : float
+            Peak flux density in Jy.
+        `field_center` : tuple of 2 float
+            Image center in pixel coordinates.
+        `peak_coord` : tuple of 2 float
+            Peak coordinates. Subpixel values are returned if Gaussian fitting
+            succeeds.
+        `rms` : float
+            RMS of the region, in Jy.
+        `beam_area` : float
+            The image's beam area, in arcsec^2.
+        `x_axis` : float
+            The image's x-axis length in arcsec.
+        `y_axis` : float
+            The image's y-axis length in arcsec.
+        `incl_area` : float
+            The area included in the mask, in arcsec^2.
+        `excl_area` : float
+            The area excluded by the mask, in arcsec^2.
+        `n_incl_meas` : float
+            The number of measurements (beams) included in the mask.
+        `n_excl_meas` : float
+            The number of measurements (beams) excluded by the mask.
+        `mad` : float
+            The median absolute deviation of the image flux density, in Jy.
+        `sd_mad` : float
+            The standard deviation, as estimated by the MAD, of the image flux
+            density, in Jy.
+        `neg_peak` : float or None
+            Most negative pixel flux density in the image.
+            Returns ``None`` if no negative pixel values are present.
 
     Raises
     ------
     IndexError
         If center list and radius list are of different lengths.
+    OSError
+        If the FITS file cannot be opened.
+    ValueError
+        If the applied mask contains no pixels.
+
+    Notes
+    -----
+    When `gaussian` is `True`, the peak flux and position are refined using a bounded
+    two-dimensional Gaussian fit around the brightest pixel.
     '''
 
-    if center != [] and len(center) != len(radius):
-        raise IndexError ('Center list and radius list are of different lengths')
-
+    if center:
+        if len(center) != len(radius):
+            raise IndexError(
+                f"'center' and 'radius' must have the same length. "
+                f"(got {len(center)} and {len(radius)})."
+            )
     i = fits_data_index(fits_file)
 
-    #open FITS file
+    # Extract the HDU with image data.
     try:
-        file = fits.open(fits_file)
-    except:
-        print(f'Unable to open {fits_file}')
+        with fits.open(fits_file) as file:
+            image_hdu = file[i]
+    except OSError as err:
+        raise OSError(f'Unable to open {fits_file}') from err
 
-    #extract data array
-    info = file[i]
-    data = info.data
+    # Extract the image data array.
+    data = image_hdu.data
 
+    # Record the most negative pixel value for image diagnostics.
     neg_peak = float(np.min(data[0]))
     if neg_peak >= 0:
         neg_peak = None
 
     mad = float(median_abs_deviation(data[0].flatten()))
-    sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad) #estimate standard deviation from MAD
+    # Convert the MAD to an equivalent Gaussian standard deviation.
+    sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad)
 
-    #getting dimensions for array
-    x_dim = info.header['NAXIS1']
-    y_dim = info.header['NAXIS2']
+    # Get the image dimensions, in pixels.
+    x_dim = image_hdu.header['NAXIS1']
+    y_dim = image_hdu.header['NAXIS2']
 
-    x_dist_array = np.tile(np.arange(x_dim),(y_dim, 1)) #array of each pixel's horizontal distance (in pixels) from y-axis
-    y_dist_array = x_dist_array.T #array of each pixel's vertical distance (in pixels) from x-axis
+    # Arrays containing the x- and y-coordinates of every pixel.
+    x_dist_array = np.tile(np.arange(x_dim),(y_dim, 1))
+    y_dist_array = x_dist_array.T
 
-    #keep center pixel coordinates if specified, set to default if unspecified
+    # Keep center pixel coordinates if specified or set to default if
+    # unspecified.
     center_pix = center
-    field_center = ((x_dim-1)/2, (y_dim-1)/2)
-    if center == []:
+    field_center = ((x_dim - 1) / 2, (y_dim - 1) / 2)
+    if not center:
         center_pix = [field_center]
         if len(radius) > 1:
             center_pix = center_pix * len(radius)
 
-    #find units of axes
-    x_unit = info.header['CUNIT1']
-    y_unit = info.header['CUNIT2']
+    # Find the units of the axes.
+    x_unit = image_hdu.header['CUNIT1']
+    y_unit = image_hdu.header['CUNIT2']
 
-    #find cell size (units of arcsec)
-    x_cell_size = (Angle(abs(info.header['CDELT1']), x_unit)).to(u.arcsec)
-    y_cell_size = (Angle(abs(info.header['CDELT2']), y_unit)).to(u.arcsec)
+    # Find the cell size, in arcsec.
+    x_delt = Angle(abs(image_hdu.header['CDELT1']), x_unit)
+    x_cell_size = x_delt.to(u.arcsec).value
+    y_delt = Angle(abs(image_hdu.header['CDELT2']), y_unit)
+    y_cell_size = y_delt.to(u.arcsec).value
 
-    #find beam size (unitless but in arcsec^2)
-    beam_size = float(((np.pi/4) * info.header['BMAJ'] * info.header['BMIN'] * Angle(1, x_unit) * Angle(1, y_unit) / np.log(2)).to(u.arcsec**2)\
-                / (u.arcsec**2))
+    # Find the beam area, in arcsec^2.
+    beam_area = float(
+        ((np.pi / 4) * image_hdu.header['BMAJ'] * image_hdu.header['BMIN']
+        * (Angle(1, x_unit) * Angle(1, y_unit) / np.log(2))
+        .to(u.arcsec ** 2)).value
+    )
 
-    #find axis sizes
+    # Find the axis sizes, in arcsec.
     x_axis_size = x_dim * x_cell_size
     y_axis_size = y_dim * y_cell_size
 
-    #distance from center array
-    dist_from_center =((((x_dist_array - center_pix[0][0])*x_cell_size)**2 + ((y_dist_array - center_pix[0][1])*y_cell_size)**2)**0.5)
+    # Compute the distance of every pixel from the first search center.
+    dist_from_center = (
+        (((x_dist_array - center_pix[0][0]) * x_cell_size) ** 2
+        + ((y_dist_array - center_pix[0][1]) * y_cell_size) ** 2) ** 0.5
+    )
 
-    #boolean mask and apply
-    mask = (dist_from_center <= radius[0] * u.arcsec)
-    if len(center) > 1:
+    # Create the inclusion mask.
+    mask = (dist_from_center <= radius[0])
+    if len(center_pix) > 1:
+        # Combine masks from multiple circular regions.
         for j in range(1, len(center)):
-            dist_from_center = ((((x_dist_array - center_pix[j][0])*x_cell_size)**2 + ((y_dist_array - center_pix[j][1])*y_cell_size)**2)**0.5)
-            mask = np.logical_or(mask, (dist_from_center <= radius[j] * u.arcsec))
+            dist_from_center = (
+                (((x_dist_array - center_pix[j][0]) * x_cell_size) ** 2
+                + ((y_dist_array - center_pix[j][1]) * y_cell_size) ** 2)
+                ** 0.5
+            )
+            mask = np.logical_or(mask, (dist_from_center <= radius[j]))
 
     if invert:
         mask = np.logical_not(mask)
 
     if outer_radius is not None:
-        dist_from_field_center = ((((x_dist_array - field_center[0])*x_cell_size)**2 + ((y_dist_array - field_center[1])*y_cell_size)**2)**0.5)
-        outer_mask = (dist_from_field_center <= outer_radius * u.arcsec)
+        # Apply an additional mask relative to the image center.
+        dist_from_field_center = (
+            (((x_dist_array - field_center[0]) * x_cell_size) ** 2
+            + ((y_dist_array - field_center[1]) * y_cell_size) ** 2) ** 0.5
+        )
+        outer_mask = (dist_from_field_center <= outer_radius)
         mask = np.logical_and(mask, outer_mask)
 
-    incl_area = float(mask.sum() * x_cell_size * y_cell_size / (u.arcsec)**2)
-    excl_area = float(np.logical_not(mask).sum() * x_cell_size * y_cell_size / (u.arcsec)**2)
+    incl_area = float(mask.sum() * x_cell_size * y_cell_size)
+    excl_area = float(np.logical_not(mask).sum() * x_cell_size * y_cell_size)
 
     masked_data = data[0][mask]
 
-    #get peak
+    # Get the peak flux density.
     try:
-        peak = float(max(masked_data))
+        peak = float(np.max(masked_data))
     except ValueError:
-        print('No values after mask applied. Check inclusion and exclusion radii.')
+        raise ValueError(
+            "No values remain after the mask was applied. "
+            "Check inclusion and exclusion radii."
+        )
 
-    #find coordinates of peak
+    # Find the coordinates of the peak.
+    # Use the first occurrence if multiple pixels share the maximum value.
     peak_pix = np.where(data[0] == peak)
     peak_x = int(peak_pix[1][0])
     peak_y = int(peak_pix[0][0])
     peak_coord = (peak_x, peak_y)
 
-    #fit for peak and coordinates assuming Gaussian
-    #use data from 5x5 region if internal peak
+    # Refine the peak value and location using a bounded 2D Gaussian fit.
+    # Use data from a 5x5 region if the peak is internal and if this region
+    # fits in the image.
     data_array = np.array(data[0])
-    if Gaussian and internal and (peak_x - 2) >= 0 and (peak_x + 2) < x_dim and (peak_y - 2) >= 0 and (peak_y + 2) < y_dim:
-        z_data = data_array[peak_y - 2:peak_y + 3, peak_x - 2:peak_x + 3].flatten()
-        y_data = [-2]*5 + [-1]*5 + [0]*5 + [1]*5 + [2]*5
-        x_data = [-2,-1,0,1,2]*5
+    if (
+        gaussian
+        and internal
+        and (peak_x - 2) >= 0
+        and (peak_x + 2) < x_dim
+        and (peak_y - 2) >= 0
+        and (peak_y + 2) < y_dim
+    ):
+        z_data = data_array[peak_y - 2:peak_y + 3, peak_x - 2:peak_x + 3]
+        z_data = z_data.flatten()
+        y_data = [-2] * 5 + [-1] * 5 + [0] * 5 + [1] * 5 + [2] * 5
+        x_data = [-2, -1, 0, 1, 2] * 5
 
         try:
-            popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
-            amp, sigma, mu_x, mu_y = popt
+            popt, _ = curve_fit(
+                gaussian_2d, (x_data, y_data), z_data,
+                bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
+            )
+            amp, _, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
             pass
 
-    #use data from 3x3 region if external peak
-    elif Gaussian and (not internal) and (peak_x - 1) >= 0 and (peak_x + 1) < x_dim and (peak_y - 1) >= 0 and (peak_y + 1) < y_dim:
-        z_data = data_array[peak_y - 1:peak_y + 2, peak_x - 1:peak_x + 2].flatten()
-        y_data = [-1]*3 + [0]*3 + [1]*3
-        x_data = [-1,0,1]*3
+    # Use data from a 3x3 region if the peak is external and if this region
+    # fits in the image.
+    elif (
+        gaussian
+        and (not internal)
+        and (peak_x - 1) >= 0
+        and (peak_x + 1) < x_dim
+        and (peak_y - 1) >= 0
+        and (peak_y + 1) < y_dim
+    ):
+        z_data = data_array[peak_y - 1:peak_y + 2, peak_x - 1:peak_x + 2]
+        z_data = z_data.flatten()
+        y_data = [-1] * 3 + [0] * 3 + [1] * 3
+        x_data = [-1, 0, 1] * 3
 
         try:
-            popt, pcov = curve_fit(gaussian_2d, (x_data, y_data), z_data, bounds=([peak,0,-1,-1],[float('inf'),float('inf'),1,1]))
-            amp, sigma, mu_x, mu_y = popt
+            popt, _ = curve_fit(
+                gaussian_2d, (x_data, y_data), z_data,
+                bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
+            )
+            amp, _, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
             pass
 
-    rms = float((np.var(masked_data))**0.5)
+    rms = float(np.sqrt(np.var(masked_data)))
 
-    stats = {'peak': peak, 'field_center': field_center, 'peak_coord': peak_coord, 'rms': rms, 'beam_size': beam_size,\
-             'x_axis': float(x_axis_size / u.arcsec), 'y_axis': float(y_axis_size / u.arcsec), 'incl_area': incl_area, 'excl_area': excl_area,\
-             'n_incl_meas': float(incl_area / beam_size), 'n_excl_meas': float(excl_area / beam_size), 'mad': mad, 'sd_mad': sd_mad,\
-             'neg_peak': neg_peak}
+    stats = {
+        'peak': peak,
+        'field_center': field_center,
+        'peak_coord': peak_coord,
+        'rms': rms,
+        'beam_area': beam_area,
+        'x_axis': float(x_axis_size),
+        'y_axis': float(y_axis_size),
+        'incl_area': incl_area,
+        'excl_area': excl_area,
+        'n_incl_meas': float(incl_area / beam_area),
+        'n_excl_meas': float(excl_area / beam_area),
+        'mad': mad,
+        'sd_mad': sd_mad,
+        'neg_peak': neg_peak
+    }
 
     return stats
 
@@ -392,7 +488,7 @@ next_ext_peak: 0.11062327027320862
     search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
 
     #search for brightest internal peak
-    int_stats1 = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=False, internal=True)
+    int_stats1 = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, Gaussian=False, internal=True)
     int_coord1 = int_stats1['peak_coord']
     int_peak1 = int_stats1['peak']
     n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
@@ -405,7 +501,7 @@ next_ext_peak: 0.11062327027320862
     center = [field_center]
     radius = [search_radius]
 
-    ext_stats1 = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=False)
+    ext_stats1 = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
     n_excl = ext_stats1['n_incl_meas'] #should be the same for all external peaks
     ext_peak1 = ext_stats1['peak']
     rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
@@ -433,13 +529,13 @@ next_ext_peak: 0.11062327027320862
         ext_significant = False
 
     while ext_significant:
-        ext_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=False)
+        ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
         peak = ext_stats['peak']
         rms = ext_stats['rms']
 
         ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
         if ext_prob < ext_threshold:
-            ext_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=False)
+            ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=True, internal=False)
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
             ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
@@ -463,7 +559,7 @@ next_ext_peak: 0.11062327027320862
     int_significant = (int_prob1 < threshold)
 
     if int_significant: # Gaussian interpolation for internal peak to get better estimate of its flux and coordinates, using updated rms
-        int_stats_final = region_stats(fits_file=fits_file, center=center, radius=[search_radius], invert=False, Gaussian=True, internal=True)
+        int_stats_final = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, Gaussian=True, internal=True)
         int_coord_final = int_stats_final['peak_coord']
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
@@ -478,12 +574,12 @@ next_ext_peak: 0.11062327027320862
 
     #find internal peaks in addition to 1st internal peak
     while int_significant:
-        int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=False, internal=True,\
+        int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=True,\
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
         int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
         if int_prob < threshold and (int_peak > (int_peak_final/rms) / 100):
-            int_stats = region_stats(fits_file=fits_file, center=center, radius=radius, invert=True, Gaussian=True, internal=True,\
+            int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=True, internal=True,\
                                      outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
             int_peak = int_stats['peak']
