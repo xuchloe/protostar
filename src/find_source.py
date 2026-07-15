@@ -9,9 +9,11 @@ import matplotlib.patches as patches
 import matplotlib.ticker as ticker
 import math
 
+_RMS_UNCERT_SIGMA = 5
+_RMS_UNCERT_SAMPLES = 100
 
-def fits_data_index(fits_file: str) -> int:
-    '''Return the index of the first HDU containing image data.
+def _fits_data_index(fits_file: str) -> int:
+    """Return the index of the first HDU containing image data.
 
     Parameters
     ----------
@@ -29,7 +31,7 @@ def fits_data_index(fits_file: str) -> int:
         If the FITS file cannot be opened.
     ValueError
         If the FITS file contains no HDU with data.
-    '''
+    """
     try:
         with fits.open(fits_file) as hdulist:
             # Iterate through the HDUs until one containing data is found.
@@ -45,14 +47,14 @@ def fits_data_index(fits_file: str) -> int:
         f"No HDU containing image data found in {fits_file}."
         )
 
-def gaussian_2d(
+def _gaussian_2d(
     coord: tuple,
     amp: float,
     sigma: float,
     mu_x: float,
-    mu_y: float
+    mu_y: float,
 ):
-    '''Evaluate an isotropic 2D Gaussian at one or more coordinates.
+    """Evaluate an isotropic 2D Gaussian at one or more coordinates.
 
     Parameters
     ----------
@@ -72,22 +74,22 @@ def gaussian_2d(
     -------
     float or ndarray
         The Gaussian evaluated at the given coordinate(s).
-    '''
+    """
 
     x, y = coord
     return amp * np.exp(-((x - mu_x) ** 2 + (y - mu_y) ** 2) / (2 * sigma ** 2))
 
 
-def region_stats(
+def _region_stats(
     fits_file: str,
     radius: list,
-    center: list=None,
-    invert: bool=False,
-    gaussian: bool=True,
-    internal: bool=True,
-    outer_radius: float=None
+    center: list | None = None,
+    invert: bool = False,
+    gaussian: bool = True,
+    internal: bool = True,
+    outer_radius: float | None = None,
 ) -> dict:
-    '''Find the statistics of a region of an image.
+    """Find the statistics of a region of an image.
 
     Parameters
     ----------
@@ -166,7 +168,7 @@ def region_stats(
     -----
     When `gaussian` is `True`, the peak flux and position are refined using a bounded
     two-dimensional Gaussian fit around the brightest pixel.
-    '''
+    """
 
     if center:
         if len(center) != len(radius):
@@ -174,7 +176,7 @@ def region_stats(
                 f"'center' and 'radius' must have the same length. "
                 f"(got {len(center)} and {len(radius)})."
             )
-    i = fits_data_index(fits_file)
+    i = _fits_data_index(fits_file)
 
     # Extract the image data array from the HDU with image data.
     try:
@@ -301,7 +303,7 @@ def region_stats(
 
         try:
             popt, _ = curve_fit(
-                gaussian_2d, (x_data, y_data), z_data,
+                _gaussian_2d, (x_data, y_data), z_data,
                 bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
             )
             amp, _, mu_x, mu_y = popt
@@ -327,7 +329,7 @@ def region_stats(
 
         try:
             popt, _ = curve_fit(
-                gaussian_2d, (x_data, y_data), z_data,
+                _gaussian_2d, (x_data, y_data), z_data,
                 bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
             )
             amp, _, mu_x, mu_y = popt
@@ -358,47 +360,86 @@ def region_stats(
     return stats
 
 
-def calc_prob_from_rms_uncert(peak: float, rms: float, n_excl: float, n_incl: float = None):
-    '''
-    Estimates the probability of a value or greater occurring in some number of measurements
-    of a Gaussian distribution with an imprecisely known RMS.
+def _probability_from_rms_uncertainty(
+    peak: float,
+    rms: float,
+    n_excl: float,
+    n_incl: float | None = None,
+) -> float:
+    """Estimate the probability of a value or greater occurring in some number
+    of measurements of a Gaussian distribution with an imprecisely known RMS.
+
+    The RMS uncertainty is incorporated into the probability estimate rather
+    than assuming the measured RMS is exact. The RMS may be estimated from one
+    set of measurements (the exclusion region) while the probability may be
+    evaluated over another set of measurements (the inclusion region).
 
     Parameters
     ----------
     peak : float
-        The smallest value in the range of values whose probability of occurring will be estimated.
+        The threshold value. The probability of obtaining a value greater than
+        or equal to this value is estimated.
     rms : float
-        The imprecisely known RMS value.
+        The estimated RMS of the Gaussian distribution.
     n_excl : float
-        The number of measurements in the region from which the RMS is measured.
-        If no value is given for n_incl, this is also the number of measurements
-        for which the probability will be estimated.
-    n_incl : float (optional)
-        The number of measurements for which the probability will be estimated.
+        The number of measurements used to estimate the RMS. The suffix 'excl'
+        indicates that these measurements come from an exclusion region that
+        may differ from the region over which the probability is estimated.
+    n_incl : float, optional
+        The number of measurements over which the probability is estimated. The
+        suffix 'incl' indicates the inclusion region.
 
     Returns
     -------
     float
-        The estimated probability.
-    '''
+        The estimated probability of obtaining a value greater than or equal to
+        `peak`.
 
-    #calculate error for rms
-    rms_err = rms * (n_excl)**(-1/2)
+    Raises
+    ------
+    ValueError
+        If `rms`, `n_excl`, or `n_incl` (when provided) is not positive.
 
-    #create normal distributions from rms and error for rms
-    uncert = np.linspace(-5 * rms_err, 5 * rms_err, 100)
-    uncert_pdf = norm.pdf(uncert, loc = 0, scale = rms_err)
+    Notes
+    -----
+    The RMS uncertainty is assumed to follow a Gaussian distribution with
+    standard deviation `rms / sqrt(n_excl)`. The input distribution is
+    assumed to be Gaussian. The probability is estimated by numerically
+    marginalizing over the RMS uncertainty using a Gaussian weighting function
+    sampled at 100 evenly spaced points spanning ±5 standard deviations.
+    """
 
-    #sum and normalize to find probabilities
-    if n_incl == None:
-        return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_excl) * uncert_pdf) / sum(uncert_pdf))
-    else:
-        return float(sum((norm.cdf((-1 * peak)/(rms + uncert)) * n_incl) * uncert_pdf) / sum(uncert_pdf))
+    if rms <= 0:
+        raise ValueError(f"'rms' must be positive. Got {rms}.")
+    if n_excl <= 0:
+        raise ValueError(f"'n_excl' must be positive. Got {n_excl}.")
+    if n_incl is not None and n_incl <= 0:
+        raise ValueError(f"'n_incl' must be positive. Got {n_incl}.")
+
+    # Estimate RMS uncertainty assuming Gaussian noise statistics.
+    rms_err = rms / np.sqrt(n_excl)
+    
+    # Integrate over possible RMS deviations weighted by their Gaussian
+    # probability.
+    uncert = np.linspace(
+        -_RMS_UNCERT_SIGMA * rms_err,
+        _RMS_UNCERT_SIGMA * rms_err,
+        _RMS_UNCERT_SAMPLES
+    )
+    uncert_pdf = norm.pdf(uncert, loc=0, scale=rms_err)
+
+    # Marginalize the probability over the RMS uncertainty distribution.
+    if n_incl is None:
+        n_incl = n_excl
+    return float(
+        np.sum(norm.cdf(-peak / (rms + uncert)) * n_incl * uncert_pdf)
+        / np.sum(uncert_pdf)
+    )
 
 
 def prob_dict_from_rms_uncert(fits_file: str, center: list = [], threshold: float = 0.01, radius_buffer: float = 5.0,\
                               ext_threshold: float = None):
-    '''
+    """
     Finds the probabilities of the internal and external peaks, as well as other relevant statistics of an image.
 
     Parameters
@@ -469,9 +510,9 @@ ext_peak_coord: []
 ext_prob: []
 ext_snr: []
 next_ext_peak: 0.11062327027320862
-    '''
+    """
 
-    i = fits_data_index(fits_file)
+    i = _fits_data_index(fits_file)
 
     #open FITS file
     try:
@@ -486,7 +527,7 @@ next_ext_peak: 0.11062327027320862
     search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
 
     #search for brightest internal peak
-    int_stats1 = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=False, internal=True)
+    int_stats1 = _region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=False, internal=True)
     int_coord1 = int_stats1['peak_coord']
     int_peak1 = int_stats1['peak']
     n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
@@ -499,11 +540,11 @@ next_ext_peak: 0.11062327027320862
     center = [field_center]
     radius = [search_radius]
 
-    ext_stats1 = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
+    ext_stats1 = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
     n_excl = ext_stats1['n_incl_meas'] #should be the same for all external peaks
     ext_peak1 = ext_stats1['peak']
     rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
-    ext_prob1 = calc_prob_from_rms_uncert(peak=ext_peak1, rms=rms, n_excl=n_excl)
+    ext_prob1 = _probability_from_rms_uncertainty(peak=ext_peak1, rms=rms, n_excl=n_excl)
 
     prob_dict = {'field_center': field_center, 'rms_val': None, 'mad': mad, 'sd_mad': sd_mad, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
                  'fwhm': beam_fwhm, 'incl_radius': search_radius, 'neg_peak': neg_peak,\
@@ -527,16 +568,16 @@ next_ext_peak: 0.11062327027320862
         ext_significant = False
 
     while ext_significant:
-        ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
+        ext_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
         peak = ext_stats['peak']
         rms = ext_stats['rms']
 
-        ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
+        ext_prob = _probability_from_rms_uncertainty(peak=peak, rms=rms, n_excl=n_excl)
         if ext_prob < ext_threshold:
-            ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=False)
+            ext_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=False)
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
-            ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
+            ext_prob = _probability_from_rms_uncertainty(peak=peak, rms=rms, n_excl=n_excl)
             prob_dict['ext_peak_val'].append(peak)
             prob_dict['ext_peak_coord'].append(coord)
             prob_dict['ext_prob'].append(ext_prob)
@@ -550,19 +591,19 @@ next_ext_peak: 0.11062327027320862
     prob_dict['rms_val'] = rms
 
     #find prob for 1st internal peak using updated rms
-    int_prob1 = calc_prob_from_rms_uncert(peak=int_peak1, rms=rms, n_excl=n_excl, n_incl=n_incl)
+    int_prob1 = _probability_from_rms_uncertainty(peak=int_peak1, rms=rms, n_excl=n_excl, n_incl=n_incl)
 
     if threshold == None:
         threshold = 0.01
     int_significant = (int_prob1 < threshold)
 
     if int_significant: # Gaussian interpolation for internal peak to get better estimate of its flux and coordinates, using updated rms
-        int_stats_final = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=True, internal=True)
+        int_stats_final = _region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=True, internal=True)
         int_coord_final = int_stats_final['peak_coord']
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
         prob_dict['int_peak_coord'].append(int_coord_final)
-        int_prob1 = calc_prob_from_rms_uncert(peak=int_peak_final, rms=rms, n_excl=n_excl, n_incl=n_incl)
+        int_prob1 = _probability_from_rms_uncertainty(peak=int_peak_final, rms=rms, n_excl=n_excl, n_incl=n_incl)
         prob_dict['int_prob'].append(int_prob1)
         prob_dict['int_snr'].append(int_peak_final / rms)
 
@@ -572,16 +613,16 @@ next_ext_peak: 0.11062327027320862
 
     #find internal peaks in addition to 1st internal peak
     while int_significant:
-        int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=True,\
+        int_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=True,\
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
-        int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
+        int_prob = _probability_from_rms_uncertainty(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
         if int_prob < threshold and (int_peak > (int_peak_final/rms) / 100):
-            int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=True,\
+            int_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=True,\
                                      outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
             int_peak = int_stats['peak']
-            int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
+            int_prob = _probability_from_rms_uncertainty(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
             prob_dict['int_peak_val'].append(int_peak)
             prob_dict['int_peak_coord'].append(int_coord)
             prob_dict['int_prob'].append(int_prob)
@@ -595,7 +636,7 @@ next_ext_peak: 0.11062327027320862
 
 
 def get_prob_rms_est_from_ext(prob_dict: dict):
-    '''
+    """
     Using the rms estimated from the value of the exclusion region's maximum flux,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
     the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
@@ -666,7 +707,7 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
                         The inclusion region's signal to noise ratio.
                     float
                         The exclusion region's signal to noise ratio.
-    '''
+    """
     int_peak_val = prob_dict['int_peak_val']
     ext_peak_val = prob_dict['next_ext_peak']
     n_incl_meas = prob_dict['n_incl_meas']
@@ -701,7 +742,7 @@ def get_prob_rms_est_from_ext(prob_dict: dict):
 
 def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None,\
             short_dict: bool = True, plot: bool = True, save_path: str = ''):
-    '''
+    """
     Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
     with an option to save the plot as a png.
 
@@ -837,7 +878,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                         The inclusion region's signal to noise ratio.
                     float
                         The exclusion region's signal to noise ratio.
-    '''
+    """
     info = (get_prob_rms_est_from_ext(prob_dict_from_rms_uncert(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
                                                                 ext_threshold=ext_threshold)))
 
@@ -1005,7 +1046,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
 
 
 def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
-    '''
+    """
     Finds whether a significant source was detected in a field's center region.
 
     Parameters
@@ -1032,7 +1073,7 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     ------
     ValueError
         If threshold is not between 0 and 1, inclusive.
-    '''
+    """
 
     #make sure reasonable input
     if not (threshold >= 0 and threshold <= 1):
