@@ -488,7 +488,7 @@ next_ext_peak: 0.11062327027320862
     search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
 
     #search for brightest internal peak
-    int_stats1 = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, Gaussian=False, internal=True)
+    int_stats1 = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=False, internal=True)
     int_coord1 = int_stats1['peak_coord']
     int_peak1 = int_stats1['peak']
     n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
@@ -501,7 +501,7 @@ next_ext_peak: 0.11062327027320862
     center = [field_center]
     radius = [search_radius]
 
-    ext_stats1 = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
+    ext_stats1 = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
     n_excl = ext_stats1['n_incl_meas'] #should be the same for all external peaks
     ext_peak1 = ext_stats1['peak']
     rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
@@ -529,13 +529,13 @@ next_ext_peak: 0.11062327027320862
         ext_significant = False
 
     while ext_significant:
-        ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=False)
+        ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
         peak = ext_stats['peak']
         rms = ext_stats['rms']
 
         ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
         if ext_prob < ext_threshold:
-            ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=True, internal=False)
+            ext_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=False)
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
             ext_prob = calc_prob_from_rms_uncert(peak=peak, rms=rms, n_excl=n_excl)
@@ -559,7 +559,7 @@ next_ext_peak: 0.11062327027320862
     int_significant = (int_prob1 < threshold)
 
     if int_significant: # Gaussian interpolation for internal peak to get better estimate of its flux and coordinates, using updated rms
-        int_stats_final = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, Gaussian=True, internal=True)
+        int_stats_final = region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=True, internal=True)
         int_coord_final = int_stats_final['peak_coord']
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
@@ -574,12 +574,12 @@ next_ext_peak: 0.11062327027320862
 
     #find internal peaks in addition to 1st internal peak
     while int_significant:
-        int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=False, internal=True,\
+        int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=True,\
                                  outer_radius=search_radius)
         int_peak = int_stats['peak']
         int_prob = calc_prob_from_rms_uncert(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
         if int_prob < threshold and (int_peak > (int_peak_final/rms) / 100):
-            int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, Gaussian=True, internal=True,\
+            int_stats = region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=True,\
                                      outer_radius=search_radius)
             int_coord = int_stats['peak_coord']
             int_peak = int_stats['peak']
