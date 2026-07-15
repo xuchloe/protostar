@@ -176,15 +176,13 @@ def region_stats(
             )
     i = fits_data_index(fits_file)
 
-    # Extract the HDU with image data.
+    # Extract the image data array from the HDU with image data.
     try:
         with fits.open(fits_file) as file:
             image_hdu = file[i]
+            data = image_hdu.data
     except OSError as err:
         raise OSError(f'Unable to open {fits_file}') from err
-
-    # Extract the image data array.
-    data = image_hdu.data
 
     # Record the most negative pixel value for image diagnostics.
     neg_peak = float(np.min(data[0]))
