@@ -95,7 +95,7 @@ def _region_stats(
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    center : list, optional
+    center : list | None, optional
         Sequence of `(x, y)` pixel coordinates defining the centers of the
         circular regions.
         If `None` or empty, the image center is used.
@@ -114,7 +114,7 @@ def _region_stats(
         Determines the fitting window used for Gaussian refinement.
         If `True`, a 5x5 pixel neighborhood is used. Otherwise, a 3x3
         neighborhood is used.
-    outer_radius : float, optional
+    outer_radius : float | None, optional
         Circular mask centered on the image center. Pixels outside this radius
         are excluded regardless of `invert`.
 
@@ -122,7 +122,6 @@ def _region_stats(
     -------
     dict
         Dictionary with the following keys:
-
         `peak` : float
             Peak flux density in Jy.
         `field_center` : tuple of 2 float
@@ -151,9 +150,9 @@ def _region_stats(
         `sd_mad` : float
             The standard deviation, as estimated by the MAD, of the image flux
             density, in Jy.
-        `neg_peak` : float or None
-            Most negative pixel flux density in the image.
-            Returns ``None`` if no negative pixel values are present.
+        `neg_peak` : float | None
+            Most negative pixel flux density, in Jy, in the image.
+            Returns `None` if no negative pixel values are present.
 
     Raises
     ------
@@ -180,8 +179,8 @@ def _region_stats(
 
     # Extract the image data array from the HDU with image data.
     try:
-        with fits.open(fits_file) as file:
-            image_hdu = file[i]
+        with fits.open(fits_file) as hdulist:
+            image_hdu = hdulist[i]
             data = image_hdu.data
     except OSError as err:
         raise OSError(f'Unable to open {fits_file}') from err
@@ -385,7 +384,7 @@ def _probability_from_rms_uncertainty(
         The number of measurements used to estimate the RMS. The suffix 'excl'
         indicates that these measurements come from an exclusion region that
         may differ from the region over which the probability is estimated.
-    n_incl : float, optional
+    n_incl : float | None, optional
         The number of measurements over which the probability is estimated. The
         suffix 'incl' indicates the inclusion region.
 
@@ -418,7 +417,7 @@ def _probability_from_rms_uncertainty(
 
     # Estimate RMS uncertainty assuming Gaussian noise statistics.
     rms_err = rms / np.sqrt(n_excl)
-    
+
     # Integrate over possible RMS deviations weighted by their Gaussian
     # probability.
     uncert = np.linspace(
@@ -437,123 +436,210 @@ def _probability_from_rms_uncertainty(
     )
 
 
-def prob_dict_from_rms_uncert(fits_file: str, center: list = [], threshold: float = 0.01, radius_buffer: float = 5.0,\
-                              ext_threshold: float = None):
+def _statistics_from_rms_uncertainty(
+        fits_file: str,
+        center: list | None = None,
+        threshold: float = 0.01,
+        radius_buffer: float = 5.0,
+        ext_threshold: float | None = None
+    ) -> dict:
     """
-    Finds the probabilities of the internal and external peaks, as well as other relevant statistics of an image.
+    Finds the probabilities of the internal and external peaks, as well as
+    other relevant statistics of an image.
 
     Parameters
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    center : list (optional)
+    center : list | None, optional
         A list of center coordinates in units of pixels.
-        If no center coordinates are given, first defaults to [((length of x-axis)/2, (length of y-axis)/2)], rounded up.
-    threshold : float (optional)
-        The maximum probability, assuming no source in the image, for a significant internal detection.
-        If no value is given, defaults to 0.01.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 1e-3, 1e-6, or 1e-12, depending on the SNR of the internal peak.
+        If `None` or empty, field center coordinates are used.
+    threshold : float, optional
+        The maximum probability, assuming no source in the image, for a
+        significant internal detection.
+    radius_buffer : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float | None, optional
+        The probability that an external peak must be below for it to be
+        considered an external source.
+        If no value is given, 1e-3, 1e-6, or 1e-12 is used, depending on the
+        SNR of the internal peak.
 
     Returns
     -------
     dict
-        A dictionary with:
-            tuple (int, int)
-                The coordinates in pixels of the image's center.
-            float
-                The image's rms in Jy.
-            float
-                The median absolute deviation of the flux of the image.
-            float
-                The standard deviation of the flux of the image, as estimated by the MAD.
-            float
-                The number of measurements included in the mask.
-            float
-                The number of measurements excluded by the mask.
-            float
-                The length of the beam major axis in arcsec.
-            float
-                The radius of the initial inclusion region in arcsec.
-            float
-                The most negative flux in the image, if such a flux exists. If not, this is None.
-            list
-                A list with:
-                    float(s)
-                        The flux of the brightest internal peak and the fluxes of the remaining significant internal peaks,
-                        if these exist.
-            list
-                A list with:
-                    tuple(s) (int, int)
-                        The coordinates in pixels of the brightest internal peak and the remaining significant internal peaks,
-                        if these exist.
-            list
-                A list with:
-                    float(s)
-                        The probability/probabilities of the brightest internal peak and the remaining significant internal peaks,
-                        if these exist.
-            list
-                A list with:
-                    float(s)
-                        The signal to noise ratios of the brightest internal peak and the remaining significant internal peaks,
-                        if these exist.
-            list
-                A list with:
-                    float(s)
-                        The flux(es) the significant external peak(s), if these exist.
+        Dictionary with the following keys:
+            `field_center` : tuple of 2 float
+                Image center in pixel coordinates
+            `rms_val` : float
+                The estimated RMS, in Jy, of the image, excluding circular
+                neighborhoods around flux densities that were considered to be
+                significant.
+            `mad` : float
+                The median absolute deviation (MAD) of the image flux density.
+            `sd_mad` : float
+                The standard deviation of image flux density, as estimated by
+                the MAD.
+            `n_incl_meas` : float
+                The number of measurements (beams) included in the mask.
+            `n_excl_meas` : float
+                The number of measurements (beams) excluded by the mask.
+            `fwhm` : float
+                The beam major axis FWHM, in arcsec.
+            `incl_radius` : float
+                The radius, in arcsec, of the initial inclusion region.
+            `neg_peak` : float | None
+                Most negative pixel flux density, in Jy, in the image.
+                Returns `None` if no negative pixel values are present.
+            `int_peak_val` : list of float
+                The flux density, in Jy, of the brightest internal peak and the
+                flux densities, in Jy, of the remaining significant internal
+                peaks, if these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant internal peaks are found.
+            `int_peak_coord` : list of tuple of 2 int
+                The pixel coordinates of the brightest internal peak and the
+                remaining significant internal peaks, if these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant internal peaks are found.
+            `int_prob` : list of float
+                The probability/probabilities of the brightest internal peak
+                and the remaining significant internal peaks, if these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant internal peaks are found.
+            `int_snr` : list
+                The signal to noise ratios of the brightest internal peak and
+                the remaining significant internal peaks, if these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant internal peaks are found.
+            `ext_peak_val` : list
+                The flux density/densities, in Jy, of the significant external
+                peak(s), if these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant external peaks are found.
+            `ext_peak_coord` : list of tuple of 2 int
+                The pixel coordinates of the significant external peaks, if
+                these exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant external peaks are found.
+            `ext_snr` : list of float
+                The signal to noise ratios of the external peaks, if these
+                exist.
+                Peaks are arranged in decreasing brightness.
+                Empty if no significant external peaks are found.
+            `next_ext_peak` : float
+                The flux density, in Jy, of the brightest non-significant
+                external peak.
 
-ext_peak_coord: []
-ext_prob: []
-ext_snr: []
-next_ext_peak: 0.11062327027320862
+    Raises
+    ------
+    OSError
+        If the FITS file cannot be opened.
+
+    Notes
+    -----
+    The RMS is estimated iteratively by identifying statistically significant
+    external peaks and excluding circular regions with radii equal to the beam
+    FWHM around those peaks. The probability of internal peaks is then
+    evaluated using the updated RMS estimate.
+
+    To reduce false detections caused by the point spread function of bright
+    sources, empirical thresholds are applied. If external significance
+    threshold `ext_threshold` is `None`, it is set to `1e-3`, `1e-6`, or
+    `1e-12` depending on whether the SNR of the brightest internal peak is
+    below `20`, between `20` and `100`, or at least `100`, respectively.
+    Additional internal peaks are required to have flux densities greater
+    than `1/100` of the brightest internal peak.
     """
 
     i = _fits_data_index(fits_file)
 
-    #open FITS file
+    # Open FITS file and extract image HDU.
+    # Extract beam information from image HDU.
     try:
-        file = fits.open(fits_file)
-    except:
-        print(f'Unable to open {fits_file}')
+        with fits.open(fits_file) as hdulist:
+            hdu = hdulist[i]
+            beam_fwhm = float(
+                (Angle(hdu.header['BMAJ'], hdu.header['CUNIT1']))
+                .to(u.arcsec).value
+            )
+    except OSError as err:
+        raise OSError(
+            f"Unable to open FITS file: {fits_file}"
+            ) from err
 
-    #extract data array
-    info = file[i]
+    search_radius = beam_fwhm + radius_buffer
 
-    beam_fwhm = float((info.header['BMAJ'] * (Angle(1, info.header['CUNIT1'])).to(u.arcsec) / u.arcsec)) #unitless but in arcsec
-    search_radius = beam_fwhm + radius_buffer #unitless but in arcsec
-
-    #search for brightest internal peak
-    int_stats1 = _region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=False, internal=True)
-    int_coord1 = int_stats1['peak_coord']
+    # Search for the brightest internal peak.
+    int_stats1 = _region_stats(
+        fits_file=fits_file,
+        radius=[search_radius],
+        center=center,
+        invert=False,
+        gaussian=False,
+        internal=True
+    )
     int_peak1 = int_stats1['peak']
-    n_incl = int_stats1['n_incl_meas'] #should be the same for all internal peaks
-    field_center = int_stats1['field_center'] #in pixels
-    mad = int_stats1['mad'] #should be the same for all peaks
-    sd_mad = int_stats1['sd_mad'] #should be the same for all peaks
+    # `n_incl` is the same for all internal peaks since this is simply the
+    # number of beams in the internal region, i.e. the circular region within
+    # one `search_radius` from the `center`.
+    n_incl = int_stats1['n_incl_meas']
+    field_center = int_stats1['field_center']
+    # `mad` and `sd_mad` are evaluated using the external region and therefore
+    # are the same for all peaks.
+    mad = int_stats1['mad']
+    sd_mad = int_stats1['sd_mad']
     neg_peak = int_stats1['neg_peak']
 
-    #find external peaks and get their info
+    # Find external peaks and get their info.
     center = [field_center]
     radius = [search_radius]
-
-    ext_stats1 = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
-    n_excl = ext_stats1['n_incl_meas'] #should be the same for all external peaks
+    ext_stats1 = _region_stats(
+        fits_file=fits_file,
+        radius=radius,
+        center=center,
+        invert=True,
+        gaussian=False,
+        internal=False
+    )
+    # `n_excl` is the same for all external peaks since this is simply the
+    # number of beams in the external region, i.e. everything not in the
+    # internal region.
+    n_excl = ext_stats1['n_incl_meas']
     ext_peak1 = ext_stats1['peak']
-    rms = ext_stats1['rms'] #can be changed later as we exclude more peaks
-    ext_prob1 = _probability_from_rms_uncertainty(peak=ext_peak1, rms=rms, n_excl=n_excl)
+    rms = ext_stats1['rms'] # May change as we exclude more external peaks.
+    ext_prob1 = _probability_from_rms_uncertainty(
+        peak=ext_peak1,
+        rms=rms,
+        n_excl=n_excl
+    )
 
-    prob_dict = {'field_center': field_center, 'rms_val': None, 'mad': mad, 'sd_mad': sd_mad, 'n_incl_meas': n_incl, 'n_excl_meas': n_excl,\
-                 'fwhm': beam_fwhm, 'incl_radius': search_radius, 'neg_peak': neg_peak,\
-                 'int_peak_val': [], 'int_peak_coord': [], 'int_prob': [], 'int_snr': [],\
-                 'ext_peak_val': [], 'ext_peak_coord': [], 'ext_prob': [], 'ext_snr': [], 'next_ext_peak': None}
+    prob_dict = {
+        'field_center': field_center,
+        'rms_val': None,
+        'mad': mad,
+        'sd_mad': sd_mad,
+        'n_incl_meas': n_incl,
+        'n_excl_meas': n_excl,
+        'fwhm': beam_fwhm,
+        'incl_radius': search_radius,
+        'neg_peak': neg_peak,
+        'int_peak_val': [],
+        'int_peak_coord': [],
+        'int_prob': [],
+        'int_snr': [],
+        'ext_peak_val': [],
+        'ext_peak_coord': [],
+        'ext_prob': [],
+        'ext_snr': [],
+        'next_ext_peak': None
+    }
 
-    #update ext_threshold if needed
+    # Update ext_threshold based on SNR of internal peak, if needed.
+    # This prevents spurious detections due to the point spread function.
     int_snr1 = int_peak1 / rms
-    if ext_threshold == None:
+    if ext_threshold is None:
         if int_snr1 < 20:
             ext_threshold = 1e-3
         elif int_snr1 < 100:
@@ -567,17 +653,45 @@ next_ext_peak: 0.11062327027320862
         prob_dict['next_ext_peak'] = ext_peak1
         ext_significant = False
 
+    # Find significant external peaks, if they exist, and exclude them from
+    # the region where RMS is measured.
     while ext_significant:
-        ext_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=False)
+        ext_stats = _region_stats(
+            fits_file=fits_file,
+            radius=radius,
+            center=center,
+            invert=True,
+            # Not fitting with Gaussian because a significant external peak
+            # might not exist.
+            gaussian=False,
+            internal=False
+        )
         peak = ext_stats['peak']
         rms = ext_stats['rms']
 
-        ext_prob = _probability_from_rms_uncertainty(peak=peak, rms=rms, n_excl=n_excl)
+        ext_prob = _probability_from_rms_uncertainty(
+            peak=peak,
+            rms=rms,
+            n_excl=n_excl
+        )
         if ext_prob < ext_threshold:
-            ext_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=False)
+            ext_stats = _region_stats(
+                fits_file=fits_file,
+                radius=radius,
+                center=center,
+                invert=True,
+                # Fit with Gaussian once we know that a significant external
+                # peak actually does exist.
+                gaussian=True,
+                internal=False
+            )
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
-            ext_prob = _probability_from_rms_uncertainty(peak=peak, rms=rms, n_excl=n_excl)
+            ext_prob = _probability_from_rms_uncertainty(
+                peak=peak,
+                rms=rms,
+                n_excl=n_excl
+            )
             prob_dict['ext_peak_val'].append(peak)
             prob_dict['ext_peak_coord'].append(coord)
             prob_dict['ext_prob'].append(ext_prob)
@@ -590,39 +704,88 @@ next_ext_peak: 0.11062327027320862
 
     prob_dict['rms_val'] = rms
 
-    #find prob for 1st internal peak using updated rms
-    int_prob1 = _probability_from_rms_uncertainty(peak=int_peak1, rms=rms, n_excl=n_excl, n_incl=n_incl)
+    # Find probability for the first internal peak using the updated RMS.
+    int_prob1 = _probability_from_rms_uncertainty(
+        peak=int_peak1,
+        rms=rms,
+        n_excl=n_excl,
+        n_incl=n_incl
+    )
 
-    if threshold == None:
-        threshold = 0.01
     int_significant = (int_prob1 < threshold)
 
-    if int_significant: # Gaussian interpolation for internal peak to get better estimate of its flux and coordinates, using updated rms
-        int_stats_final = _region_stats(fits_file=fits_file, radius=[search_radius], center=center, invert=False, gaussian=True, internal=True)
+    # Gaussian interpolation for a significant first internal peak to get a
+    # better estimate of its flux and coordinates, using the updated RMS.
+    if int_significant:
+        int_stats_final = _region_stats(
+            fits_file=fits_file,
+            radius=[search_radius],
+            center=center,
+            invert=False,
+            gaussian=True,
+            internal=True
+        )
         int_coord_final = int_stats_final['peak_coord']
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
         prob_dict['int_peak_coord'].append(int_coord_final)
-        int_prob1 = _probability_from_rms_uncertainty(peak=int_peak_final, rms=rms, n_excl=n_excl, n_incl=n_incl)
+        int_prob1 = _probability_from_rms_uncertainty(
+            peak=int_peak_final,
+            rms=rms,
+            n_excl=n_excl,
+            n_incl=n_incl
+        )
         prob_dict['int_prob'].append(int_prob1)
         prob_dict['int_snr'].append(int_peak_final / rms)
 
-    #treat 1st internal peak kind of like an external peak and get rid of search radius so we can look inside
+    # Treat the first internal peak like an external peak, in the sense that we
+    # only exclude a small area around this peak so that we can look for
+    # any additional sources inside the internal region.
     center = [int_coord_final]
     radius = [beam_fwhm]
-
-    #find internal peaks in addition to 1st internal peak
+    # Find any internal peaks in addition to the first internal peak.
     while int_significant:
-        int_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=False, internal=True,\
-                                 outer_radius=search_radius)
+        int_stats = _region_stats(
+            fits_file=fits_file,
+            radius=radius,
+            center=center,
+            invert=True,
+            # As before, don't fit to Gaussian if we don't yet know that a
+            # significant source exists.
+            gaussian=False,
+            internal=True,
+            outer_radius=search_radius
+        )
         int_peak = int_stats['peak']
-        int_prob = _probability_from_rms_uncertainty(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
-        if int_prob < threshold and (int_peak > (int_peak_final/rms) / 100):
-            int_stats = _region_stats(fits_file=fits_file, radius=radius, center=center, invert=True, gaussian=True, internal=True,\
-                                     outer_radius=search_radius)
+        int_prob = _probability_from_rms_uncertainty(
+            peak=int_peak,
+            rms=rms,
+            n_excl=n_excl,
+            n_incl=n_incl
+        )
+        if (
+            int_prob < threshold
+            # Additional condition to mitigate false positives due to the point
+            # spread function of very bright internal sources.
+            and int_peak > int_peak_final / 100
+        ):
+            int_stats = _region_stats(
+                fits_file=fits_file,
+                radius=radius,
+                center=center,
+                invert=True,
+                gaussian=True,
+                internal=True,
+                outer_radius=search_radius
+            )
             int_coord = int_stats['peak_coord']
             int_peak = int_stats['peak']
-            int_prob = _probability_from_rms_uncertainty(peak=int_peak, rms=rms, n_excl=n_excl, n_incl=n_incl)
+            int_prob = _probability_from_rms_uncertainty(
+                peak=int_peak,
+                rms=rms,
+                n_excl=n_excl,
+                n_incl=n_incl
+            )
             prob_dict['int_peak_val'].append(int_peak)
             prob_dict['int_peak_coord'].append(int_coord)
             prob_dict['int_prob'].append(int_prob)
@@ -635,7 +798,7 @@ next_ext_peak: 0.11062327027320862
     return prob_dict
 
 
-def get_prob_rms_est_from_ext(prob_dict: dict):
+def _statistics_from_external_peak(prob_dict: dict) -> list:
     """
     Using the rms estimated from the value of the exclusion region's maximum flux,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
@@ -879,7 +1042,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                     float
                         The exclusion region's signal to noise ratio.
     """
-    info = (get_prob_rms_est_from_ext(prob_dict_from_rms_uncert(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
+    info = (_statistics_from_external_peak(_statistics_from_rms_uncertainty(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
                                                                 ext_threshold=ext_threshold)))
 
     center = info['field_center']
@@ -1004,7 +1167,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                 while '/' in file:
                     file = file[file.index('/')+1:]
                 file = file.replace('.fits', '')
-                if ext_threshold == None:
+                if ext_threshold is None:
                     ext_threshold = 'default'
                 file += f'_rb{radius_buffer}_et{ext_threshold}'
                 if save_path[-1] != '/':
