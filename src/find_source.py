@@ -443,8 +443,7 @@ def _statistics_from_rms_uncertainty(
         radius_buffer: float = 5.0,
         ext_threshold: float | None = None
     ) -> dict:
-    """
-    Finds the probabilities of the internal and external peaks, as well as
+    """Find the probabilities of the internal and external peaks, as well as
     other relevant statistics of an image.
 
     Parameters
@@ -798,8 +797,10 @@ def _statistics_from_rms_uncertainty(
     return prob_dict
 
 
-def _statistics_from_external_peak(prob_dict: dict) -> list:
-    """
+def _statistics_from_external_peak(prob_dict: dict) -> dict:
+    """Find the probabilities of the internal and external peaks, as well as
+    other relevant statistics of an image.
+
     Using the rms estimated from the value of the exclusion region's maximum flux,
     finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
     the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
@@ -821,15 +822,14 @@ def _statistics_from_external_peak(prob_dict: dict) -> list:
 
     Parameters
     ----------
-    prob_list : list
-        The list of statistics, as outputted by get_prob_image_rms(), for an image.
+    prob_dict : dict
+        A dictionary of image statistics, as returned by
+        _statistics_from_rms_uncertainty().
 
     Returns
     -------
-    list
-        A list with:
-            dict(s)
-                A dictionary with the following, found using the rms taken directly from the image:
+    dict
+        Dictionary with the following keys:
                     float
                         The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
                     float
@@ -870,17 +870,19 @@ def _statistics_from_external_peak(prob_dict: dict) -> list:
                         The inclusion region's signal to noise ratio.
                     float
                         The exclusion region's signal to noise ratio.
+
+    A dictionary with the following, found using the rms taken directly from the image:
     """
     int_peak_val = prob_dict['int_peak_val']
     ext_peak_val = prob_dict['next_ext_peak']
     n_incl_meas = prob_dict['n_incl_meas']
     n_excl_meas = prob_dict['n_excl_meas']
 
-    excl_sigma = -1 * norm.ppf(1/n_excl_meas)
+    excl_sigma = -1 * norm.ppf(1 / n_excl_meas)
     old_rms_val = ext_peak_val / excl_sigma
     prob_dict['calc_rms_val'] = float(old_rms_val)
 
-    sigma = norm.ppf(1/(n_incl_meas + n_excl_meas))
+    sigma = norm.ppf(1 / (n_incl_meas + n_excl_meas))
     neg_peak = prob_dict['neg_peak']
 
     if neg_peak is not None:
@@ -890,14 +892,23 @@ def _statistics_from_external_peak(prob_dict: dict) -> list:
         prob_dict['neg_peak_rms_val'] = None
         rms_val = old_rms_val
 
-    prob_dict['calc_ext_prob'] = float(norm.cdf((-1 * ext_peak_val)/(rms_val))) * n_excl_meas
+    prob_dict['calc_ext_prob'] = (
+        float(norm.cdf((-1 * ext_peak_val) / (rms_val)))
+        * n_excl_meas
+    )
     prob_dict['calc_ext_snr'] = float(excl_sigma)
     for i in range(len(int_peak_val)):
         if i == 0:
-            prob_dict['calc_int_prob'] = [float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas]
+            prob_dict['calc_int_prob'] = [
+                float(norm.cdf((-1 * int_peak_val[i]) / (rms_val)))
+                * n_incl_meas
+                ]
             prob_dict['calc_int_snr'] = [float(int_peak_val[i] / rms_val)]
         else:
-            prob_dict['calc_int_prob'].append(float(norm.cdf((-1 * int_peak_val[i])/(rms_val))) * n_incl_meas)
+            prob_dict['calc_int_prob'].append(
+                float(norm.cdf((-1 * int_peak_val[i]) / (rms_val)))
+                * n_incl_meas
+                )
             prob_dict['calc_int_snr'].append(float(int_peak_val[i] / rms_val))
 
     return prob_dict
