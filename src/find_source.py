@@ -797,7 +797,7 @@ def _statistics_from_rms_uncertainty(
     return prob_dict
 
 
-def _statistics_from_external_peak(prob_dict: dict) -> dict:
+def statistics_from_external_peak(prob_dict: dict) -> dict:
     """Find the probabilities of the internal and external peaks, as well as
     other relevant statistics of an image.
 
