@@ -436,7 +436,7 @@ def _probability_from_rms_uncertainty(
     )
 
 
-def _statistics_from_rms_uncertainty(
+def statistics_from_rms_uncertainty(
         fits_file: str,
         center: list | None = None,
         threshold: float = 0.01,
