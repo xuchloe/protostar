@@ -73,7 +73,7 @@ def _gaussian_2d(
     Returns
     -------
     float or ndarray
-        The Gaussian evaluated at the given coordinate(s).
+        The Gaussian evaluated at the given coordinates.
     """
 
     x, y = coord
@@ -95,15 +95,15 @@ def _region_stats(
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    center : list | None, optional
-        Sequence of `(x, y)` pixel coordinates defining the centers of the
-        circular regions.
-        If `None` or empty, the image center is used.
     radius : list
         Sequence of radii, in arcseconds, corresponding to each center
         coordinate.
         If centers are provided, `center` and `radius` must have the same
         length.
+    center : list | None, optional
+        Sequence of `(x, y)` pixel coordinates defining the centers of the
+        circular regions.
+        If `None` or empty, the image center is used.
     invert : bool, optional
         Whether to swap the inclusion and exclusion regions.
     gaussian : bool, optional
@@ -115,8 +115,9 @@ def _region_stats(
         If `True`, a 5x5 pixel neighborhood is used. Otherwise, a 3x3
         neighborhood is used.
     outer_radius : float | None, optional
-        Circular mask centered on the image center. Pixels outside this radius
-        are excluded regardless of `invert`.
+        If provided, restrict the mask to a circular region centered on the
+        image center with this radius, in arcseconds.
+        Pixels outside this region are excluded regardless of `invert`.
 
     Returns
     -------
@@ -127,8 +128,9 @@ def _region_stats(
         `field_center` : tuple of 2 float
             Image center in pixel coordinates.
         `peak_coord` : tuple of 2 float
-            Peak coordinates. Subpixel values are returned if Gaussian fitting
-            succeeds.
+            Pixel coordinates of the peak. Integer pixel coordinates are
+            returned if Gaussian fitting is not performed or fails; subpixel
+            coordinates are returned if Gaussian fitting succeeds.
         `rms` : float
             RMS of the region, in Jy.
         `beam_area` : float
@@ -142,9 +144,9 @@ def _region_stats(
         `excl_area` : float
             The area excluded by the mask, in arcsec^2.
         `n_incl_meas` : float
-            The number of measurements (beams) included in the mask.
+            Estimated number of independent beam areas included in the mask.
         `n_excl_meas` : float
-            The number of measurements (beams) excluded by the mask.
+            Estimated number of independent beam areas excluded by the mask.
         `mad` : float
             The median absolute deviation of the image flux density, in Jy.
         `sd_mad` : float
@@ -152,32 +154,33 @@ def _region_stats(
             density, in Jy.
         `neg_peak` : float | None
             Most negative pixel flux density, in Jy, in the image.
-            Returns `None` if no negative pixel values are present.
+            `None` if no negative pixel values are present.
 
     Raises
     ------
-    IndexError
-        If center list and radius list are of different lengths.
     OSError
         If the FITS file cannot be opened.
     ValueError
-        If the applied mask contains no pixels.
+        If `center` and `radius` have different lengths, or if the applied mask
+        contains no pixels.
 
     Notes
     -----
-    When `gaussian` is `True`, the peak flux and position are refined using a bounded
-    two-dimensional Gaussian fit around the brightest pixel.
+    When `gaussian` is `True`, the peak flux and position are refined using a
+    bounded two-dimensional Gaussian fit around the brightest pixel. A 5x5
+    pixel window is used for internal peaks and a 3x3 pixel window for external
+    peaks. If the fitting window does not fit within the image or the fit
+    fails, the pixel maximum and its integer coordinates are returned.
     """
 
     if center:
         if len(center) != len(radius):
-            raise IndexError(
+            raise ValueError(
                 f"'center' and 'radius' must have the same length. "
                 f"(got {len(center)} and {len(radius)})."
             )
     i = _fits_data_index(fits_file)
 
-    # Extract the image data array from the HDU with image data.
     try:
         with fits.open(fits_file) as hdulist:
             image_hdu = hdulist[i]
@@ -194,12 +197,10 @@ def _region_stats(
     # Convert the MAD to an equivalent Gaussian standard deviation.
     sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad)
 
-    # Get the image dimensions, in pixels.
     x_dim = image_hdu.header['NAXIS1']
     y_dim = image_hdu.header['NAXIS2']
 
-    # Arrays containing the x- and y-coordinates of every pixel.
-    x_dist_array = np.tile(np.arange(x_dim),(y_dim, 1))
+    x_dist_array = np.tile(np.arange(x_dim), (y_dim, 1))
     y_dist_array = x_dist_array.T
 
     # Keep center pixel coordinates if specified or set to default if
@@ -254,7 +255,7 @@ def _region_stats(
         mask = np.logical_not(mask)
 
     if outer_radius is not None:
-        # Apply an additional mask relative to the image center.
+        # Restrict the mask to the central circular region used for the search.
         dist_from_field_center = (
             (((x_dist_array - field_center[0]) * x_cell_size) ** 2
             + ((y_dist_array - field_center[1]) * y_cell_size) ** 2) ** 0.5
@@ -277,8 +278,9 @@ def _region_stats(
         )
 
     # Find the coordinates of the peak.
-    # Use the first occurrence if multiple pixels share the maximum value.
-    peak_pix = np.where(data[0] == peak)
+    # Use the first occurrence allowed by the mask if multiple pixels share the
+    # maximum value.
+    peak_pix = peak_pix = np.where(mask & (data[0] == peak))
     peak_x = int(peak_pix[1][0])
     peak_y = int(peak_pix[0][0])
     peak_coord = (peak_x, peak_y)
@@ -303,13 +305,16 @@ def _region_stats(
         try:
             popt, _ = curve_fit(
                 _gaussian_2d, (x_data, y_data), z_data,
-                bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
+                bounds=(
+                    [peak, 0, -1, -1],
+                    [float('inf'), float('inf'), 1, 1]
+                )
             )
             amp, _, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
-            pass
+            pass  # Subpixel fitting failed; use pixel values instead.
 
     # Use data from a 3x3 region if the peak is external and if this region
     # fits in the image.
@@ -329,13 +334,16 @@ def _region_stats(
         try:
             popt, _ = curve_fit(
                 _gaussian_2d, (x_data, y_data), z_data,
-                bounds=([peak, 0, -1, -1],[float('inf'), float('inf'), 1, 1])
+                bounds=(
+                    [peak, 0, -1, -1],
+                    [float('inf'), float('inf'), 1, 1]
+                )
             )
             amp, _, mu_x, mu_y = popt
             peak = float(amp)
             peak_coord = (float(peak_x + mu_x), float(peak_y + mu_y))
         except RuntimeError:
-            pass
+            pass  # Subpixel fitting failed; use pixel values instead.
 
     rms = float(np.sqrt(np.var(masked_data)))
 
@@ -359,67 +367,69 @@ def _region_stats(
     return stats
 
 
-def _probability_from_rms_uncertainty(
+def _expected_exceedances_from_rms_uncertainty(
     peak: float,
     rms: float,
-    n_excl: float,
-    n_incl: float | None = None,
+    n_excl_meas: float,
+    n_incl_meas: float | None = None,
 ) -> float:
-    """Estimate the probability of a value or greater occurring in some number
-    of measurements of a Gaussian distribution with an imprecisely known RMS.
-
-    The RMS uncertainty is incorporated into the probability estimate rather
-    than assuming the measured RMS is exact. The RMS may be estimated from one
-    set of measurements (the exclusion region) while the probability may be
-    evaluated over another set of measurements (the inclusion region).
+    """Estimate the expected number of independent noise measurements greater
+    than or equal to `peak`, accounting for uncertainty in the estimated RMS.
 
     Parameters
     ----------
     peak : float
-        The threshold value. The probability of obtaining a value greater than
-        or equal to this value is estimated.
+        The threshold value. The expected number of independent noise
+        measurements greater than or equal to this value is estimated.
     rms : float
         The estimated RMS of the Gaussian distribution.
-    n_excl : float
-        The number of measurements used to estimate the RMS. The suffix 'excl'
-        indicates that these measurements come from an exclusion region that
-        may differ from the region over which the probability is estimated.
-    n_incl : float | None, optional
-        The number of measurements over which the probability is estimated. The
-        suffix 'incl' indicates the inclusion region.
+    n_excl_meas : float
+        The effective number of independent measurements contributing to the
+        RMS estimate. The suffix 'excl' indicates that these measurements come
+        from an exclusion region that may differ from the region over which the
+        expected number is estimated.
+    n_incl_mease : float | None, optional
+        The effective number of independent measurements over which the expected
+        number is evaluated.
+        If `None` or empty, `n_excl_meas` is used.
 
     Returns
     -------
     float
-        The estimated probability of obtaining a value greater than or equal to
-        `peak`.
+        The estimated expected number of independent noise measurements greater
+        than or equal to `peak`, accounting for uncertainty in the estimated RMS.
 
     Raises
     ------
     ValueError
-        If `rms`, `n_excl`, or `n_incl` (when provided) is not positive.
+        If `rms`, `n_excl_mease`, or `n_incl_meas` (when provided) is not
+        positive.
 
     Notes
     -----
-    The RMS uncertainty is assumed to follow a Gaussian distribution with
-    standard deviation `rms / sqrt(n_excl)`. The input distribution is
-    assumed to be Gaussian. The probability is estimated by numerically
+    The RMS uncertainty is incorporated into the expected number estimate
+    rather than assuming the measured RMS is exact. The uncertainty in the RMS
+    estimate is modeled as a Gaussian distribution with standard deviation
+    `rms / sqrt(n_excl_meas)`. The RMS may be estimated from one set of measurements
+    (the exclusion region) while the expected number may be evaluated over
+    another set of measurements (the inclusion region). The input distribution
+    is assumed to be Gaussian. The expected number is estimated by numerically
     marginalizing over the RMS uncertainty using a Gaussian weighting function
     sampled at 100 evenly spaced points spanning ±5 standard deviations.
     """
 
     if rms <= 0:
         raise ValueError(f"'rms' must be positive. Got {rms}.")
-    if n_excl <= 0:
-        raise ValueError(f"'n_excl' must be positive. Got {n_excl}.")
-    if n_incl is not None and n_incl <= 0:
-        raise ValueError(f"'n_incl' must be positive. Got {n_incl}.")
+    if n_excl_meas <= 0:
+        raise ValueError(f"'n_excl_meas' must be positive. Got {n_excl_meas}.")
+    if n_incl_meas is not None and n_incl_meas <= 0:
+        raise ValueError(f"'n_incl_meas' must be positive. Got {n_incl_meas}.")
 
     # Estimate RMS uncertainty assuming Gaussian noise statistics.
-    rms_err = rms / np.sqrt(n_excl)
+    rms_err = rms / np.sqrt(n_excl_meas)
 
-    # Integrate over possible RMS deviations weighted by their Gaussian
-    # probability.
+    # Evaluate the expected exceedance count over possible RMS values, weighted
+    # by the assumed Gaussian distribution of RMS uncertainty.
     uncert = np.linspace(
         -_RMS_UNCERT_SIGMA * rms_err,
         _RMS_UNCERT_SIGMA * rms_err,
@@ -427,24 +437,26 @@ def _probability_from_rms_uncertainty(
     )
     uncert_pdf = norm.pdf(uncert, loc=0, scale=rms_err)
 
-    # Marginalize the probability over the RMS uncertainty distribution.
-    if n_incl is None:
-        n_incl = n_excl
+    # Marginalize the probability over the RMS uncertainty distribution and
+    # calculate expectation.
+    if n_incl_meas is None:
+        n_incl_meas = n_excl_meas
     return float(
-        np.sum(norm.cdf(-peak / (rms + uncert)) * n_incl * uncert_pdf)
+        np.sum(norm.cdf(-peak / (rms + uncert)) * n_incl_meas * uncert_pdf)
         / np.sum(uncert_pdf)
     )
 
 
-def statistics_from_rms_uncertainty(
-        fits_file: str,
-        center: list | None = None,
-        threshold: float = 0.01,
-        radius_buffer: float = 5.0,
-        ext_threshold: float | None = None
-    ) -> dict:
-    """Find the probabilities of the internal and external peaks, as well as
-    other relevant statistics of an image.
+def _statistics_from_rms_uncertainty(
+    fits_file: str,
+    center: list | None = None,
+    threshold: float = 0.01,
+    radius_buffer: float = 5.0,
+    ext_threshold: float | None = None,
+) -> dict:
+    """Calculate expected numbers of independent noise measurements with flux
+    densities greater than or equal to internal peaks and significant external
+    peaks, along with related peak statistics for an image.
 
     Parameters
     ----------
@@ -454,94 +466,106 @@ def statistics_from_rms_uncertainty(
         A list of center coordinates in units of pixels.
         If `None` or empty, field center coordinates are used.
     threshold : float, optional
-        The maximum probability, assuming no source in the image, for a
-        significant internal detection.
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an internal peak for the peak to be
+        considered significant, assuming no source is present in the image.
     radius_buffer : float, optional
         The amount of buffer, in arcsec, to add to the beam FWHM to get the
         initial search radius.
     ext_threshold : float | None, optional
-        The probability that an external peak must be below for it to be
-        considered an external source.
-        If no value is given, 1e-3, 1e-6, or 1e-12 is used, depending on the
-        SNR of the internal peak.
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an external peak for the peak to be
+        considered significant, assuming no source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
 
     Returns
     -------
     dict
         Dictionary with the following keys:
-            `field_center` : tuple of 2 float
-                Image center in pixel coordinates
-            `rms_val` : float
-                The estimated RMS, in Jy, of the image, excluding circular
-                neighborhoods around flux densities that were considered to be
-                significant.
-            `mad` : float
-                The median absolute deviation (MAD) of the image flux density.
-            `sd_mad` : float
-                The standard deviation of image flux density, as estimated by
-                the MAD.
-            `n_incl_meas` : float
-                The number of measurements (beams) included in the mask.
-            `n_excl_meas` : float
-                The number of measurements (beams) excluded by the mask.
-            `fwhm` : float
-                The beam major axis FWHM, in arcsec.
-            `incl_radius` : float
-                The radius, in arcsec, of the initial inclusion region.
-            `neg_peak` : float | None
-                Most negative pixel flux density, in Jy, in the image.
-                Returns `None` if no negative pixel values are present.
-            `int_peak_val` : list of float
-                The flux density, in Jy, of the brightest internal peak and the
-                flux densities, in Jy, of the remaining significant internal
-                peaks, if these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant internal peaks are found.
-            `int_peak_coord` : list of tuple of 2 int
-                The pixel coordinates of the brightest internal peak and the
-                remaining significant internal peaks, if these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant internal peaks are found.
-            `int_prob` : list of float
-                The probability/probabilities of the brightest internal peak
-                and the remaining significant internal peaks, if these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant internal peaks are found.
-            `int_snr` : list
-                The signal to noise ratios of the brightest internal peak and
-                the remaining significant internal peaks, if these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant internal peaks are found.
-            `ext_peak_val` : list
-                The flux density/densities, in Jy, of the significant external
-                peak(s), if these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant external peaks are found.
-            `ext_peak_coord` : list of tuple of 2 int
-                The pixel coordinates of the significant external peaks, if
-                these exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant external peaks are found.
-            `ext_snr` : list of float
-                The signal to noise ratios of the external peaks, if these
-                exist.
-                Peaks are arranged in decreasing brightness.
-                Empty if no significant external peaks are found.
-            `next_ext_peak` : float
-                The flux density, in Jy, of the brightest non-significant
-                external peak.
+        `field_center` : tuple of 2 float
+            Image center in pixel coordinates.
+        `rms_val` : float
+            The estimated RMS, in Jy, of the image, excluding circular
+            neighborhoods around flux densities that were considered to be
+            significant.
+        `mad` : float
+            The median absolute deviation of the image flux density, in Jy.
+        `sd_mad` : float
+            The standard deviation of image flux density, in Jy, as estimated
+            by the MAD.
+        `n_incl_meas` : float
+            The number of measurements (beams) included in the mask.
+        `n_excl_meas` : float
+            The number of measurements (beams) excluded by the mask.
+        `fwhm` : float
+            The beam major axis FWHM, in arcsec.
+        `incl_radius` : float
+            The radius, in arcsec, of the initial inclusion region.
+        `neg_peak` : float | None
+            Most negative pixel flux density, in Jy, in the image.
+            `None` if no negative pixel values are present.
+        `int_peak_val` : list of float
+            The flux density, in Jy, of the brightest internal peak and the
+            flux densities, in Jy, of the remaining significant internal peaks,
+            if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_peak_coord` : list of tuple of 2 int or float
+            The pixel coordinates of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest internal peak and
+            the remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_snr` : list of float
+            The signal to noise ratios of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `ext_peak_val` : list of float
+            The flux densities, in Jy, of the significant external peaks, if
+            these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_peak_coord` : list of tuple of 2 int or float
+            The pixel coordinates of the significant external peaks, if these
+            exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the significant external peaks,
+            if these exist.
+            Peaks are arranged in decreasing brightness.
+        `ext_snr` : list of float
+            The signal to noise ratios of the external peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `next_ext_peak` : float
+            The flux density, in Jy, of the brightest non-significant external
+            peak.
 
     Raises
     ------
     OSError
         If the FITS file cannot be opened.
+    ValueError
+        Propagated from _expected_exceedances_from_rms_uncertainty(), if `rms`,
+        `n_excl_meas`, or `n_incl_meas` (when provided) is not positive.
 
     Notes
     -----
     The RMS is estimated iteratively by identifying statistically significant
     external peaks and excluding circular regions with radii equal to the beam
-    FWHM around those peaks. The probability of internal peaks is then
-    evaluated using the updated RMS estimate.
+    FWHM around those peaks. Using the updated RMS estimate, the expected
+    number of independent noise measurements with flux densities greater than
+    or equal to those of internal peaks is then evaluated.
 
     To reduce false detections caused by the point spread function of bright
     sources, empirical thresholds are applied. If external significance
@@ -550,6 +574,8 @@ def statistics_from_rms_uncertainty(
     below `20`, between `20` and `100`, or at least `100`, respectively.
     Additional internal peaks are required to have flux densities greater
     than `1/100` of the brightest internal peak.
+
+    Expected numbers are calculated assuming Gaussian statistics.
     """
 
     i = _fits_data_index(fits_file)
@@ -580,10 +606,10 @@ def statistics_from_rms_uncertainty(
         internal=True
     )
     int_peak1 = int_stats1['peak']
-    # `n_incl` is the same for all internal peaks since this is simply the
-    # number of beams in the internal region, i.e. the circular region within
-    # one `search_radius` from the `center`.
-    n_incl = int_stats1['n_incl_meas']
+    int_coord1 = int_stats1['peak_coord']
+    # `n_incl_meas` is the effective number of independent beam areas in the
+    # internal search region and is therefore the same for all internal peaks.
+    n_incl_meas = int_stats1['n_incl_meas']
     field_center = int_stats1['field_center']
     # `mad` and `sd_mad` are evaluated using the external region and therefore
     # are the same for all peaks.
@@ -602,16 +628,15 @@ def statistics_from_rms_uncertainty(
         gaussian=False,
         internal=False
     )
-    # `n_excl` is the same for all external peaks since this is simply the
-    # number of beams in the external region, i.e. everything not in the
-    # internal region.
-    n_excl = ext_stats1['n_incl_meas']
+    # `n_excl_meas` is the effective number of independent beam areas in the
+    # external region and is therefore the same for all external peaks.
+    n_excl_meas = ext_stats1['n_incl_meas']
     ext_peak1 = ext_stats1['peak']
-    rms = ext_stats1['rms'] # May change as we exclude more external peaks.
-    ext_prob1 = _probability_from_rms_uncertainty(
+    rms = ext_stats1['rms']  # May change as we exclude more external peaks.
+    ext_exp_exceed1 = _expected_exceedances_from_rms_uncertainty(
         peak=ext_peak1,
         rms=rms,
-        n_excl=n_excl
+        n_excl_meas=n_excl_meas
     )
 
     prob_dict = {
@@ -619,18 +644,18 @@ def statistics_from_rms_uncertainty(
         'rms_val': None,
         'mad': mad,
         'sd_mad': sd_mad,
-        'n_incl_meas': n_incl,
-        'n_excl_meas': n_excl,
+        'n_incl_meas': n_incl_meas,
+        'n_excl_meas': n_excl_meas,
         'fwhm': beam_fwhm,
         'incl_radius': search_radius,
         'neg_peak': neg_peak,
         'int_peak_val': [],
         'int_peak_coord': [],
-        'int_prob': [],
+        'int_exp_exceed': [],
         'int_snr': [],
         'ext_peak_val': [],
         'ext_peak_coord': [],
-        'ext_prob': [],
+        'ext_exp_exceed': [],
         'ext_snr': [],
         'next_ext_peak': None
     }
@@ -646,11 +671,9 @@ def statistics_from_rms_uncertainty(
         else:
             ext_threshold = 1e-12
 
-    if ext_prob1 < ext_threshold:
-        ext_significant = True
-    else:
+    ext_significant = ext_exp_exceed1 < ext_threshold:
+    if not ext_significant:
         prob_dict['next_ext_peak'] = ext_peak1
-        ext_significant = False
 
     # Find significant external peaks, if they exist, and exclude them from
     # the region where RMS is measured.
@@ -668,12 +691,12 @@ def statistics_from_rms_uncertainty(
         peak = ext_stats['peak']
         rms = ext_stats['rms']
 
-        ext_prob = _probability_from_rms_uncertainty(
+        ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
             peak=peak,
             rms=rms,
-            n_excl=n_excl
+            n_excl_meas=n_excl_meas
         )
-        if ext_prob < ext_threshold:
+        if ext_exp_exceed < ext_threshold:
             ext_stats = _region_stats(
                 fits_file=fits_file,
                 radius=radius,
@@ -686,14 +709,14 @@ def statistics_from_rms_uncertainty(
             )
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
-            ext_prob = _probability_from_rms_uncertainty(
+            ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
                 peak=peak,
                 rms=rms,
-                n_excl=n_excl
+                n_excl_meas=n_excl_meas
             )
             prob_dict['ext_peak_val'].append(peak)
             prob_dict['ext_peak_coord'].append(coord)
-            prob_dict['ext_prob'].append(ext_prob)
+            prob_dict['ext_exp_exceed'].append(ext_exp_exceed)
             prob_dict['ext_snr'].append(peak / rms)
             center.append(coord)
             radius.append(beam_fwhm)
@@ -703,15 +726,17 @@ def statistics_from_rms_uncertainty(
 
     prob_dict['rms_val'] = rms
 
-    # Find probability for the first internal peak using the updated RMS.
-    int_prob1 = _probability_from_rms_uncertainty(
+    # Find expected number of independent noise measurements with flux
+    # densities greater than or equal to the first internal peak, using the
+    # updated RMS estimate.
+    int_exp_exceed1 = _expected_exceedances_from_rms_uncertainty(
         peak=int_peak1,
         rms=rms,
-        n_excl=n_excl,
-        n_incl=n_incl
+        n_excl_meas=n_excl_meas,
+        n_incl_meas=n_incl_meas
     )
 
-    int_significant = (int_prob1 < threshold)
+    int_significant = int_exp_exceed1 < threshold
 
     # Gaussian interpolation for a significant first internal peak to get a
     # better estimate of its flux and coordinates, using the updated RMS.
@@ -728,19 +753,20 @@ def statistics_from_rms_uncertainty(
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
         prob_dict['int_peak_coord'].append(int_coord_final)
-        int_prob1 = _probability_from_rms_uncertainty(
+        int_exp_exceed1 = _expected_exceedances_from_rms_uncertainty(
             peak=int_peak_final,
             rms=rms,
-            n_excl=n_excl,
-            n_incl=n_incl
+            n_excl_meas=n_excl_meas,
+            n_incl_meas=n_incl_meas
         )
-        prob_dict['int_prob'].append(int_prob1)
+        prob_dict['int_exp_exceed'].append(int_exp_exceed1)
         prob_dict['int_snr'].append(int_peak_final / rms)
 
     # Treat the first internal peak like an external peak, in the sense that we
     # only exclude a small area around this peak so that we can look for
     # any additional sources inside the internal region.
-    center = [int_coord_final]
+    if int_significant:
+        center = [int_coord_final]
     radius = [beam_fwhm]
     # Find any internal peaks in addition to the first internal peak.
     while int_significant:
@@ -756,14 +782,14 @@ def statistics_from_rms_uncertainty(
             outer_radius=search_radius
         )
         int_peak = int_stats['peak']
-        int_prob = _probability_from_rms_uncertainty(
+        int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
             peak=int_peak,
             rms=rms,
-            n_excl=n_excl,
-            n_incl=n_incl
+            n_excl_meas=n_excl_meas,
+            n_incl_meas=n_incl_meas
         )
         if (
-            int_prob < threshold
+            int_exp_exceed < threshold
             # Additional condition to mitigate false positives due to the point
             # spread function of very bright internal sources.
             and int_peak > int_peak_final / 100
@@ -779,15 +805,15 @@ def statistics_from_rms_uncertainty(
             )
             int_coord = int_stats['peak_coord']
             int_peak = int_stats['peak']
-            int_prob = _probability_from_rms_uncertainty(
+            int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
                 peak=int_peak,
                 rms=rms,
-                n_excl=n_excl,
-                n_incl=n_incl
+                n_excl_meas=n_excl_meas,
+                n_incl_meas=n_incl_meas
             )
             prob_dict['int_peak_val'].append(int_peak)
             prob_dict['int_peak_coord'].append(int_coord)
-            prob_dict['int_prob'].append(int_prob)
+            prob_dict['int_exp_exceed'].append(int_exp_exceed)
             prob_dict['int_snr'].append(int_peak / rms)
             center.append(int_coord)
             radius.append(beam_fwhm)
@@ -797,28 +823,10 @@ def statistics_from_rms_uncertainty(
     return prob_dict
 
 
-def statistics_from_external_peak(prob_dict: dict) -> dict:
-    """Find the probabilities of the internal and external peaks, as well as
-    other relevant statistics of an image.
-
-    Using the rms estimated from the value of the exclusion region's maximum flux,
-    finds the probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region,
-    the probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region, and other statistics.
-
-    The estimated rms is that the probability of finding such an external peak,
-    assuming no source in the exclusion region, is 1.
-    Note: this implies that the external probability will always be 1.
-
-    The other statistics include the following as calculated using the rms estimated as described above:
-    the exclusion region's rms in Jy, the inclusion region's signal to noise ratio,
-    and the external region's signal to noise ratio.
-
-    The remaining statisitcs include the following as calculated using the rms taken directly from the image:
-    the inclusion region's maximum flux in Jy and its coordinates in pixels,
-    the exclusion region's maximum flux in Jy and its coordinates in pixels, the exclusion region's rms in Jy,
-    the number of measurements in the inclusion region, the number of measurements in the exclusion region,
-    the coordinates in pixels of the image's center, and the radii in pixels of the inclusion zones,
-    the inclusion region's signal to noise ratio, and the external region's signal to noise ratio.
+def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
+    """Calculate expected numbers of independent noise measurements with flux
+    densities greater than or equal to internal peaks and the brightest
+    non-significant external peak, along with related peak statistics.
 
     Parameters
     ----------
@@ -829,87 +837,180 @@ def statistics_from_external_peak(prob_dict: dict) -> dict:
     Returns
     -------
     dict
-        Dictionary with the following keys:
-                    float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-                    float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-                    float
-                        The inclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the inclusion region's maximum flux.
-                    float
-                        The exclusion region's maximum flux in Jy.
-                    tuple (int, int)
-                        The coordinates in pixels of the exclusion region's maximum flux.
-                    float
-                        The exclusion region's rms in Jy.
-                    float
-                        The number of measurements in the inclusion region.
-                    float
-                        The number of measurements in the exclusion region.
-                    tuple (int, int)
-                        The coordinates in pixels of the image's center.
-                    list
-                        A list with:
-                            float(s)
-                                The radii in pixels of inclusion zones.
-                    float
-                        The inclusion region's signal to noise ratio.
-                    float
-                        The exclusion region's signal to noise ratio.
-            dict
-                A dictionary with the following, found using the rms estimated as described above:
-                    float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-                    float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-                    float
-                        The exclusion region's rms in Jy.
-                    float
-                        The inclusion region's signal to noise ratio.
-                    float
-                        The exclusion region's signal to noise ratio.
+        The input dictionary, modified in place to include additional
+        expected numbers and signal-to-noise statistics. The following keys are
+        present:
+        `field_center` : tuple of 2 float
+            Image center in pixel coordinates.
+        `rms_val` : float
+            The estimated RMS, in Jy, of the image, excluding circular
+            neighborhoods around flux densities that were considered to be
+            significant.
+        `mad` : float
+            The median absolute deviation of the image flux density, in Jy.
+        `sd_mad` : float
+            The standard deviation of image flux density, in Jy, as estimated
+            by the MAD.
+        `n_incl_meas` : float
+            The number of measurements (beams) included in the mask.
+        `n_excl_meas` : float
+            The number of measurements (beams) excluded by the mask.
+        `fwhm` : float
+            The beam major axis FWHM, in arcsec.
+        `incl_radius` : float
+            The radius, in arcsec, of the initial inclusion region.
+        `neg_peak` : float | None
+            Most negative pixel flux density, in Jy, in the image.
+            `None` if no negative pixel values are present.
+        `int_peak_val` : list of float
+            The flux density, in Jy, of the brightest internal peak and the
+            flux densities, in Jy, of the remaining significant internal peaks,
+            if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_peak_coord` : list of tuple of 2 int or float
+            The pixel coordinates of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest internal peak and
+            the remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_snr` : list of float
+            The signal to noise ratios of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `ext_peak_val` : list of float
+            The flux densities, in Jy, of the significant external peaks, if
+            these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_peak_coord` : list of tuple of 2 int or float
+            The pixel coordinates of the significant external peaks, if these
+            exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the significant external peaks,
+            if these exist.
+            Peaks are arranged in decreasing brightness.
+        `ext_snr` : list of float
+            The signal to noise ratios of the external peaks, if these
+            exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `next_ext_peak` : float
+            The flux density, in Jy, of the brightest non-significant external
+            peak.
+        `calc_rms_val` : float
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements greater than or equal to `next_ext_peak` is one over
+            the external region.
+        neg_peak_rms_val : float | None
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements less than or equal to the image's most negative pixel is one.
+            `None` if no negative pixel values are present.
+        `calc_ext_exp_exceed` : float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest non-significant
+            external peak, calculated using the more conservative of
+            `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
+        `calc_ext_snr` : float
+            The SNR of the brightest non-significant external peak, calculated
+            with the more conservative (smaller value) of `calc_rms_val` and
+            `neg_peak_rms_val`.
+        `calc_int_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest internal peak and
+            the remaining significant internal peaks, if these exist,
+            calculated using the more conservative of `calc_rms_val` and
+            `neg_peak_rms_val` when the latter is available.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `calc_int_snr` : list of float
+            The signal to noise ratios, calculated using the more
+            conservative of `calc_rms_val` and `neg_peak_rms_val` when the
+            latter is available, of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
 
-    A dictionary with the following, found using the rms taken directly from the image:
+    Raises
+    ------
+    ValueError
+        If `prob_dict['next_ext_peak']` is less than 0 or
+        `prob_dict['n_excl_meas']` is less than or equal to 1.
+
+    Notes
+    -----
+    Expected numbers are calculated assuming Gaussian statistics.
+
+    This function modifies `prob_dict` in place by adding the keys
+    `calc_rms_val`, `neg_peak_rms_val`, `calc_ext_exp_exceed`, `calc_ext_snr`,
+    `calc_int_exp_exceed`, and `calc_int_snr`.
     """
     int_peak_val = prob_dict['int_peak_val']
-    ext_peak_val = prob_dict['next_ext_peak']
+    next_ext_peak = prob_dict['next_ext_peak']
+    if next_ext_peak is None:
+        raise ValueError(
+            "Cannot conduct statistical calculations because no "
+            "non-significant external peak was found ('next_ext_peak' is "
+            "`None`)."
+        )
+    if next_ext_peak < 0:
+        raise ValueError(
+            "Negative 'next_ext_peak' will result in incorrect statistical "
+            "calculations. "
+            f"Got ({next_ext_peak})."
+        )
     n_incl_meas = prob_dict['n_incl_meas']
     n_excl_meas = prob_dict['n_excl_meas']
+    if n_excl_meas <= 1:
+        raise ValueError(
+            "'n_excl_meas' less than or equal to 1 will result in incorrect "
+            "statistical calculations. "
+            f"Got ({n_excl_meas})."
+        )
 
-    excl_sigma = -1 * norm.ppf(1 / n_excl_meas)
-    old_rms_val = ext_peak_val / excl_sigma
-    prob_dict['calc_rms_val'] = float(old_rms_val)
+    excl_z_score = -norm.ppf(1 / n_excl_meas)
+    excl_rms_val = next_ext_peak / excl_z_score
+    prob_dict['calc_rms_val'] = float(excl_rms_val)
 
-    sigma = norm.ppf(1 / (n_incl_meas + n_excl_meas))
+    img_z_score = norm.ppf(1 / (n_incl_meas + n_excl_meas))
     neg_peak = prob_dict['neg_peak']
 
     if neg_peak is not None:
-        rms_val = neg_peak / sigma
-        prob_dict['neg_peak_rms_val'] = float(rms_val)
+        neg_peak_rms_val = neg_peak / img_z_score
+        prob_dict['neg_peak_rms_val'] = float(neg_peak_rms_val)
+        # Choose the more conservative of `excl_rms_val` and
+        # `neg_peak_rms_val`.
+        rms_val = (
+            excl_rms_val if excl_rms_val < neg_peak_rms_val
+            else neg_peak_rms_val
+        )
     else:
         prob_dict['neg_peak_rms_val'] = None
-        rms_val = old_rms_val
+        rms_val = excl_rms_val
 
-    prob_dict['calc_ext_prob'] = (
-        float(norm.cdf((-1 * ext_peak_val) / (rms_val)))
-        * n_excl_meas
+    prob_dict['calc_ext_exp_exceed'] = (
+        float(norm.cdf(-next_ext_peak / rms_val)) * n_excl_meas
     )
-    prob_dict['calc_ext_snr'] = float(excl_sigma)
-    for i in range(len(int_peak_val)):
-        if i == 0:
-            prob_dict['calc_int_prob'] = [
-                float(norm.cdf((-1 * int_peak_val[i]) / (rms_val)))
-                * n_incl_meas
-                ]
-            prob_dict['calc_int_snr'] = [float(int_peak_val[i] / rms_val)]
-        else:
-            prob_dict['calc_int_prob'].append(
-                float(norm.cdf((-1 * int_peak_val[i]) / (rms_val)))
-                * n_incl_meas
-                )
-            prob_dict['calc_int_snr'].append(float(int_peak_val[i] / rms_val))
+    prob_dict['calc_ext_snr'] = float(next_ext_peak / rms_val)
+
+    calc_int_exp_exceed = []
+    calc_int_snr = []
+    for peak in int_peak_val:
+        calc_int_exp_exceed.append(
+            float(norm.cdf(-peak / rms_val)) * n_incl_meas
+        )
+        calc_int_snr.append(float(peak / rms_val))
+    prob_dict['calc_int_exp_exceed'] = calc_int_exp_exceed
+    prob_dict['calc_int_snr'] = calc_int_snr
 
     return prob_dict
 
@@ -952,7 +1053,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                 of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
             list
                 A list with:
-                    float(s)
+                    floats
                         The probabilities, found using the rms taken directly from the image,
                         of detecting the exclusion regions' maximum flux if there were no source in the exclusion regions.
                         If there are multiple entries in this list,
@@ -964,14 +1065,14 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                 The coordinates in relative arcsec of the inclusion region's maximum flux.
             list
                 A list of with:
-                    float(s)
+                    floats
                         The exclusion regions' maximum fluxes in Jy.
                         If there are multiple entries in this list,
                         they are the maxmimum fluxes as the exclusion region becomes increasingly small
                         as external peaks deemed significant are added to the inclusion region.
             list
                 A list with:
-                    tuple(s) (float, float)
+                    tuples (float, float)
                         The coordinates in relative arcsec of the exclusion regions' maximum fluxes.
                         If there are multiple entires in this list,
                         they are the coordinates as the exclusion region becomes increasingly small
@@ -986,13 +1087,13 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                 The coordinates in relative arcsec of the image's center. Should be (0, 0).
             list
                 A list with:
-                    float(s):
+                    floats:
                         The radii in arcsec of inclusion zones.
             float
                 The inclusion region's signal to noise ratio.
             list
                 A list with:
-                    float(s)
+                    floats
                         The exclusion regions' signal to noise ratios.
             float
                 The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
@@ -1010,7 +1111,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                 found using the rms estimated from the value of the exclusion region's maximum flux.
     list (if requested)
         A more detailed list with:
-            dict(s)
+            dicts
                 A dictionary with the following, found using the rms taken directly from the image:
                     float
                         The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
@@ -1034,7 +1135,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                         The coordinates in relative arcsec of the image's center. Should be (0.0, 0.0).
                     list
                         A list with:
-                            float(s)
+                            floats
                                 The radii in arcsec of inclusion zones.
                     float
                         The inclusion region's signal to noise ratio.
@@ -1053,7 +1154,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
                     float
                         The exclusion region's signal to noise ratio.
     """
-    info = (_statistics_from_external_peak(_statistics_from_rms_uncertainty(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
+    info = (_statistics_from_extreme_peaks(_statistics_from_rms_uncertainty(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
                                                                 ext_threshold=ext_threshold)))
 
     center = info['field_center']
@@ -1202,7 +1303,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
             ext_peaks = 'No significant external peak'
             short_info['ext_peak_val'] = 'No significant external peak'
             short_info['ext_snr'] = 'No significant external peak'
-            short_info['ext_prob'] = 'No significant external peak'
+            short_info['ext_exp_exceed'] = 'No significant external peak'
 
         short_info = info
         short_info['int_peak_coord'] = int_peaks
@@ -1254,4 +1355,4 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
     summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
-    return (summ['int_prob'][0] < threshold and summ['calc_int_prob'][0] < threshold)
+    return (summ['int_exp_exceed'][0] < threshold and summ['calc_int_exp_exceed'][0] < threshold)
