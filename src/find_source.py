@@ -278,7 +278,7 @@ def _region_stats(
         )
 
     # Find the coordinates of the peak.
-    # Use the first occurrence allowed by the mask if multiple pixels share the
+    # Use the first occurrence within the mask if multiple pixels share the
     # maximum value.
     peak_pix = peak_pix = np.where(mask & (data[0] == peak))
     peak_x = int(peak_pix[1][0])
