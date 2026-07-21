@@ -671,7 +671,7 @@ def _statistics_from_rms_uncertainty(
         else:
             ext_threshold = 1e-12
 
-    ext_significant = ext_exp_exceed1 < ext_threshold:
+    ext_significant = ext_exp_exceed1 < ext_threshold
     if not ext_significant:
         prob_dict['next_ext_peak'] = ext_peak1
 
