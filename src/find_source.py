@@ -13,7 +13,7 @@ from pathlib import Path
 _RMS_UNCERT_SIGMA = 5
 _RMS_UNCERT_SAMPLES = 100
 
-def _fits_data_index(fits_file: str) -> int:
+def _fits_data_index(fits_file: str | Path) -> int:
     """Return the index of the first HDU containing image data.
 
     Parameters
@@ -33,6 +33,7 @@ def _fits_data_index(fits_file: str) -> int:
     ValueError
         If the FITS file contains no HDU with data.
     """
+    fits_file = Path(fits_file)
     try:
         with fits.open(fits_file) as hdulist:
             # Iterate through the HDUs until one containing data is found.
@@ -76,13 +77,12 @@ def _gaussian_2d(
     float or ndarray
         The Gaussian evaluated at the given coordinates.
     """
-
     x, y = coord
     return amp * np.exp(-((x - mu_x) ** 2 + (y - mu_y) ** 2) / (2 * sigma ** 2))
 
 
 def _region_stats(
-    fits_file: str,
+    fits_file: str | Path,
     radius: list,
     center: list | None = None,
     invert: bool = False,
@@ -173,6 +173,7 @@ def _region_stats(
     peaks. If the fitting window does not fit within the image or the fit
     fails, the pixel maximum and its integer coordinates are returned.
     """
+    fits_file = Path(fits_file)
 
     if center:
         if len(center) != len(radius):
@@ -281,7 +282,7 @@ def _region_stats(
     # Find the coordinates of the peak.
     # Use the first occurrence within the mask if multiple pixels share the
     # maximum value.
-    peak_pix = peak_pix = np.where(mask & (data[0] == peak))
+    peak_pix = np.where(mask & (data[0] == peak))
     peak_x = int(peak_pix[1][0])
     peak_y = int(peak_pix[0][0])
     peak_coord = (peak_x, peak_y)
@@ -374,8 +375,9 @@ def _expected_exceedances_from_rms_uncertainty(
     n_excl_meas: float,
     n_incl_meas: float | None = None,
 ) -> float:
-    """Estimate the expected number of independent noise measurements greater
-    than or equal to `peak`, accounting for uncertainty in the estimated RMS.
+    """Estimate the expected number of independent noise measurements, over a
+    certain number of measurements, greater than or equal to `peak`, accounting
+    for uncertainty in the estimated RMS.
 
     Parameters
     ----------
@@ -389,7 +391,7 @@ def _expected_exceedances_from_rms_uncertainty(
         RMS estimate. The suffix 'excl' indicates that these measurements come
         from an exclusion region that may differ from the region over which the
         expected number is estimated.
-    n_incl_mease : float | None, optional
+    n_incl_meas : float | None, optional
         The effective number of independent measurements over which the expected
         number is evaluated.
         If `None` or empty, `n_excl_meas` is used.
@@ -397,8 +399,9 @@ def _expected_exceedances_from_rms_uncertainty(
     Returns
     -------
     float
-        The estimated expected number of independent noise measurements greater
-        than or equal to `peak`, accounting for uncertainty in the estimated RMS.
+        The estimated expected number of independent noise measurements, over a
+        certain number of measurements, greater than or equal to `peak`,
+        accounting for uncertainty in the estimated RMS.
 
     Raises
     ------
@@ -411,14 +414,14 @@ def _expected_exceedances_from_rms_uncertainty(
     The RMS uncertainty is incorporated into the expected number estimate
     rather than assuming the measured RMS is exact. The uncertainty in the RMS
     estimate is modeled as a Gaussian distribution with standard deviation
-    `rms / sqrt(n_excl_meas)`. The RMS may be estimated from one set of measurements
-    (the exclusion region) while the expected number may be evaluated over
-    another set of measurements (the inclusion region). The input distribution
-    is assumed to be Gaussian. The expected number is estimated by numerically
-    marginalizing over the RMS uncertainty using a Gaussian weighting function
-    sampled at 100 evenly spaced points spanning ±5 standard deviations.
+    `rms / sqrt(n_excl_meas)`. The RMS may be estimated from one set of
+    measurements (the exclusion region) while the expected number may be
+    evaluated over another set of measurements (the inclusion region). The
+    input distribution is assumed to be Gaussian. The expected number is
+    estimated by numerically marginalizing over the RMS uncertainty using a
+    Gaussian weighting function sampled at 100 evenly spaced points spanning ±5
+    standard deviations.
     """
-
     if rms <= 0:
         raise ValueError(f"'rms' must be positive. Got {rms}.")
     if n_excl_meas <= 0:
@@ -449,15 +452,14 @@ def _expected_exceedances_from_rms_uncertainty(
 
 
 def _statistics_from_rms_uncertainty(
-    fits_file: str,
+    fits_file: str | Path,
     center: list | None = None,
     threshold: float = 0.01,
     radius_buffer: float = 5.0,
     ext_threshold: float | None = None,
 ) -> dict:
-    """Calculate expected numbers of independent noise measurements with flux
-    densities greater than or equal to internal peaks and significant external
-    peaks, along with related peak statistics for an image.
+    """Calculate image statistics using an RMS estimate obtained by iteratively
+    excluding statistically significant external peaks.
 
     Parameters
     ----------
@@ -467,16 +469,18 @@ def _statistics_from_rms_uncertainty(
         A list of center coordinates in units of pixels.
         If `None` or empty, field center coordinates are used.
     threshold : float, optional
-        The maximum expected number of independent noise measurements with flux
-        densities greater than or equal to an internal peak for the peak to be
-        considered significant, assuming no source is present in the image.
+        The maximum expected number of independent noise measurements, over the
+        internal region, with flux densities greater than or equal to an
+        internal peak for the peak to be considered significant, assuming no
+        source is present in the image.
     radius_buffer : float, optional
         The amount of buffer, in arcsec, to add to the beam FWHM to get the
         initial search radius.
     ext_threshold : float | None, optional
-        The maximum expected number of independent noise measurements with flux
-        densities greater than or equal to an external peak for the peak to be
-        considered significant, assuming no source is present in the image.
+        The maximum expected number of independent noise measurements, over the
+        external region, with flux densities greater than or equal to an
+        external peak for the peak to be considered significant, assuming no
+        source is present in the image.
         If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
         the signal-to-noise ratio of the brightest internal peak calculated
         using the initial external-region RMS estimate.
@@ -519,9 +523,10 @@ def _statistics_from_rms_uncertainty(
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest internal peak and
-            the remaining significant internal peaks, if these exist.
+            The expected number of independent noise measurements, over the
+            internal region, with flux densities greater than or equal to the
+            brightest internal peak and the remaining significant internal
+            peaks, if these exist.
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_snr` : list of float
@@ -540,9 +545,9 @@ def _statistics_from_rms_uncertainty(
             Peaks are arranged in decreasing brightness.
             Empty if no significant external peaks are found.
         `ext_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the significant external peaks,
-            if these exist.
+            The expected number of independent noise measurements, over the
+            external region, with flux densities greater than or equal to the
+            significant external peaks, if these exist.
             Peaks are arranged in decreasing brightness.
         `ext_snr` : list of float
             The signal to noise ratios of the external peaks, if these exist.
@@ -563,8 +568,9 @@ def _statistics_from_rms_uncertainty(
     The RMS is estimated iteratively by identifying statistically significant
     external peaks and excluding circular regions with radii equal to the beam
     FWHM around those peaks. Using the updated RMS estimate, the expected
-    number of independent noise measurements with flux densities greater than
-    or equal to those of internal peaks is then evaluated.
+    number of independent noise measurements, over the internal region, with
+    flux densities greater than or equal to those of internal peaks is then
+    evaluated.
 
     To reduce false detections caused by the point spread function of bright
     sources, empirical thresholds are applied. If external significance
@@ -576,6 +582,7 @@ def _statistics_from_rms_uncertainty(
 
     Expected numbers are calculated assuming Gaussian statistics.
     """
+    fits_file = Path(fits_file)
 
     i = _fits_data_index(fits_file)
 
@@ -596,7 +603,7 @@ def _statistics_from_rms_uncertainty(
     search_radius = beam_fwhm + radius_buffer
     if search_radius <= 0:
         raise ValueError(
-            f"The internal serach radius is less than or equal to 0. "
+            f"The internal search radius is less than or equal to 0. "
             f"'radius_buffer' was {radius_buffer}."
         )
 
@@ -828,9 +835,9 @@ def _statistics_from_rms_uncertainty(
 
 
 def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
-    """Calculate expected numbers of independent noise measurements with flux
-    densities greater than or equal to internal peaks and the brightest
-    non-significant external peak, along with related peak statistics.
+    """Calculate additional significance statistics using RMS estimates derived
+    from the brightest non-significant external peak and the most negative image
+    pixel.
 
     Parameters
     ----------
@@ -878,9 +885,10 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest internal peak and
-            the remaining significant internal peaks, if these exist.
+            The expected number of independent noise measurements, over the
+            internal region, with flux densities greater than or equal to the
+            brightest internal peak and the remaining significant internal
+            peaks, if these exist.
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_snr` : list of float
@@ -899,9 +907,9 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             Peaks are arranged in decreasing brightness.
             Empty if no significant external peaks are found.
         `ext_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the significant external peaks,
-            if these exist.
+            The expected number of independent noise measurements, over the
+            external region, with flux densities greater than or equal to the
+            significant external peaks, if these exist.
             Peaks are arranged in decreasing brightness.
         `ext_snr` : list of float
             The signal to noise ratios of the external peaks, if these
@@ -913,28 +921,29 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             peak.
         `calc_rms_val` : float
             The RMS, in Jy, for which the expected number of independent noise
-            measurements greater than or equal to `next_ext_peak` over the
-            external region is one.
+            measurements, over the external region, greater than or equal to
+            `next_ext_peak` is one.
         `neg_peak_rms_val` : float | None
             The RMS, in Jy, for which the expected number of independent noise
-            measurements less than or equal to the flux density of the image's
-            most negative pixel is one.
+            measurements, over the entire image, less than or equal to the flux
+            density of the image's most negative pixel is one.
             `None` if no negative pixel values are present.
         `calc_ext_exp_exceed` : float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest non-significant
-            external peak, calculated using the more conservative of
-            `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
+            The expected number of independent noise measurements, over the
+            external region, with flux densities greater than or equal to the
+            brightest non-significant external peak, calculated using the more
+            conservative of `calc_rms_val` and `neg_peak_rms_val`, when the
+            latter is available.
         `calc_ext_snr` : float
             The SNR of the brightest non-significant external peak, calculated
             with the more conservative (smaller value) of `calc_rms_val` and
             `neg_peak_rms_val`.
         `calc_int_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest internal peak and
-            the remaining significant internal peaks, if these exist,
-            calculated using the more conservative of `calc_rms_val` and
-            `neg_peak_rms_val` when the latter is available.
+            The expected number of independent noise measurements, over the
+            internal region, with flux densities greater than or equal to the
+            brightest internal peak and the remaining significant internal
+            peaks, if these exist, calculated using the more conservative of
+            `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `calc_int_snr` : list of float
@@ -1020,15 +1029,16 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
     return prob_dict
 
 
-def summary(fits_file: str,
-            threshold: float = 0.01,
-            radius_buffer: float = 5.0,
-            ext_threshold: float | None = None,
-            silence_dict: bool = False,
-            plot: bool = True,
-            save_path: str | None = None,
-            file_name: str | None = None,
-            ):
+def summary(
+        fits_file: str | Path,
+        threshold: float = 0.01,
+        radius_buffer: float = 5.0,
+        ext_threshold: float | None = None,
+        silence_dict: bool = False,
+        plot: bool = True,
+        save_path: str | None = None,
+        file_name: str | None = None,
+    ):
     """Summarize the statistics of an image in a dictionary and/or plot, with
     the option to save the plot as a .png file.
 
@@ -1100,9 +1110,10 @@ def summary(fits_file: str,
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest internal peak and
-            the remaining significant internal peaks, if these exist.
+            The expected number of independent noise measurements, over the
+            internal region, with flux densities greater than or equal to the
+            brightest internal peak and the remaining significant internal
+            peaks, if these exist.
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `int_snr` : list of float
@@ -1123,10 +1134,10 @@ def summary(fits_file: str,
             Peaks are arranged in decreasing brightness.
             Empty if no significant external peaks are found.
         `ext_exp_exceed` : str or list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the significant external peaks,
-            if these exist. If none exist, then 'No significant external peak'
-            will be used.
+            The expected number of independent noise measurements, over the
+            external region, with flux densities greater than or equal to the
+            significant external peaks, if these exist. If none exist, then
+            'No significant external peak' will be used.
             Peaks are arranged in decreasing brightness.
         `ext_snr` : str or list of float
             The signal to noise ratios of the external peaks, if these
@@ -1136,27 +1147,30 @@ def summary(fits_file: str,
             Empty if no significant external peaks are found.
         `calc_rms_val` : float
             The RMS, in Jy, for which the expected number of independent noise
-            measurements greater than or equal to `next_ext_peak` over the
-            external region is one.
+            measurements, over the external region, greater than or equal to
+            `next_ext_peak` is one.
         `neg_peak_rms_val` : float | None
             The RMS, in Jy, for which the expected number of independent noise
-            measurements less than or equal to the image's most negative pixel is one.
+            measurements, over the entire image, less than or equal to the
+            image's most negative pixel is one.
             `None` if no negative pixel values are present.
         `calc_ext_exp_exceed` : float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest non-significant
-            external peak, calculated using the more conservative of
-            `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
+            The expected number of independent noise measurements, over the
+            external region, with flux densities greater than or equal to the
+            brightest non-significant external peak, calculated using the more
+            conservative of `calc_rms_val` and `neg_peak_rms_val`, when the
+            latter is available.
         `calc_ext_snr` : float
             The SNR of the brightest non-significant external peak, calculated
             with the more conservative (smaller value) of `calc_rms_val` and
             `neg_peak_rms_val`.
         `calc_int_exp_exceed` : list of float
-            The expected number of independent noise measurements with flux
-            densities greater than or equal to the brightest internal peak and
-            the remaining significant internal peaks, if these exist,
-            calculated using the more conservative of `calc_rms_val` and
-            `neg_peak_rms_val` when the latter is available.
+            The expected number of independent noise measurements, over the
+            internal region, with flux densities greater than or equal to the
+            brightest internal peak and the remaining significant internal
+            peaks, if these exist, calculated using the more conservative of
+            `calc_rms_val` and `neg_peak_rms_val`, when the latter is
+            available.
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `calc_int_snr` : list of float
@@ -1194,9 +1208,7 @@ def summary(fits_file: str,
     Method 1: (`rms_val`)
     The RMS is estimated iteratively by identifying statistically significant
     external peaks and excluding circular regions with radii equal to the beam
-    FWHM around those peaks. Using the updated RMS estimate, the expected
-    number of independent noise measurements with flux densities greater than
-    or equal to those of internal peaks is then evaluated.
+    FWHM around those peaks.
 
     To reduce false detections caused by the point spread function of bright
     sources, empirical thresholds are applied. If external significance
@@ -1215,20 +1227,22 @@ def summary(fits_file: str,
 
     Method 3: (`calc_rms_val`)
     The RMS is estimated by calculating the RMS for which the expected number
-    of independent noise measurements greater than or equal to the flux density
-    of the brightest non-significant external peak over the external region is
-    one.
+    of independent noise measurements, over the external region, greater than
+    or equal to the flux density of the brightest non-significant external peak
+    is one.
 
     See `_statistics_from_extreme_peaks()` for more details.
 
     Method 4: (`neg_peak_rms_val`)
     The RMS is estimated by calculating the RMS for which the expected number
-    of independent noise measurements less than or equal to the flux density of
-    the image's most negative pixel, if such a pixel exists, over the external
-    region is one.
+    of independent noise measurements, over the entire image, less than or
+    equal to the flux density of the image's most negative pixel, if such a
+    pixel exists, is one.
 
     See `_statistics_from_extreme_peaks()` for more details.
     """
+    fits_file = Path(fits_file)
+
     if save_path is None and file_name is not None:
         warnings.warn(
             f"Although a file name was requested ({file_name}), no plot will "
@@ -1298,7 +1312,6 @@ def summary(fits_file: str,
         info['rms_val'],
         info['sd_mad'],
         info['calc_rms_val'],
-        info['neg_peak_rms_val']
     ]
     if info['neg_peak_rms_val'] is not None:
         rms_list.append(info['neg_peak_rms_val'])
@@ -1517,39 +1530,95 @@ def summary(fits_file: str,
     return
 
 
-def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
+def significant(
+        fits_file: str | Path,
+        threshold: float = 0.01,
+        radius_buffer: float = 5.0,
+        ext_threshold: float |None = None,
+    ):
     """
-    Finds whether a significant source was detected in a field's center region.
+    Determine whether the image contains a statistically significant internal
+    peak.
 
     Parameters
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    threshold : float (optional)
-        The threshold for a significant detection.
-        If the probability of detecting the center region's maximum flux assuming no source in the image
-        is less than this threshold, then the detection is deemed significant.
-        If no value is given, defaults to 0.01.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
+    threshold : float, optional
+        The maximum expected number of independent noise measurements, over the
+        internal region, with flux densities greater than or equal to an
+        internal peak for the peak to be considered significant, assuming no
+        source is present in the image.
+    radius_buffer : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float | None, optional
+        The maximum expected number of independent noise measurements, over the
+        external region, with flux densities greater than or equal to an
+        external peak for the peak to be considered significant, assuming no
+        source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
 
     Returns
     -------
-    bool : Whether a significant source was detected in the field's center region.
+    bool
+        Whether a significant source was detected in the image's internal
+        region.
 
     Raises
     ------
     ValueError
         If threshold is not between 0 and 1, inclusive.
-    """
 
-    #make sure reasonable input
-    if not (threshold >= 0 and threshold <= 1):
+    Notes
+    -----
+    The expected number of independent noise measurements, over the internal
+    region, with flux densities greater than or equal to the brightest internal
+    peak is calculated in two ways. Significance requires both of these
+    expected numbers to be less than the value of `threshold`.
+
+    Method 1:
+    The RMS is estimated iteratively by identifying statistically significant
+    external peaks and excluding circular regions with radii equal to the beam
+    FWHM around those peaks. Using the updated RMS estimate, the expected
+    number of independent noise measurements, over the internal region, with
+    flux densities greater than or equal to those of internal peaks is then
+    evaluated.
+
+    See _statistics_from_rms_uncertainty() for more details.
+
+    Method 2:
+    The RMS is estimated by calculating the RMS for which the expected number
+    of independent noise measurements, over the external region, greater than
+    or equal to the flux density of the brightest non-significant external peak
+    is one. In addition, the RMS is estimated by calculating the RMS for which
+    the expected number of independent noise measurements, over the entire
+    image, less than or equal to the flux density of the image's most negative
+    pixel, if such a pixel exists, is one. If the second RMS estimate exists,
+    the two RMS estimates are compared, and the more conservative estimate is
+    used to evaluate the expected number of independent noise measurements,
+    over the internal region, with flux densities greater than or equal to
+    those of the internal peaks.
+
+    See _statistics_from_extreme_peaks() for more details.
+    """
+    fits_file = Path(fits_file)
+
+    if not (0 <= threshold <= 1):
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
-    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, silence_dict=False, plot=False)
-    return (summ['int_exp_exceed'][0] < threshold and summ['calc_int_exp_exceed'][0] < threshold)
+    info = _statistics_from_extreme_peaks(
+            _statistics_from_rms_uncertainty(
+                fits_file=fits_file,
+                threshold=threshold,
+                radius_buffer=radius_buffer,
+                ext_threshold=ext_threshold
+            )
+        )
+
+    return (
+        info['int_exp_exceed'][0] < threshold
+        and info['calc_int_exp_exceed'][0] < threshold
+    )
