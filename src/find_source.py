@@ -7,7 +7,8 @@ import astropy.units as u
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
-import math
+import warnings
+from pathlib import Path
 
 _RMS_UNCERT_SIGMA = 5
 _RMS_UNCERT_SAMPLES = 100
@@ -556,9 +557,7 @@ def _statistics_from_rms_uncertainty(
     OSError
         If the FITS file cannot be opened.
     ValueError
-        Propagated from _expected_exceedances_from_rms_uncertainty(), if `rms`,
-        `n_excl_meas`, or `n_incl_meas` (when provided) is not positive.
-
+        If `beam_fwhm` is such that the search radius is not positive.
     Notes
     -----
     The RMS is estimated iteratively by identifying statistically significant
@@ -595,6 +594,11 @@ def _statistics_from_rms_uncertainty(
             ) from err
 
     search_radius = beam_fwhm + radius_buffer
+    if search_radius <= 0:
+        raise ValueError(
+            f"The internal serach radius is less than or equal to 0. "
+            f"'radius_buffer' was {radius_buffer}."
+        )
 
     # Search for the brightest internal peak.
     int_stats1 = _region_stats(
@@ -909,11 +913,12 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             peak.
         `calc_rms_val` : float
             The RMS, in Jy, for which the expected number of independent noise
-            measurements greater than or equal to `next_ext_peak` is one over
-            the external region.
-        neg_peak_rms_val : float | None
+            measurements greater than or equal to `next_ext_peak` over the
+            external region is one.
+        `neg_peak_rms_val` : float | None
             The RMS, in Jy, for which the expected number of independent noise
-            measurements less than or equal to the image's most negative pixel is one.
+            measurements less than or equal to the flux density of the image's
+            most negative pixel is one.
             `None` if no negative pixel values are present.
         `calc_ext_exp_exceed` : float
             The expected number of independent noise measurements with flux
@@ -1015,179 +1020,286 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
     return prob_dict
 
 
-def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None,\
-            short_dict: bool = True, plot: bool = True, save_path: str = ''):
-    """
-    Summarizes an image's statistics into a shorter dictionary, a more detailed dictionary, and/or a plot,
-    with an option to save the plot as a png.
+def summary(fits_file: str,
+            threshold: float = 0.01,
+            radius_buffer: float = 5.0,
+            ext_threshold: float | None = None,
+            silence_dict: bool = False,
+            plot: bool = True,
+            save_path: str | None = None,
+            file_name: str | None = None,
+            ):
+    """Summarize the statistics of an image in a dictionary and/or plot, with
+    the option to save the plot as a .png file.
 
     Parameters
     ----------
     fits_file : str
         The path of the FITS file that contains the image.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
-    short_dict : bool (optional)
-        Whether to return the short dictionary of statistics.
-        If no value is given, defaults to True.
-    full_list : bool (optional)
-        Whether to return the more detailed list of statistics.
-        If no value is given, defaults to False.
-    plot : bool (optional)
-        Whether to plot the image and statistics.
-        If no value is given, defaults to True.
-    save_path : str (optional)
-        The path to which the plot will be saved.
-        If no value is given, defaults to '' and no image is saved.
+    threshold : float, optional
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an internal peak for the peak to be
+        considered significant, assuming no source is present in the image.
+    radius_buffer : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float | None, optional
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an external peak for the peak to be
+        considered significant, assuming no source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
+    silence_dict : bool, optional
+        If `True`, suppress returning the summary dictionary. If `False`,
+        return the dictionary of calculated statistics.
+    plot : bool, optional
+        Whether to plot the image and selected statistics.
+    save_path : str | None, optional
+        The path of the folder to which the plot will be saved.
+    file_name : str | None, optional
+        The name of the file for the saved plot. If no value is given, the file
+        name will be the fits file name with the radius buffer and external
+        threshold appended.
 
     Returns
     -------
-    dict (if requested)
-        A shorter dictionary with:
-            float
-                The probability, found using the rms taken directly from the image,
-                of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-            list
-                A list with:
-                    floats
-                        The probabilities, found using the rms taken directly from the image,
-                        of detecting the exclusion regions' maximum flux if there were no source in the exclusion regions.
-                        If there are multiple entries in this list,
-                        they are the probabilities as the exclusion region becomes increasingly small
-                        as external peaks deemed significant are added to the inclusion region.
-            float
-                The inclusion region's maximum flux in Jy.
-            tuple (float, float)
-                The coordinates in relative arcsec of the inclusion region's maximum flux.
-            list
-                A list of with:
-                    floats
-                        The exclusion regions' maximum fluxes in Jy.
-                        If there are multiple entries in this list,
-                        they are the maxmimum fluxes as the exclusion region becomes increasingly small
-                        as external peaks deemed significant are added to the inclusion region.
-            list
-                A list with:
-                    tuples (float, float)
-                        The coordinates in relative arcsec of the exclusion regions' maximum fluxes.
-                        If there are multiple entires in this list,
-                        they are the coordinates as the exclusion region becomes increasingly small
-                        as external peaks deemed significant are added to the inclusion region.
-            float
-                The exclusion region's rms in Jy. This uses the final (smallest) exclusion region.
-            float
-                The number of measurements in the inclusion region.
-            float
-                The number of measurements in the exclusion region.
-            tuple (int, int)
-                The coordinates in relative arcsec of the image's center. Should be (0, 0).
-            list
-                A list with:
-                    floats:
-                        The radii in arcsec of inclusion zones.
-            float
-                The inclusion region's signal to noise ratio.
-            list
-                A list with:
-                    floats
-                        The exclusion regions' signal to noise ratios.
-            float
-                The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
-                of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-            float
-                The probability, found using the rms estimated from the value of the exclusion region's maximum flux,
-                of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-            float
-                The rms in Jy estimated from the value of the exclusion region's maximum flux.
-            float
-                The inclusion region's signal to noise ratio,
-                found using the rms estimated from the value of the exclusion region's maximum flux.
-            float
-                The exclusion region's signal to noise ratio,
-                found using the rms estimated from the value of the exclusion region's maximum flux.
-    list (if requested)
-        A more detailed list with:
-            dicts
-                A dictionary with the following, found using the rms taken directly from the image:
-                    float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-                    float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-                    float
-                        The inclusion region's maximum flux in Jy.
-                    tuple (float, float)
-                        The coordinates in relative arcsec of the inclusion region's maximum flux.
-                    float
-                        The exclusion region's maximum flux in Jy.
-                    tuple (float, float)
-                        The coordinates in relative arcsec of the exclusion region's maximum flux.
-                    float
-                        The exclusion region's rms in Jy.
-                    float
-                        The number of measurements in the inclusion region.
-                    float
-                        The number of measurements in the exclusion region.
-                    tuple (float, float)
-                        The coordinates in relative arcsec of the image's center. Should be (0.0, 0.0).
-                    list
-                        A list with:
-                            floats
-                                The radii in arcsec of inclusion zones.
-                    float
-                        The inclusion region's signal to noise ratio.
-                    float
-                        The exclusion region's signal to noise ratio.
-            dict
-                A dictionary with the following, found using the rms estimated as described above:
-                    float
-                        The probability of detecting the inclusion region's maximum flux if there were no source in the inclusion region.
-                    float
-                        The probability of detecting the exclusion region's maximum flux if there were no source in the exclusion region.
-                    float
-                        The exclusion region's rms in Jy.
-                    float
-                        The inclusion region's signal to noise ratio.
-                    float
-                        The exclusion region's signal to noise ratio.
-    """
-    info = (_statistics_from_extreme_peaks(_statistics_from_rms_uncertainty(fits_file=fits_file, threshold=threshold, radius_buffer=radius_buffer,\
-                                                                ext_threshold=ext_threshold)))
+    dict
+        Dictionary with the following keys:
+        `field_center` : tuple of 2 float
+            Image center in pixel coordinates.
+        `rms_val` : float
+            The estimated RMS, in Jy, of the image, excluding circular
+            neighborhoods around flux densities that were considered to be
+            significant.
+        `mad` : float
+            The median absolute deviation of the image flux density, in Jy.
+        `sd_mad` : float
+            The standard deviation of image flux density, in Jy, as estimated
+            by the MAD.
+        `n_incl_meas` : float
+            The number of measurements (beams) included in the mask.
+        `n_excl_meas` : float
+            The number of measurements (beams) excluded by the mask.
+        `fwhm` : float
+            The beam major axis FWHM, in arcsec.
+        `incl_radius` : float
+            The radius, in arcsec, of the initial inclusion region.
+        `neg_peak` : float | None
+            Most negative pixel flux density, in Jy, in the image.
+            `None` if no negative pixel values are present.
+        `int_peak_val` : list of float
+            The flux density, in Jy, of the brightest internal peak and the
+            flux densities, in Jy, of the remaining significant internal peaks,
+            if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_peak_coord` : list of tuple of 2 int or float
+            The pixel coordinates of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest internal peak and
+            the remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `int_snr` : list of float
+            The signal to noise ratios of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `ext_peak_val` : str or list of float
+            The flux densities, in Jy, of the significant external peaks, if
+            these exist. If none exist, then 'No significant external peak'
+            will be used.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_peak_coord` : str or list of tuple of 2 int or float
+            The pixel coordinates of the significant external peaks, if these
+            exist. If none exist, then 'No significant external peak' will be
+            used.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `ext_exp_exceed` : str or list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the significant external peaks,
+            if these exist. If none exist, then 'No significant external peak'
+            will be used.
+            Peaks are arranged in decreasing brightness.
+        `ext_snr` : str or list of float
+            The signal to noise ratios of the external peaks, if these
+            exist. If none exist, then 'No significant external peak' will be
+            used.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
+        `calc_rms_val` : float
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements greater than or equal to `next_ext_peak` over the
+            external region is one.
+        `neg_peak_rms_val` : float | None
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements less than or equal to the image's most negative pixel is one.
+            `None` if no negative pixel values are present.
+        `calc_ext_exp_exceed` : float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest non-significant
+            external peak, calculated using the more conservative of
+            `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
+        `calc_ext_snr` : float
+            The SNR of the brightest non-significant external peak, calculated
+            with the more conservative (smaller value) of `calc_rms_val` and
+            `neg_peak_rms_val`.
+        `calc_int_exp_exceed` : list of float
+            The expected number of independent noise measurements with flux
+            densities greater than or equal to the brightest internal peak and
+            the remaining significant internal peaks, if these exist,
+            calculated using the more conservative of `calc_rms_val` and
+            `neg_peak_rms_val` when the latter is available.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `calc_int_snr` : list of float
+            The signal to noise ratios, calculated using the more
+            conservative of `calc_rms_val` and `neg_peak_rms_val` when the
+            latter is available, of the brightest internal peak and the
+            remaining significant internal peaks, if these exist.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant internal peaks are found.
+        `conservative_rms` : float
+            The most conservative (smallest value) of the estimated rms values
+            (`rms_val`, `sd_mad`, `calc_rms_val`, `neg_peak_rms_val`, and the
+            noise estimate if it is included in FITS file).
+        `conservative_snr` : float
+            The SNR of the brightest internal peak, calculated using
+            `conservative_rms`.
 
+    Warns
+    -----
+    UserWarning
+        If a file name for the plot was requested, but no path was specified,
+        or if a path to save the plot was specified, but no plot was requested,
+        or if some error occurred in saving the plot.
+
+    Notes
+    -----
+    This function modifies the global Matplotlib `rcParams` by setting the font
+    size to 15.
+
+    Four methods are used to estimate the true RMS value, and the most
+    conservative estimate of these four, plus the noise estimate directly from
+    the FITS file if present, is chosen to calculate the SNR. The four methods
+    assume Gaussian statistics.
+
+    Method 1: (`rms_val`)
+    The RMS is estimated iteratively by identifying statistically significant
+    external peaks and excluding circular regions with radii equal to the beam
+    FWHM around those peaks. Using the updated RMS estimate, the expected
+    number of independent noise measurements with flux densities greater than
+    or equal to those of internal peaks is then evaluated.
+
+    To reduce false detections caused by the point spread function of bright
+    sources, empirical thresholds are applied. If external significance
+    threshold `ext_threshold` is `None`, it is set to `1e-3`, `1e-6`, or
+    `1e-12` depending on whether the SNR of the brightest internal peak is
+    below `20`, between `20` and `100`, or at least `100`, respectively.
+    Additional internal peaks are required to have flux densities greater
+    than `1/100` of the brightest internal peak.
+
+    See `_statistics_from_rms_uncertainty()` for more details.
+
+    Method 2: (`sd_mad`)
+    The standard deviation is estimated from by the median absolute deviation
+    of the image flux density. Note that under the null hypothesis, the
+    standard deviation of the image flux density and the RMS are equivalent.
+
+    Method 3: (`calc_rms_val`)
+    The RMS is estimated by calculating the RMS for which the expected number
+    of independent noise measurements greater than or equal to the flux density
+    of the brightest non-significant external peak over the external region is
+    one.
+
+    See `_statistics_from_extreme_peaks()` for more details.
+
+    Method 4: (`neg_peak_rms_val`)
+    The RMS is estimated by calculating the RMS for which the expected number
+    of independent noise measurements less than or equal to the flux density of
+    the image's most negative pixel, if such a pixel exists, over the external
+    region is one.
+
+    See `_statistics_from_extreme_peaks()` for more details.
+    """
+    if save_path is None and file_name is not None:
+        warnings.warn(
+            f"Although a file name was requested ({file_name}), no plot will "
+            f"be saved because no path was specified."
+        )
+    if not plot and save_path is not None:
+        warnings.warn(
+            f"No plot will be saved to the specified path ({save_path}) "
+            f"because no plot was requested."
+        )
+
+    info = (
+        _statistics_from_extreme_peaks(
+            _statistics_from_rms_uncertainty(
+                fits_file=fits_file,
+                threshold=threshold,
+                radius_buffer=radius_buffer,
+                ext_threshold=ext_threshold
+            )
+        )
+    )
     center = info['field_center']
 
     header_data = fits.getheader(fits_file)
-    pixel_scale = Angle(abs(header_data['CDELT1']), header_data['CUNIT1']).to_value('arcsec')
+    pixel_scale = (
+        Angle(
+            abs(header_data['CDELT1']),
+            header_data['CUNIT1']
+        ).to_value('arcsec')
+    )
 
     int_x_coords = []
     int_y_coords = []
     int_peak_coords = info['int_peak_coord']
     n_int_peaks = len(int_peak_coords)
     for i in range(n_int_peaks):
-        #normalized internal peak coordinates
-        int_x_coords.append((int_peak_coords[i][0] - center[0]) * pixel_scale)
-        int_y_coords.append((int_peak_coords[i][1] - center[1]) * pixel_scale)
+        # Convert internal peak coordinates to offsets from the image center
+        # in arcsec.
+        int_x_coords.append(
+            (int_peak_coords[i][0] - center[0])
+            * pixel_scale
+        )
+        int_y_coords.append(
+            (int_peak_coords[i][1] - center[1])
+            * pixel_scale
+        )
     int_x_coords = np.array(int_x_coords)
     int_y_coords = np.array(int_y_coords)
 
-    incl_radius = info['incl_radius'] #unitless but in arcsec already
+    incl_radius = info['incl_radius']
 
-    # get most conservative rms and internal snr
-    hdul = fits.open(fits_file)
-    noise = None
-    try:
-        noise_col = hdul[1].columns[2]
-        if noise_col.name == 'Noise Est':
-            if noise_col.unit == 'mJy':
-                noise = float(hdul[1].data[0][2] * 1e3) # into Jy
-            elif noise_col.unit == 'Jy':
-                noise = float(hdul[1].data[0][2])
-    except:
-        pass
-    rms_list = [info['rms_val'], info['sd_mad'], info['calc_rms_val'], info['neg_peak_rms_val']] # all in Jy
+    # Read the estimated RMS from the FITS table if present, compute the RMS's
+    # with the various methods, and select the most conservative RMS and
+    # use it to calculate the internal SNR.
+    with fits.open(fits_file) as hdul:
+        noise = None
+        try:
+            noise_col = hdul[1].columns[2]
+            if noise_col.name == 'Noise Est':
+                if noise_col.unit == 'mJy':
+                    noise = float(hdul[1].data[0][2] * 1e3)
+                elif noise_col.unit == 'Jy':
+                    noise = float(hdul[1].data[0][2])
+        except:
+            pass
+    rms_list = [
+        info['rms_val'],
+        info['sd_mad'],
+        info['calc_rms_val'],
+        info['neg_peak_rms_val']
+    ]
     if info['neg_peak_rms_val'] is not None:
         rms_list.append(info['neg_peak_rms_val'])
     if noise is not None:
@@ -1200,15 +1312,20 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
     ext_peak_coords = info['ext_peak_coord']
     n_ext_peaks = len(ext_peak_coords)
     for i in range(n_ext_peaks):
-        #normalized external peak coordinates
-        x_coords.append((ext_peak_coords[i][0] - center[0]) * pixel_scale)
-        y_coords.append((ext_peak_coords[i][1] - center[1]) * pixel_scale)
+        # Convert external peak coordinates to offsets from the image center
+        # in arcsec.
+        x_coords.append(
+            (ext_peak_coords[i][0] - center[0])
+            * pixel_scale
+        )
+        y_coords.append(
+            (ext_peak_coords[i][1] - center[1])
+            * pixel_scale
+        )
 
     fwhm = info['fwhm']
 
     if plot:
-        #plt.rcParams['font.family'] = 'serif'
-        #plt.rcParams['font.serif'] = ['Times New Roman']
         plt.rcParams['font.size'] = 15
         plt.rcParams['hatch.linewidth'] = 0.5
         plt.rcParams['figure.dpi'] = 60
@@ -1221,75 +1338,157 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
             shape = image_data.shape
 
         plt.set_cmap('inferno')
-        fig, ax = plt.subplots(figsize=(6.7,5.1))
+        fig, ax = plt.subplots(figsize=(6.7, 5.1))
 
-        plt.plot(int_x_coords, int_y_coords, 'wo', fillstyle='none', markersize=15)
-        plt.plot(int_x_coords, int_y_coords, 'kx', fillstyle='none', markersize=15/np.sqrt(2))
+        # Plot a white circle and black X for each internal peak.
+        plt.plot(
+            int_x_coords,
+            int_y_coords,
+            'wo',
+            fillstyle='none',
+            markersize=15
+        )
+        plt.plot(
+            int_x_coords,
+            int_y_coords,
+            'kx',
+            fillstyle='none',
+            markersize=15/np.sqrt(2)
+        )
 
+        # Plot a lime circle with radius equal to the beam FWHM around each
+        # internal peak.
         for i in range(n_int_peaks):
-            int_circle = patches.Circle((int_x_coords[i], int_y_coords[i]), fwhm * pixel_scale, edgecolor='lime', fill=False)
+            int_circle = patches.Circle(
+                (int_x_coords[i], int_y_coords[i]),
+                fwhm * pixel_scale,
+                edgecolor='lime',
+                fill=False
+            )
             ax.add_artist(int_circle)
 
-        int_circle = patches.Circle((0, 0), incl_radius, edgecolor='c', fill=False)
+        # Plot a cyan circle denoting the boundary between the internal and
+        # external regions.
+        int_circle = patches.Circle(
+            (0, 0),
+            incl_radius,
+            edgecolor='c',
+            fill=False
+        )
         ax.add_artist(int_circle)
 
+        # Plot a black circle and white X for each external peak, and plot a
+        # lime circle with radius equal to the beam FWHM around each external
+        # peak.
         if n_ext_peaks > 0:
             x_coords = np.array(x_coords)
             y_coords = np.array(y_coords)
-            plt.plot(x_coords, y_coords, 'ko', fillstyle='none', markersize=15)
-            plt.plot(x_coords, y_coords, 'wx', fillstyle='none', markersize=15/np.sqrt(2))
-
+            plt.plot(
+                x_coords,
+                y_coords,
+                'ko',
+                fillstyle='none',
+                markersize=15
+            )
+            plt.plot(
+                x_coords,
+                y_coords,
+                'wx',
+                fillstyle='none',
+                markersize=15/np.sqrt(2)
+            )
             for i in range(n_ext_peaks):
-                ext_circle = patches.Circle((x_coords[i], y_coords[i]), fwhm * pixel_scale, edgecolor='lime', fill=False)
+                ext_circle = patches.Circle(
+                    (x_coords[i], y_coords[i]),
+                    fwhm * pixel_scale,
+                    edgecolor='lime',
+                    fill=False
+                )
                 ax.add_artist(ext_circle)
 
         int_snr = info['int_snr'][0]
 
+        # Find the image boundaries.
         x_min = ((0 - center[0]) - 0.5) * pixel_scale
         y_min = ((0 - center[1]) - 0.5) * pixel_scale
         x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
         y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
 
-        beam = patches.Ellipse((x_min*0.88, y_min*0.92), Angle(header_data['BMIN'], header_data['CUNIT1']).to_value('arcsec'),\
-                               Angle(header_data['BMAJ'], header_data['CUNIT1']).to_value('arcsec'), fill=True, facecolor='w',\
-                                edgecolor='k', angle=header_data['BPA'], hatch='/////', lw=1)
+        # Plot the beam for reference.
+        beam = patches.Ellipse(
+            (x_min*0.88, y_min*0.92),
+            Angle(
+                header_data['BMIN'],
+                header_data['CUNIT1']
+            ).to_value('arcsec'),
+            Angle(
+                header_data['BMAJ'],
+                header_data['CUNIT1']
+            ).to_value('arcsec'),
+            fill=True,
+            facecolor='w',
+            edgecolor='k',
+            angle=header_data['BPA'],
+            hatch='/////',
+            lw=1
+        )
         ax.add_artist(beam)
 
-        try:
-            title = fits_file[fits_file.rindex('/')+1:fits_file.index('.fits')]
-        except:
-            title = fits_file
-        ax.text(x_min*0.96, y_max*0.96, f'Source: {title}\nInternal Candidate SNR: {conservative_snr}', horizontalalignment='left', verticalalignment='top',\
-                fontsize=10, bbox=dict(facecolor='w'))
+        title = Path(fits_file).stem
 
-        plt.imshow(image_data, extent=[x_min, x_max, y_min, y_max], origin='lower')
+        # Add a text box with the SNR of the brightest internal peak.
+        ax.text(
+            x_min*0.96,
+            y_max*0.96,
+            f'Source: {title}\nInternal Candidate SNR: {conservative_snr}',
+            horizontalalignment='left',
+            verticalalignment='top',
+            fontsize=10,
+            bbox=dict(facecolor='w')
+        )
+
+        plt.imshow(
+            image_data,
+            extent=[x_min, x_max, y_min, y_max],
+            origin='lower'
+        )
 
         plt.xlabel('Relative RA Offset [arcsec]', fontsize=15)
         plt.ylabel('Relative Dec Offset [arcsec]', fontsize=15)
 
+        # Create colorbar in mJy.
         jy_to_mjy = lambda x, pos: '{}'.format(round(x*1000, 1))
         fmt = ticker.FuncFormatter(jy_to_mjy)
-
         cbar = plt.colorbar(shrink=0.8, format=fmt)
-        cbar.ax.set_ylabel('Intensity [mJy/beam]', fontsize=15, rotation=270, labelpad=24)
+        cbar.ax.set_ylabel(
+            'Intensity [mJy/beam]',
+            fontsize=15,
+            rotation=270,
+            labelpad=24
+        )
 
-        if save_path != '':
+        if save_path is not None:
             try:
-                file = fits_file
-                while '/' in file:
-                    file = file[file.index('/')+1:]
-                file = file.replace('.fits', '')
-                if ext_threshold is None:
-                    ext_threshold = 'default'
-                file += f'_rb{radius_buffer}_et{ext_threshold}'
-                if save_path[-1] != '/':
-                    save_path = save_path + '/'
-                plt.savefig(f'{save_path}{file}.jpg')
+                if file_name is not None:
+                    file = file_name
+                else:
+                    # Use fits file name with radius buffer and external
+                    # threshold appended if no file name is specified.
+                    file = Path(fits_file).stem
+                    if ext_threshold is None:
+                        ext_threshold = 'default'
+                    file += f'_rb{radius_buffer}_et{ext_threshold}'
+                output_file = Path(save_path) / f"{file}.jpg"
+                plt.savefig(output_file)
             except:
-                print('Error saving figure. Double check path entered.')
+                warnings.warn(
+                    "Error saving figure. "
+                    f"Double check file name ({file_name}) and/or path "
+                    f"({save_path}) entered."
+                )
 
-    if short_dict:
-        short_info = info
+    if not silence_dict:
+        short_info = info.copy()
 
         int_peaks = []
         for i in range(n_int_peaks):
@@ -1305,7 +1504,6 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
             short_info['ext_snr'] = 'No significant external peak'
             short_info['ext_exp_exceed'] = 'No significant external peak'
 
-        short_info = info
         short_info['int_peak_coord'] = int_peaks
         short_info['ext_peak_coord'] = ext_peaks
         short_info['field_center'] = (0,0)
@@ -1316,8 +1514,7 @@ def summary(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0,
 
         return short_info
 
-    else:
-        return
+    return
 
 
 def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
@@ -1354,5 +1551,5 @@ def significant(fits_file: str, threshold: float = 0.01, radius_buffer: float = 
     if not (threshold >= 0 and threshold <= 1):
         raise ValueError('Threshold must be between 0 and 1, inclusive.')
 
-    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, short_dict=True, plot=False)
+    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, silence_dict=False, plot=False)
     return (summ['int_exp_exceed'][0] < threshold and summ['calc_int_exp_exceed'][0] < threshold)
