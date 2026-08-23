@@ -18,7 +18,7 @@ def _fits_data_index(fits_file: str | Path) -> int:
 
     Parameters
     ----------
-    fits_file : str
+    fits_file : str | Path
         The path to the FITS file.
 
     Returns
@@ -94,8 +94,9 @@ def _region_stats(
 
     Parameters
     ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
+    fits_file : str | Path
+        The path of the FITS file that contains the image. Image data must be
+        a 3D array containing a 2D image.
     radius : list
         Sequence of radii, in arcseconds, corresponding to each center
         coordinate.
@@ -162,8 +163,9 @@ def _region_stats(
     OSError
         If the FITS file cannot be opened.
     ValueError
-        If `center` and `radius` have different lengths, or if the applied mask
-        contains no pixels.
+        If FITS image data is not a 3D array containing a 2D image, if `center`
+        and `radius` have different lengths, or if the applied mask contains no
+        pixels.
 
     Notes
     -----
@@ -189,6 +191,11 @@ def _region_stats(
             data = image_hdu.data
     except OSError as err:
         raise OSError(f'Unable to open {fits_file}') from err
+
+    if data.ndim != 3 or data.shape[0] != 1:
+        raise ValueError(
+            "FITS image data must be a 3D array containing a 2D image."
+        )
 
     # Record the most negative pixel value for image diagnostics.
     neg_peak = float(np.min(data[0]))
@@ -463,8 +470,9 @@ def _statistics_from_rms_uncertainty(
 
     Parameters
     ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
+    fits_file : str | Path
+        The path of the FITS file that contains the image. Image data must be
+        a 3D array containing a 2D image.
     center : list | None, optional
         A list of center coordinates in units of pixels.
         If `None` or empty, field center coordinates are used.
@@ -1044,8 +1052,9 @@ def summary(
 
     Parameters
     ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
+    fits_file : str | Path
+        The path of the FITS file that contains the image. Image data must be
+        a 3D array containing a 2D image.
     threshold : float, optional
         The maximum expected number of independent noise measurements with flux
         densities greater than or equal to an internal peak for the peak to be
@@ -1542,8 +1551,9 @@ def significant(
 
     Parameters
     ----------
-    fits_file : str
-        The path of the FITS file that contains the image.
+    fits_file : str | Path
+        The path of the FITS file that contains the image. Image data must be
+        a 3D array containing a 2D image.
     threshold : float, optional
         The maximum expected number of independent noise measurements, over the
         internal region, with flux densities greater than or equal to an
