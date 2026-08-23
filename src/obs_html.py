@@ -284,7 +284,7 @@ def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_
     with open(html_path, 'a') as html_file:
         try:
             summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-                    short_dict=False, plot=True, save_path=os.path.dirname(html_path))
+                    silence_dict=True, plot=True, save_path=os.path.dirname(html_path))
 
             #getting full path
             file = fits_file
