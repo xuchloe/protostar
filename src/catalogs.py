@@ -596,22 +596,30 @@ def make_catalog(
     return interesting_sources
 
 
-def combine_catalogs(catalog_1: dict, catalog_2: dict):
+def combine_catalogs(
+    catalog_1: dict,
+    catalog_2: dict,
+) -> dict:
     """
-    Combine two catalogs of the format returned by make_catalog() into a single
-    catalog of the same format.
+    Combine two catalogs returned by `make_catalog()`.
+
+    Entries from `catalog_2` are added to `catalog_1` with their source
+    numbers shifted to follow the entries already present in `catalog_1`.
+    `catalog_1` is modified in place.
 
     Parameters
     ----------
     catalog_1 : dict
-        The catalog to which the other catalog will be 'appended.'
+        Catalog to which the entries from `catalog_2` are added. This
+        dictionary is modified in place.
     catalog_2 : dict
-        The catalog to 'append' to the other catalog.
+        Catalog whose entries are added to `catalog_1`.
 
     Returns
     -------
     dict
-        A dictionary of the combined catalogs in the same catalog format.
+        The combined catalog. This is the same dictionary object as
+        `catalog_1`.
     """
     shift = len(catalog_1)
     for key, value in catalog_2.items():
