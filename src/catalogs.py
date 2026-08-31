@@ -11,12 +11,14 @@ import os
 import math
 import sqlite3
 import io
+import re
+import warnings
 from PIL import Image
 from pathlib import Path
-from find_source import summary, fits_data_index
+from find_source import summary, _fits_data_index
 
 
-def interpolation_kernel(s: float):
+def _interpolation_kernel(s: float):
     """Evaluate the Keys cubic convolution interpolation kernel.
 
     Parameters
@@ -43,7 +45,7 @@ def interpolation_kernel(s: float):
     return 0
 
 
-def interpolation_function(
+def _interpolation_function(
     x: float,
     node_x: list,
     node_val: list,
@@ -106,11 +108,11 @@ def interpolation_function(
     c_neg1 = node_val[2] - 3 * node_val[1] + 3 * node_val[0]
     c_Nplus1 = 3*node_val[N] - 3 * node_val[N-1] + 3 * node_val[N-2]
 
-    interpolated_val = c_neg1 * interpolation_kernel((x - node_neg1) / h)
+    interpolated_val = c_neg1 * _interpolation_kernel((x - node_neg1) / h)
     for k in range(num_nodes):
         s = (x - node_x[k]) / h
-        interpolated_val += node_val[k] * interpolation_kernel(s)
-    interpolated_val += c_Nplus1 * interpolation_kernel((x - node_Nplus1) / h)
+        interpolated_val += node_val[k] * _interpolation_kernel(s)
+    interpolated_val += c_Nplus1 * _interpolation_kernel((x - node_Nplus1) / h)
 
     return float(interpolated_val)
 
@@ -165,7 +167,7 @@ def thumbnail(
         )
 
     fits_file = Path(fits_file)
-    hdu_index = fits_data_index(fits_file)
+    hdu_index = _fits_data_index(fits_file)
 
     # Extract image data array and header from FITS file.
     with fits.open(fits_file) as hdulist:
@@ -231,7 +233,7 @@ def thumbnail(
             for j in range(1, pts_bw_nodes + 1):
                 x = i + j * pts_spacing
                 temp2.append(
-                    interpolation_function(
+                    _interpolation_function(
                         x,
                         node_x=node_x,
                         node_val=new_data[row_num]
@@ -251,7 +253,7 @@ def thumbnail(
             for j in range(1, pts_bw_nodes + 1):
                 y = i + j * pts_spacing
                 temp[i * pts_bw_nodes + j - 1].append(
-                    interpolation_function(
+                    _interpolation_function(
                         y,
                         node_x=node_y,
                         node_val=temp2
@@ -285,55 +287,114 @@ def thumbnail(
     return plot_data
 
 
-def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
-    '''
-    Summarizes information on any significant point sources detected in an image.
+def make_catalog(
+    fits_file: str | Path,
+    threshold: float = 0.01,
+    radius_buffer: float = 5.0,
+    ext_threshold: float | None = None,
+) -> dict | None:
+    """
+    Create a catalog of significant point sources detected in a FITS image.
 
     Parameters
     ----------
-    fits_file : str
+    fits_file : str | Path
         The path of the FITS file that contains the image.
-    threshold : float (optional)
-        The threshold for a significant detection.
-        If the probability of detecting the center region's maximum flux assuming no source in the image
-        is less than this threshold, then the detection is deemed significant.
-        If no value is given, defaults to 0.01.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
+    threshold : float, optional
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an internal peak for the peak to be
+        considered significant, assuming no source is present in the image.
+    radius_buffer : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float | None, optional
+        The maximum expected number of independent noise measurements with flux
+        densities greater than or equal to an external peak for the peak to be
+        considered significant, assuming no source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
 
     Returns
     -------
     dict
-        A dictionary with:
-            dict(s)
-                A dictionary with:
-                    str
-                        The name of the target object of the observation.
-                    str
-                        The date and time of the observation.
-                    str
-                        The name of the FITS file with the image.
-                    Angle
-                        The restoring beam major axis.
-                    Angle
-                        The restoring beam minor axis.
-                    Angle
-                        The restoring beam position angle.
-                    float
-                        The uncertainty in flux density measurements. The rms excluding any significant sources and a small circular region around them.
-                    float
-                        The flux density of the detected point source.
-                    SkyCoord
-                        The location of the detected point source.
-                    bool
-                        Whether the detected point source is in the initial search region.
-    '''
+        Dictionary with keys of the form `Source1`, `Source2`, etc., labeling
+        the significant internal and external sources found in the image. Each
+        key is associated with a dictionary with the following keys:
+        `FieldName` : str
+            The name of the target object of the observation.
+        `ObsDateTime` : str
+            The date and time of the observation, in the format M-d-yy h:m:s.
+        `Stationary` : bool
+            Whether the source can be approximated as stationary.
+        `FileName` : str
+            The name of the FITS file that contains the image.
+        `BeamMajAxis_arcsec` : float
+            The restoring beam major axis, in arcsec, rounded to 3 decimal
+            places.
+        `BeamMinAxis_arcsec` : float
+            The restoring beam minor axis, in arcsec, rounded to 3 decimal
+            places.
+        `BeamPosAngle_deg` : float
+            The restoring beam position angle, in degrees, rounded to 3 decimal
+            places.
+        `Freq_GHz` : float | str
+            The frequency at which the image data was recorded, in GHz, rounded
+            to 3 decimal places, or `Not found` if the frequency cannot be
+            determined.
+        `FluxUncert_mJy` : float
+            The uncertainty in flux density measurements, in mJy, rounded to 3
+            decimal places.
+        `Flux_mJy` : float
+            The flux density of the source, in mJy, rounded to 3 decimal
+            places.
+        `RAUncert_arcsec` : float
+            The uncertainty in Right Ascension of the source, in arcsec,
+            rounded to 3 decimal places.
+        `DecUncert_arcsec` : float
+            The uncertainty in the Declination of the source, in arcsec,
+            rounded to 3 decimal places.
+        `RA` : str
+            The Right Ascension of the source, in the format {h}h{m}m{s}s,
+            where the seconds are rounded to 2 decimal places.
+        `Dec` : str
+            The Declination of the source, in the format {d}d{m}m{s}s, where
+            the seconds are rounded to 2 decimal places.
+        `Internal` : bool
+            Whether the detected point source is in the initial search region.
+        `Image` : bytes
+            PNG image bytes containing the interpolated thumbnail.
+    None
+        If no significant sources are found.
 
-    summ = summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold, silence_dict=False, plot=False)
+    Raises
+    ------
+    ValueError
+        If `CTYPE1` and `CTYPE2` do not describe one Right Ascension axis and
+        one Declination axis, or if the Right Ascension and Declination axes
+        have different units.
+
+    Notes
+    -----
+    The restoring beam major and minor axes are assumed to use the angular
+    units specified by `CUNIT1` and `CUNIT2`, respectively. The Right Ascension
+    and Declination axes are required to have the same units.
+
+    `FluxUncert_mJy` is taken from the most conservative RMS value in
+    `summary()`.
+
+    `RAUncert_arcsec` and `DecUncert_arcsec` are calculated using the restoring
+    beam dimensions and the source SNR.
+    """
+    fits_file = Path(fits_file)
+
+    summ = summary(
+        fits_file=fits_file,
+        radius_buffer=radius_buffer,
+        ext_threshold=ext_threshold,
+        silence_dict=False,
+        plot=False
+    )
 
     header_data = fits.getheader(fits_file)
     name = header_data['OBJECT']
@@ -341,65 +402,89 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     bmaj = header_data['BMAJ']
     bmin = header_data['BMIN']
     bpa = header_data['BPA']
-    ctype1 = header_data['CTYPE1']
+    ctype1 = header_data['CTYPE1'].upper()
     crval1 = header_data['CRVAL1']
     cunit1 = header_data['CUNIT1']
-    ctype2 = header_data['CTYPE2']
+    ctype2 = header_data['CTYPE2'].upper()
     crval2 = header_data['CRVAL2']
     cunit2 = header_data['CUNIT2']
-    ctype3 = header_data['CTYPE3']
+    ctype3 = header_data['CTYPE3'].upper()
     crval3 = header_data['CRVAL3']
-    cunit3 = header_data['CUNIT3']
+    cunit3 = header_data['CUNIT3'].lower()
 
+    if cunit1 != cunit2:
+        raise ValueError("Axes have different units.")
+
+    # Support frequency information stored either directly in the image header
+    # or in a channel table extension.
     freq = 'Not found'
     if ctype3 == 'FREQ':
-        if cunit3 == 'GHz':
-            freq = crval3
-        elif cunit2 == 'Hz':
-            freq = crval3 / 1e9 # into GHz
-        freq = round(freq, 3)
+        if cunit3 == 'ghz':
+            freq = round(crval3, 3)
+        elif cunit3 == 'hz':
+            freq = round(crval3 / 1e9, 3)  # Convert to GHz.
     elif ctype3 == 'CHANNUM':
-        hdul = fits.open(fits_file)
-        try:
+        with fits.open(fits_file) as hdul:
             freq_col = hdul[1].columns[1]
+            freq_unit = freq_col.unit.lower()
             if freq_col.name == 'Freq':
-                if freq_col.unit == 'Hz':
-                    freq = hdul[1].data[0][1] / 1e9 # into GHz
-                elif freq_col.unit == 'GHz':
-                    freq = hdul[1].data[0][1]
-            freq = round(freq, 3)
-        except:
-            pass
+                if freq_unit == 'hz':
+                    freq = round(hdul[1].data[0][1] / 1e9, 3)  # Convert to GHz.
+                elif freq_unit == 'ghz':
+                    freq = round(hdul[1].data[0][1], 3)
 
-    #assume beam axes in same units as CUNIT1 and CUNIT2 and BPA in degrees
+    # Interpret the beam axes using the corresponding celestial-axis units.
     beam_maj_axis = Angle(bmaj, cunit1)
-    beam_min_axis = Angle(bmin, cunit1)
+    beam_min_axis = Angle(bmin, cunit2)
     bpa_rad = math.radians(bpa)
 
-    moving_objects = ['venus', 'mars', 'jupiter', 'uranus', 'neptune', 'io', 'europa', 'ganymede', 'callisto', 'titan',\
-               'ceres', 'vesta', 'pallas', 'juno']
+    # Solar System bodies require moving-source treatment and are not treated as
+    # stationary targets.
+    moving_objects = [
+        'venus',
+        'mars',
+        'jupiter',
+        'uranus',
+        'neptune',
+        'io',
+        'europa',
+        'ganymede',
+        'callisto',
+        'titan',
+        'ceres',
+        'vesta',
+        'pallas',
+        'juno'
+    ]
 
-    stationary = True
-    if name.lower() in moving_objects:
-        stationary = False
-    else:
-        for obj in moving_objects:
-            if obj in name.lower():
-                stationary = False
-                break
+    name_lower = name.lower()
+    stationary = not any(
+        re.search(rf"\b{re.escape(obj)}\b", name_lower)
+        for obj in moving_objects
+    )
 
     interesting_sources = {}
-    field_info = {'FieldName': name, 'ObsDateTime': obs_date_time, 'FileName': fits_file[fits_file.rindex('/')+1:],\
-                   'Stationary': stationary,\
-                   'BeamMajAxis_arcsec': round(float(beam_maj_axis.to(u.arcsec)/u.arcsec), 3),\
-                   'BeamMinAxis_arcsec': round(float(beam_min_axis.to(u.arcsec)/u.arcsec), 3),\
-                   'BeamPosAngle_deg': round(bpa, 3),\
-                   'Freq_GHz': freq}
+    field_info = {
+        'FieldName': name,
+        'ObsDateTime': obs_date_time,
+        'FileName': fits_file.name,
+        'Stationary': stationary,
+        'BeamMajAxis_arcsec': round(
+            float(beam_maj_axis.to(u.arcsec).value), 3
+        ),
+        'BeamMinAxis_arcsec': round(
+            float(beam_min_axis.to(u.arcsec).value), 3
+        ),
+        'BeamPosAngle_deg': round(bpa, 3),
+        'Freq_GHz': freq
+    }
 
     field_info['FluxUncert_mJy'] = round(summ['conservative_rms'] * 1e3, 3)
 
     n_int_sources = len(summ['int_peak_val'])
-    if type(summ['ext_peak_val']) == str:
+
+    # A string value indicates that no significant external peaks were found.
+    if isinstance(summ['ext_peak_val'], str):
         n_ext_sources = 0
     else:
         n_ext_sources = len(summ['ext_peak_val'])
@@ -413,7 +498,7 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
         ra = crval2
         ra_index = 1
     else:
-        raise ValueError('No RA in image')
+        raise ValueError("No RA in image.")
 
     if 'DEC' in ctype1:
         dec = crval1
@@ -421,101 +506,113 @@ def make_catalog(fits_file: str, threshold: float = 0.01, radius_buffer: float =
     elif 'DEC' in ctype2:
         dec = crval2
     else:
-        raise ValueError('No dec in image')
-
-    if cunit1 != cunit2:
-        raise ValueError('Axes have different units')
+        raise ValueError("No dec in image.")
 
     center = SkyCoord(ra, dec, unit=cunit1)
 
-    pt_source_count = 1
-
-    for i in range(n_int_sources):
-        if (summ['int_prob'][i] < threshold and summ['calc_int_prob'][i] < threshold):
-            info = field_info.copy()
-            info['Flux_mJy'] = round(summ['int_peak_val'][i] * 1000, 3)
-
-            snr = summ['int_peak_val'][i] / summ['conservative_rms']
-            b_min_uncert = float((beam_maj_axis.to(u.arcsec) / u.arcsec) / snr)
-            b_maj_uncert = float((beam_min_axis.to(u.arcsec) / u.arcsec) / snr)
-            info['RAUncert_arcsec'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
-            info['DecUncert_arcsec'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
-
-            ra_offset = summ['int_peak_coord'][i][ra_index] * u.arcsec
-            dec_offset = summ['int_peak_coord'][i][dec_index] * u.arcsec
-            coord = center.spherical_offsets_by(ra_offset, dec_offset)
-
-            ra_tuple = coord.ra.hms
-            dec_tuple = coord.dec.dms
-
-            # rounding the arcseconds to 2 past the decimal
-            ra_str = f'{int(ra_tuple.h)}h{abs(int(ra_tuple.m))}m{abs(round(float(ra_tuple.s), 2))}s'
-            dec_str = f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m{abs(round(float(dec_tuple.s), 2))}s'
-
-            info['RA'] = ra_str
-            info['Dec'] = dec_str
-            info['Internal'] = True
-
-            info['Image'] = thumbnail(fits_file=fits_file, peak_coord=summ['int_peak_coord'][i], radius_buffer=radius_buffer, pts_bw_nodes=4)
-
-            key = f'Source{pt_source_count}'
-            interesting_sources[key] = info
-            pt_source_count +=1
-
-    for i in range(n_ext_sources):
+    def create_source_info(
+        peak_value,
+        peak_coord,
+        internal,
+    ):
+        """Create catalog information for a detected point source."""
         info = field_info.copy()
-        info['Flux_mJy'] = round(summ[f'ext_peak_val'][i] * 1000, 3)
 
-        snr = summ['ext_peak_val'][i] / summ['conservative_rms']
-        b_min_uncert = float(bmaj / snr)
-        b_maj_uncert = float(bmin / snr)
-        info['RAUncert_arcsec'] = round(b_min_uncert*abs(math.sin(bpa)) + b_maj_uncert*abs(math.cos(bpa)), 3)
-        info['DecUncert_arcsec'] = round(b_maj_uncert*abs(math.sin(bpa)) + b_min_uncert*abs(math.cos(bpa)), 3)
+        info['Flux_mJy'] = round(peak_value * 1000, 3)
 
-        ra_offset = summ['ext_peak_coord'][i][ra_index] * u.arcsec
-        dec_offset = summ['ext_peak_coord'][i][dec_index] * u.arcsec
+        # Estimate positional uncertainties from the restoring beam and source
+        # SNR.
+        snr = peak_value / summ['conservative_rms']
+        bmin_uncert = float(beam_maj_axis.to(u.arcsec).value / snr)
+        bmaj_uncert = float(beam_min_axis.to(u.arcsec).value / snr)
+
+        info['RAUncert_arcsec'] = round(
+            bmin_uncert * abs(math.sin(bpa_rad))
+            + bmaj_uncert * abs(math.cos(bpa_rad)),
+            3
+        )
+        info['DecUncert_arcsec'] = round(
+            bmaj_uncert * abs(math.sin(bpa_rad))
+            + bmin_uncert * abs(math.cos(bpa_rad)),
+            3
+        )
+
+        ra_offset = peak_coord[ra_index] * u.arcsec
+        dec_offset = peak_coord[dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
         ra_tuple = coord.ra.hms
         dec_tuple = coord.dec.dms
 
-        # rounding the arcseconds to 2 past the decimal
-        ra_str = f'{int(ra_tuple.h)}h{abs(int(ra_tuple.m))}m{abs(round(float(ra_tuple.s), 2))}s'
-        dec_str = f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m{abs(round(float(dec_tuple.s), 2))}s'
+        info['RA'] = (
+            f'{int(ra_tuple.h)}h{int(ra_tuple.m)}m'
+            f'{round(float(ra_tuple.s), 2)}s'
+        )
+        info['Dec'] = (
+            f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m'
+            f'{abs(round(float(dec_tuple.s), 2))}s'
+        )
 
-        info['RA'] = ra_str
-        info['Dec'] = dec_str
-        info['Internal'] = False
+        info['Internal'] = internal
 
-        info['Image'] = thumbnail(fits_file=fits_file, peak_coord=summ['ext_peak_coord'][i], radius_buffer=radius_buffer, pts_bw_nodes=4)
+        info['Image'] = thumbnail(
+            fits_file=fits_file,
+            peak_coord=peak_coord,
+            radius_buffer=radius_buffer,
+            pts_bw_nodes=4,
+        )
 
+        return info
+
+
+    pt_source_count = 1
+    # Create catalog dictionary for each significant internal source.
+    for i in range(n_int_sources):
+        if (
+            summ['int_exp_exceed'][i] < threshold
+            and summ['calc_int_exp_exceed'][i] < threshold
+        ):
+            key = f'Source{pt_source_count}'
+            interesting_sources[key] = create_source_info(
+                summ['int_peak_val'][i],
+                summ['int_peak_coord'][i],
+                internal=True,
+            )
+            pt_source_count += 1
+
+    # Create catalog dictionary for each external source.
+    for i in range(n_ext_sources):
         key = f'Source{pt_source_count}'
-        interesting_sources[key] = info
-        pt_source_count +=1
+        interesting_sources[key] = create_source_info(
+            summ['ext_peak_val'][i],
+            summ['ext_peak_coord'][i],
+            internal=False,
+        )
+        pt_source_count += 1
 
-    if interesting_sources == {}:
-        return
-    else:
-        return interesting_sources
+    if not interesting_sources:
+        return None
+
+    return interesting_sources
 
 
 def combine_catalogs(catalog_1: dict, catalog_2: dict):
-    '''
-    Combines two catalogs in the format returned by make_catalog() into a single catalog of the same format.
+    """
+    Combine two catalogs of the format returned by make_catalog() into a single
+    catalog of the same format.
 
     Parameters
     ----------
     catalog_1 : dict
-        The catalog to which the other catalog will be "appended."
+        The catalog to which the other catalog will be 'appended.'
     catalog_2 : dict
-        The catalog to "append" to the other catalog.
+        The catalog to 'append' to the other catalog.
 
     Returns
     -------
     dict
         A dictionary of the combined catalogs in the same catalog format.
-    '''
-
+    """
     shift = len(catalog_1)
     for key, value in catalog_2.items():
         new_number = int(key.replace('Source', ''))
@@ -525,20 +622,26 @@ def combine_catalogs(catalog_1: dict, catalog_2: dict):
 
 
 def low_level_table(folder: str, db_path: str = '../sources.db'):
+    """Create table of
 
+    """
     str_obs_id = 'Unknown'
     big_catalog = None
 
+    # Retrieve numerical SMA observation ID from folder name.
     try:
         str_obs_id = folder.replace('/mnt/COMPASS9/sma/quality/', '')
         obs_id = str_obs_id.replace('/', '')
-        obs_id = int(obs_id) #will throw Exception if obs_id isn't just numbers
+        obs_id = int(obs_id) # Exception thrown if obs_id isn't only numbers
     except Exception as e:
         obs_id = 'Unknown'
-        print(f'Error with obsID: {e}. WARNING: Old/outdated data may not be deleted.')
+        warnings.warn(
+            f"Error with obsID: {e}. "
+            "Old/outdated data may not be deleted."
+        )
 
     if os.path.exists(db_path):
-        # get all rows from existing low level table, if it exists
+        # Get all rows from existing low level table, if it exists.
         con1_established = False
         con1_closed = False
         old_data_cleared = False
@@ -546,7 +649,9 @@ def low_level_table(folder: str, db_path: str = '../sources.db'):
             con1 = sqlite3.connect(db_path)
             con1_established = True
             cur1 = con1.cursor()
-            cur1.execute("DELETE FROM low_level WHERE ObsID='{}'".format(obs_id))
+            cur1.execute(
+                "DELETE FROM low_level WHERE ObsID='{}'".format(obs_id)
+            )
             con1.commit()
             old_data_cleared = True
             con1.close()
@@ -554,8 +659,14 @@ def low_level_table(folder: str, db_path: str = '../sources.db'):
         except Exception as e:
             if con1_established and not con1_closed:
                 con1.close()
-                if not old_data_cleared and not isinstance(e, sqlite3.OperationalError):
-                    print(f'Error removing old/outdated data from table "low_level" at {db_path}: {e}')
+                if (
+                    not old_data_cleared
+                    and not isinstance(e, sqlite3.OperationalError)
+                ):
+                    warnings.warn(
+                        "Error removing old/outdated data from table "
+                        f"\"low_level\" at {db_path}: {e}."
+                    )
 
     for file in glob.glob(os.path.join(folder, '*.fits')):
         try:
