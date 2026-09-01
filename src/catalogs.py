@@ -629,53 +629,60 @@ def combine_catalogs(
     return catalog_1
 
 
-def low_level_table(folder: str, db_path: str = '../sources.db'):
-    """Create table of
+def low_level_table(
+    folder: str,
+    db_path: str = '../sources.db',
+) -> None:
+    """Create a SQLite table containing information about significant point
+    sources detected in images in a folder.
 
+    Parameters
+    ----------
+    folder : str
+        Path to the folder containing FITS images.
+    db_path : str, optional
+        Path to the SQLite database, by default '../sources.db'.
+
+    Raises
+    ------
+    ValueError
+        If information cannot be added to the `low_level` table.
+
+    Warns
+    -----
+    UserWarning
+        If the observation ID cannot be determined from the folder name or old
+        data cannot be removed from the database.
     """
-    str_obs_id = 'Unknown'
     big_catalog = None
 
     # Retrieve numerical SMA observation ID from folder name.
     try:
         str_obs_id = folder.replace('/mnt/COMPASS9/sma/quality/', '')
         obs_id = str_obs_id.replace('/', '')
-        obs_id = int(obs_id) # Exception thrown if obs_id isn't only numbers
-    except Exception as e:
+        obs_id = int(obs_id)
+    except ValueError:
         obs_id = 'Unknown'
         warnings.warn(
-            f"Error with obsID: {e}. "
-            "Old/outdated data may not be deleted."
+            f"Error with obsID. Old/outdated data may not be deleted."
         )
 
-    if os.path.exists(db_path):
-        # Get all rows from existing low level table, if it exists.
-        con1_established = False
-        con1_closed = False
-        old_data_cleared = False
+    if os.path.exists(db_path) and obs_id != 'Unknown':
+        # Remove existing entries for this observation before inserting new
+        # data.
         try:
-            con1 = sqlite3.connect(db_path)
-            con1_established = True
-            cur1 = con1.cursor()
-            cur1.execute(
-                "DELETE FROM low_level WHERE ObsID='{}'".format(obs_id)
+            with sqlite3.connect(db_path) as con:
+                con.execute(
+                    "DELETE FROM low_level WHERE ObsID = ?",
+                    (obs_id,),
+                )
+        except sqlite3.Error as e:
+            warnings.warn(
+                f'Error removing old/outdated data from table "low_level" '
+                f"at {db_path}: {e}."
             )
-            con1.commit()
-            old_data_cleared = True
-            con1.close()
-            con1_closed = True
-        except Exception as e:
-            if con1_established and not con1_closed:
-                con1.close()
-                if (
-                    not old_data_cleared
-                    and not isinstance(e, sqlite3.OperationalError)
-                ):
-                    warnings.warn(
-                        "Error removing old/outdated data from table "
-                        f"\"low_level\" at {db_path}: {e}."
-                    )
 
+    # Combine source catalogs from all FITS files in the folder.
     for file in glob.glob(os.path.join(folder, '*.fits')):
         try:
             catalog = make_catalog(file)
@@ -688,13 +695,13 @@ def low_level_table(folder: str, db_path: str = '../sources.db'):
                 else:
                     big_catalog = combine_catalogs(big_catalog, catalog)
         except Exception as e:
-            print(f'Error for {file}: {e}')
+            warnings.warn(f"Unable to create catalog for {file}: {e}.")
 
     if big_catalog is not None:
         df = pd.DataFrame.from_dict(big_catalog)
         df = df.T
 
-        # fixing rounding error where 60 appears in the seconds
+        # Fix rounding error where 60 appears in the seconds.
         date_times = df['ObsDateTime'].tolist()
         df.drop(columns='ObsDateTime', inplace=True)
         for i in range(len(date_times)):
@@ -704,26 +711,47 @@ def low_level_table(folder: str, db_path: str = '../sources.db'):
             if dt[s_start:] == '60':
                 dt = dt[:s_start] + '0'
                 fmt = '%m-%d-%y %H:%M'
-                date_times[i] = (datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)).strftime('%m-%d-%y %H:%M:%S')
+                date_times[i] = (
+                    datetime.strptime(dt[:m_end], fmt) + timedelta(minutes=1)
+                ).strftime('%m-%d-%y %H:%M:%S')
         df['ObsDateTime'] = date_times
 
-        # write into low level table
+        # Append the combined catalog to the low_level table.
         con2_established = False
         con2_closed = False
-        dtype={'FieldName': 'TEXT', 'FileName': 'TEXT', 'Stationary': 'INTEGER', 'BeamMajAxis_arcsec': 'REAL', \
-               'BeamMinAxis_arcsec': 'REAL', 'BeamPosAngle_deg': 'REAL', 'Freq_GHz': 'REAL', 'FluxUncert_mJy': 'REAL', \
-                'Flux_mJy': 'REAL', 'RAUncert_arcsec': 'REAL', 'DecUncert_arcsec': 'REAL', 'RA': 'TEXT', 'Dec': 'TEXT', \
-                'Internal': 'INTEGER', 'Image': 'BLOB', 'ObsID': 'TEXT', 'SourceID': 'TEXT', 'ObsDateTime': 'TEXT'}
+        dtype = {
+            'FieldName': 'TEXT',
+            'FileName': 'TEXT',
+            'Stationary': 'INTEGER',
+            'BeamMajAxis_arcsec': 'REAL',
+            'BeamMinAxis_arcsec': 'REAL',
+            'BeamPosAngle_deg': 'REAL',
+            'Freq_GHz': 'REAL',
+            'FluxUncert_mJy': 'REAL',
+            'Flux_mJy': 'REAL',
+            'RAUncert_arcsec': 'REAL',
+            'DecUncert_arcsec': 'REAL',
+            'RA': 'TEXT',
+            'Dec': 'TEXT',
+            'Internal': 'INTEGER',
+            'Image': 'BLOB',
+            'ObsID': 'TEXT',
+            'SourceID': 'TEXT',
+            'ObsDateTime': 'TEXT',
+        }
         try:
-            con2 = sqlite3.connect(db_path)
-            con2_established = True
-            df.to_sql("low_level", con=con2, if_exists='append', index=False, dtype=dtype)
-            con2.close()
-            con2_closed = True
+            with sqlite3.connect(db_path) as con:
+                df.to_sql(
+                    "low_level",
+                    con=con,
+                    if_exists='append',
+                    index=False,
+                    dtype=dtype,
+                )
         except Exception as e:
-            if con2_established and not con2_closed:
-                con2.close()
-            print(f'Error adding to table "low_level" at {db_path}: {e}')
+            raise ValueError(
+                f'Error adding to table "low_level" at {db_path}: {e}.'
+            ) from e
 
 
 def high_level_table(db_path: str = '../sources.db'):
