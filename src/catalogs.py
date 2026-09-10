@@ -287,6 +287,22 @@ def thumbnail(
     return plot_data
 
 
+def _format_coordinates(ra: Angle, dec: Angle) -> tuple[str, str]:
+    """Format right ascension and declination as strings."""
+    hms_ra = ra.hms
+    dms_dec = dec.dms
+
+    str_ra = (
+        f'{int(hms_ra.h)}h{abs(int(hms_ra.m))}'
+        f'm{round(abs(hms_ra.s), 2)}s'
+    )
+    str_dec = (
+        f'{int(dms_dec.d)}d{abs(int(dms_dec.m))}m'
+        f'{round(abs(dms_dec.s), 2)}s'
+    )
+
+    return str_ra, str_dec
+
 def make_catalog(
     fits_file: str | Path,
     threshold: float = 0.01,
@@ -541,17 +557,7 @@ def make_catalog(
         dec_offset = peak_coord[dec_index] * u.arcsec
         coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
-        ra_tuple = coord.ra.hms
-        dec_tuple = coord.dec.dms
-
-        info['RA'] = (
-            f'{int(ra_tuple.h)}h{int(ra_tuple.m)}m'
-            f'{round(float(ra_tuple.s), 2)}s'
-        )
-        info['Dec'] = (
-            f'{int(dec_tuple.d)}d{abs(int(dec_tuple.m))}m'
-            f'{abs(round(float(dec_tuple.s), 2))}s'
-        )
+        info['RA'], info['Dec'] = _format_coordinates(coord.ra, coord.dec)
 
         info['Internal'] = internal
 
@@ -640,7 +646,7 @@ def low_level_table(
     ----------
     folder : str
         Path to the folder containing FITS images.
-    db_path : str, optional
+    db_path : str | Path, optional
         Path to the SQLite database, by default '../sources.db'.
 
     Raises
@@ -654,6 +660,7 @@ def low_level_table(
         If the observation ID cannot be determined from the folder name or old
         data cannot be removed from the database.
     """
+    db_path = Path(db_path)
     big_catalog = None
 
     # Retrieve numerical SMA observation ID from folder name.
@@ -717,8 +724,6 @@ def low_level_table(
         df['ObsDateTime'] = date_times
 
         # Append the combined catalog to the low_level table.
-        con2_established = False
-        con2_closed = False
         dtype = {
             'FieldName': 'TEXT',
             'FileName': 'TEXT',
@@ -754,34 +759,77 @@ def low_level_table(
             ) from e
 
 
-def high_level_table(db_path: str = '../sources.db'):
+def high_level_table(
+    db_path: str | Path = '../sources.db',
+    ambiguity_threshold: float = 0.7,
+):
+    """Create or update source-level tables in a SQLite database.
+
+    Parameters
+    ----------
+    db_path : str | Path, optional
+        Path to the SQLite database, by default '../sources.db'.
+    ambiguity_threshold : float, optional
+        Minimum proportion of observations that must be consistent with a
+        common average position for two source groups to be recorded as
+        ambiguous ties, by default 0.7.
+    Raises
+    ------
+    FileNotFoundError
+        If `db_path` does not exist.
+    ValueError
+        If the `low_level` table is empty or if the database tables cannot be
+        updated.
+
+    Warns
+    -----
+    UserWarning
+        If the `low_level` table cannot be read.
+
+    Notes
+    -----
+    The `high_level` table represents unique sources by combining detections
+    from multiple observations in the `low_level` table. Sources are initially
+    matched using their coordinates and beam sizes, followed by a refinement
+    procedure that tests whether observations associated with different
+    preliminary source IDs are consistent with a common average position.
+
+    Two preliminary source groups are considered to represent the same source
+    when all of their combined observations lie within half of the geometric
+    mean beam FWHM of their mean position. If more than `ambiguity_threshold`
+    of the observations satisfy this criterion, but not all observations do,
+    the source groups are recorded as ambiguous ties.
+
+    The default threshold of 70% is heuristic and was selected empirically.
+    """
+    db_path = Path(db_path)
 
     unique_sources = None
 
-    if os.path.exists(db_path):
-        # get all rows from low level and high level tables, if they exist
-        con1_established = False
-        con1_closed = False
-        try:
-            con1 = sqlite3.connect(db_path)
-            con1_established = True
-            low_df = pd.read_sql_query("SELECT * FROM low_level;", con1)
+    if db_path.exists():
+        # Get all rows from low level and high level tables, if they exist.
+        with sqlite3.connect(db_path) as con:
+            low_df = pd.read_sql_query("SELECT * FROM low_level;", con)
             if low_df.empty:
                 raise ValueError('Table "low_level" is empty')
-            unique_sources = pd.read_sql_query("SELECT * FROM high_level;", con1).to_dict(orient='list')
-            con1.close()
-            con1_closed = True
-        except Exception as e:
-            if con1_established and not con1_closed:
-                con1.close()
-            if not isinstance(e, pd.errors.DatabaseError):
-                print(f'Error reading from database at {db_path}: {e}')
+        try:
+            with sqlite3.connect(db_path) as con:
+                unique_sources = pd.read_sql_query(
+                    "SELECT * FROM high_level;", con
+                ).to_dict(orient='list')
+        # Do not raise error if high_level table does not yet exist.
+        except pd.errors.DatabaseError:
+            pass
     else:
-        raise OSError(f'Path {db_path} not found')
+        raise FileNotFoundError(f"Path {db_path} not found.")
 
-    #coarse matching
+    # Treat sources as coarsely matched when their separation is no greater
+    # than the geometric mean of their beam major-axis FWHM values.
     for row in range(len(low_df)):
-        if low_df['SourceID'].iloc[row] == 'Unknown': #check to make sure we didn't already do coarse matching
+        # Skip rows that already have a source assignment.
+        if low_df['SourceID'].iloc[row] == 'Unknown':
+            # Source coordinate comparison only makes sense for approximately
+            # stationary sources.
             if low_df['Stationary'].iloc[row]:
                 if unique_sources is not None:
                     ra = low_df['RA'].iloc[row]
@@ -789,101 +837,193 @@ def high_level_table(db_path: str = '../sources.db'):
                     coord1 = SkyCoord(ra, dec)
                     fwhm = low_df['BeamMajAxis_arcsec'].iloc[row]
                     source_ids = unique_sources['SourceID']
-                    matched  = False
-                    while not matched:
-                        for i in range(len(source_ids)): #compare with each unique source
-                            coord2 = SkyCoord(unique_sources['RA'][i], unique_sources['Dec'][i])
-                            sep = coord1.separation(coord2)
-                            fwhm2_val = float(unique_sources['FWHM_arcsec'][i])
-                            max_sep = (fwhm * fwhm2_val)**(1/2) * u.arcsec
-                            matched = (sep <= max_sep)
-                            if matched:
-                                low_df.loc[row, 'SourceID'] = source_ids[i]
-                                break
-                        break
+                    matched = False
+                    for i, source_id in enumerate(source_ids):
+                        coord2 = SkyCoord(
+                            unique_sources['RA'][i],
+                            unique_sources['Dec'][i]
+                        )
+                        sep = coord1.separation(coord2)
+                        fwhm2_val = float(unique_sources['FWHM_arcsec'][i])
+                        max_sep = (fwhm * fwhm2_val)**(1/2) * u.arcsec
+                        matched = (sep <= max_sep)
+                        if matched:
+                            low_df.loc[row, 'SourceID'] = source_id
+                            break
+                    # Assign lowest available source ID number to unmatched
+                    # source.
                     if not matched:
                         num = 1
-                        id_nums = [int(source_id.replace('id', '')) for source_id in unique_sources['SourceID']]
+                        id_nums = [
+                            int(source_id.replace('id', ''))
+                            for source_id in unique_sources['SourceID']
+                        ]
                         while num in id_nums:
                             num += 1
-                        next_number = '0' * (4 - len(str(num))) + str(num)
-                        next_id = f'id{next_number}'
+                        next_id = f'id{num:04d}'
                         source_ids.append(next_id)
                         unique_sources['RA'].append(ra)
                         unique_sources['Dec'].append(dec)
                         unique_sources['FWHM_arcsec'].append(fwhm)
                         low_df.loc[row, 'SourceID'] = next_id
                         unique_sources['AmbiguousTies'].append('Unknown')
+                # If no unique source has already been determined, this source
+                # is automatically the first unique source.
                 else:
                     ra = low_df['RA'].iloc[row]
                     dec = low_df['Dec'].iloc[row]
                     fwhm = low_df['BeamMajAxis_arcsec'].iloc[row]
-                    unique_sources = {'SourceID': ['id0001'], 'RA': [ra], 'Dec': [dec], 'FWHM_arcsec': [fwhm], 'AmbiguousTies': ['Unknown']}
+                    unique_sources = {
+                        'SourceID': ['id0001'],
+                        'RA': [ra],
+                        'Dec': [dec],
+                        'FWHM_arcsec': [fwhm],
+                        'AmbiguousTies': ['Unknown']
+                    }
                     low_df.loc[row, 'SourceID'] = 'id0001'
             else:
                 low_df.loc[row, 'SourceID'] = 'Not Stationary'
 
-    #further refining matches
-    new_sources = unique_sources.copy()
+    # Refine coarse source groups by testing whether their combined
+    # observations are consistently represented by a common average position.
+    new_sources = {
+        key: value.copy()
+        for key, value in unique_sources.items()
+    }
     refined = []
     to_skip = []
-    for i in range(len(unique_sources['SourceID'])):
-        temp_df = low_df[(low_df['SourceID']) == unique_sources['SourceID'][i]]
+
+    def _average_coordinates(ra, dec):
+        """Calculate the mean sky position using Cartesian unit vectors.
+
+        This accounts for the wrap-around of right ascension at 0/360 degrees.
+        """
+        coords = SkyCoord(ra=ra, dec=dec)
+        xyz = coords.cartesian.xyz
+
+        mean_xyz = xyz.mean(axis=1)
+
+        mean_coord = SkyCoord(
+            x=mean_xyz[0],
+            y=mean_xyz[1],
+            z=mean_xyz[2],
+            representation_type='cartesian',
+        )
+
+        return mean_coord.ra, mean_coord.dec
+
+    for i, source_id in enumerate(unique_sources['SourceID']):
+        temp_df = low_df[(low_df['SourceID']) == source_id]
         ra_list = [Angle(ra, u.deg) for ra in temp_df['RA']]
         dec_list = [Angle(dec, u.deg) for dec in temp_df['Dec']]
-        fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['BeamMajAxis_arcsec']]
+        fwhm_list = [
+            Angle(fwhm, u.arcsec) for fwhm in temp_df['BeamMajAxis_arcsec']
+        ]
         if len(unique_sources['SourceID']) > 1 and i not in to_skip:
+            # Compare ith to every source (which has not been marked as a
+            # source to skip) that comes after it in unique_sources.
             for j in range(i + 1, len(unique_sources['SourceID'])):
                 if j not in to_skip:
-                    temp_df2 = low_df[(low_df['SourceID']) == unique_sources['SourceID'][j]]
+                    temp_df2 = low_df[
+                        (low_df['SourceID']) == unique_sources['SourceID'][j]
+                    ]
                     ra_list2 = [Angle(ra, u.deg) for ra in temp_df2['RA']]
                     dec_list2 = [Angle(dec, u.deg) for dec in temp_df2['Dec']]
-                    fwhm_list2 = [Angle(fwhm, u.arcsec) for fwhm in temp_df2['BeamMajAxis_arcsec']]
+                    fwhm_list2 = [
+                        Angle(fwhm, u.arcsec)
+                        for fwhm in temp_df2['BeamMajAxis_arcsec']
+                    ]
                     new_ra_list = ra_list + ra_list2
                     new_dec_list = dec_list + dec_list2
                     new_fwhm_list = fwhm_list + fwhm_list2
                     num_pts = len(new_ra_list)
-                    avg_ra = sum(new_ra_list) / num_pts
-                    avg_dec = sum(new_dec_list) / num_pts
+                    avg_ra, avg_dec = _average_coordinates(
+                        new_ra_list,
+                        new_dec_list,
+                    )
                     geo_avg_fwhm = math.prod(new_fwhm_list) ** (1/num_pts)
                     avg_pt = SkyCoord(avg_ra, avg_dec)
                     temp = 0
                     for pt in range(num_pts):
-                        sep = avg_pt.separation(SkyCoord(new_ra_list[pt], new_dec_list[pt]))
+                        sep = avg_pt.separation(
+                            SkyCoord(new_ra_list[pt], new_dec_list[pt])
+                        )
                         if sep > geo_avg_fwhm / 2:
                             temp += 1
                     proportion = (num_pts - temp) / (num_pts)
-                    if proportion == 1: #average point is a good representative for all points, same source
+                    # If the average point is a good representative for all
+                    # points, then all these sources will be considered the
+                    # same source.
+                    if proportion == 1:
                         refined.append(new_sources['SourceID'][i])
-                        #match found, update averages
-                        hms_ra = avg_ra.hms
-                        dms_dec = avg_dec.dms
-                        str_ra = f'{int(hms_ra.h)}h{abs(int(hms_ra.m))}m{round(abs(hms_ra.s), 2)}s'
-                        str_dec = f'{int(dms_dec.d)}d{abs(int(dms_dec.m))}m{round(abs(dms_dec.s), 2)}s'
-                        new_sources['RA'][i] = str_ra
-                        new_sources['Dec'][i] = str_dec
-                        new_sources['FWHM_arcsec'][i] = round(geo_avg_fwhm.value, 3)
-                        #get rid of "replaced" source in AmbiguousTies
+                        new_sources['RA'][i], new_sources['Dec'][i] = (
+                            _format_coordinates(avg_ra, avg_dec)
+                        )
+                        new_sources['FWHM_arcsec'][i] = round(
+                            geo_avg_fwhm.value, 3
+                        )
+                        # Remove merged source IDs from existing ambiguity
+                        # records.
                         for k in range(len(unique_sources['SourceID'])):
-                            unique_sources['AmbiguousTies'][k] = unique_sources['AmbiguousTies'][k].replace(unique_sources['SourceID'][j], '')
-                            unique_sources['AmbiguousTies'][k] = unique_sources['AmbiguousTies'][k].replace('__', '_')
-                            if unique_sources['AmbiguousTies'][k][0] == '_':
-                                unique_sources['AmbiguousTies'][k] = unique_sources['AmbiguousTies'][k][1:]
-                            if unique_sources['AmbiguousTies'][k][-1] == '_':
-                                unique_sources['AmbiguousTies'][k] = unique_sources['AmbiguousTies'][k][:-1]
-                        #update low_df
-                        indices = low_df.index[low_df['SourceID'] == unique_sources['SourceID'][j]]
-                        low_df.loc[indices, 'SourceID'] = unique_sources['SourceID'][i]
+                            unique_sources['AmbiguousTies'][k] = (
+                                unique_sources['AmbiguousTies'][k].replace(
+                                    unique_sources['SourceID'][j], ''
+                                )
+                            )
+                            unique_sources['AmbiguousTies'][k] = (
+                                unique_sources['AmbiguousTies'][k].replace(
+                                    '__', '_'
+                                )
+                            )
+                            ambiguous_ties = unique_sources['AmbiguousTies'][k]
+                            # Handle formatting if the first source in
+                            # AmbiguousTies was removed.
+                            if ambiguous_ties.startswith('_'):
+                                ambiguous_ties = ambiguous_ties[1:]
+                            # Handle formatting if the last source in
+                            # AmbiguousTies was removed.
+                            if ambiguous_ties.endswith('_'):
+                                ambiguous_ties = ambiguous_ties[:-1]
+                            unique_sources['AmbiguousTies'][k] = ambiguous_ties
+
+                        # Update low_df.
+                        indices = low_df.index[
+                            low_df['SourceID'] == unique_sources['SourceID'][j]
+                        ]
+                        low_df.loc[indices, 'SourceID'] = source_id
+                        # Do not repeat this analysis with the jth source since
+                        # we have just determined that the ith and jth source
+                        # are the same source.
                         to_skip.append(j)
-                    elif proportion > 0.7: #average point is a good representative for over 70% but less than 100% of points, ambiguous
-                        if new_sources['AmbiguousTies'][i] == 'Unknown' or new_sources['AmbiguousTies'][i] == 'None found':
-                            new_sources['AmbiguousTies'][i] = unique_sources['SourceID'][j]
-                        elif unique_sources['SourceID'][j] not in new_sources['AmbiguousTies'][i]:
-                            new_sources['AmbiguousTies'][i] += '_{}'.format(unique_sources['SourceID'][j])
-                        if new_sources['AmbiguousTies'][j] == 'Unknown' or new_sources['AmbiguousTies'][j] == 'None found':
-                            new_sources['AmbiguousTies'][j] = unique_sources['SourceID'][i]
-                        elif unique_sources['SourceID'][i] not in new_sources['AmbiguousTies'][j]:
-                            new_sources['AmbiguousTies'][j] += '_{}'.format(unique_sources['SourceID'][i])
+                    # If more than 70% but less than 100% of observations are
+                    # represented by the average position, record the source
+                    # pair as an ambiguous match.
+                    elif proportion > ambiguity_threshold:
+                        if (
+                            new_sources['AmbiguousTies'][i] == 'Unknown'
+                            or new_sources['AmbiguousTies'][i] == 'None found'
+                        ):
+                            new_sources['AmbiguousTies'][i] = (
+                                unique_sources['SourceID'][j]
+                            )
+                        elif (
+                            unique_sources['SourceID'][j]
+                            not in new_sources['AmbiguousTies'][i]
+                        ):
+                            new_sources['AmbiguousTies'][i] += (
+                                '_{}'.format(unique_sources['SourceID'][j])
+                            )
+                        if (
+                            new_sources['AmbiguousTies'][j] == 'Unknown'
+                            or new_sources['AmbiguousTies'][j] == 'None found'
+                        ):
+                            new_sources['AmbiguousTies'][j] = source_id
+                        elif (
+                            source_id not in new_sources['AmbiguousTies'][j]
+                        ):
+                            new_sources['AmbiguousTies'][j] += (
+                                '_{}'.format(source_id)
+                            )
                     if new_sources['AmbiguousTies'][i] == 'Unknown':
                         new_sources['AmbiguousTies'][i] = 'None found'
                     if new_sources['AmbiguousTies'][j] == 'Unknown':
@@ -896,41 +1036,47 @@ def high_level_table(db_path: str = '../sources.db'):
         del new_sources['FWHM_arcsec'][k]
         del new_sources['AmbiguousTies'][k]
 
-    #get averages for sources only matched with coarse matching
-    for i in range(len(new_sources['SourceID'])):
-        if new_sources['SourceID'][i] not in refined:
-            temp_df = low_df[(low_df['SourceID']) == new_sources['SourceID'][i]]
+    # Get averages for sources only matched with coarse matching
+    for i, source_id in enumerate(new_sources['SourceID']):
+        if source_id not in refined:
+            temp_df = low_df[
+                (low_df['SourceID']) == source_id
+            ]
             ra_list = [Angle(ra, u.deg) for ra in temp_df['RA']]
             dec_list = [Angle(dec, u.deg) for dec in temp_df['Dec']]
-            fwhm_list = [Angle(fwhm, u.arcsec) for fwhm in temp_df['BeamMajAxis_arcsec']]
+            fwhm_list = [
+                Angle(fwhm, u.arcsec) for fwhm in temp_df['BeamMajAxis_arcsec']
+            ]
             num_pts = len(ra_list)
-            avg_ra = sum(ra_list) / num_pts
-            hms_ra = avg_ra.hms
-            str_ra = f'{int(hms_ra.h)}h{abs(int(hms_ra.m))}m{round(abs(hms_ra.s), 2)}s'
-            avg_dec = sum(dec_list) / num_pts
-            dms_dec = avg_dec.dms
-            str_dec = f'{int(dms_dec.d)}d{abs(int(dms_dec.m))}m{round(abs(dms_dec.s), 2)}s'
+            avg_ra, avg_dec = _average_coordinates(ra_list, dec_list)
             geo_avg_fwhm = math.prod(fwhm_list) ** (1/num_pts)
-            new_sources['RA'][i] = str_ra
-            new_sources['Dec'][i] = str_dec
+            new_sources['RA'][i], new_sources['Dec'][i] = _format_coordinates(
+                avg_ra,
+                avg_dec,
+            )
             new_sources['FWHM_arcsec'][i] = round(geo_avg_fwhm.value, 3)
 
     df = pd.DataFrame.from_dict(new_sources)
 
-    # write into low and high level tables
-    con2_established = False
-    con2_closed = False
+    # Write into low and high level tables.
     try:
-        con2 = sqlite3.connect(db_path)
-        con2_established = True
-        df.to_sql("high_level", con=con2, if_exists='replace', index=False)
-        low_df.to_sql("low_level", con=con2, if_exists='replace', index=False)
-        con2.close()
-        con2_closed = True
+        with sqlite3.connect(db_path) as con:
+            df.to_sql(
+                "high_level",
+                con=con,
+                if_exists='replace',
+                index=False,
+            )
+            low_df.to_sql(
+                "low_level",
+                con=con,
+                if_exists='replace',
+                index=False,
+            )
     except Exception as e:
-        if con2_established and not con2_closed:
-            con2.close()
-        print(f'Error adding to table(s) at {db_path}: {e}')
+        raise ValueError(
+            f'Error adding to table(s) at {db_path}: {e}'
+        ) from e
 
 
 def light_curve(source_id: str, db_path: str = '../sources.db',\
