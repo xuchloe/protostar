@@ -755,7 +755,7 @@ def low_level_table(
                 )
         except Exception as e:
             raise ValueError(
-                f'Error adding to table "low_level" at {db_path}: {e}.'
+                f'Error adding to table "low_level" at {db_path}.'
             ) from e
 
 
@@ -1079,113 +1079,185 @@ def high_level_table(
         ) from e
 
 
-def light_curve(source_id: str, db_path: str = '../sources.db',\
-                plot: bool = True, table: bool = True, save_path: str = ''):
+def light_curve(
+    source_id: str,
+    db_path: str | Path = '../sources.db',
+    plot: bool = True,
+    table: bool = True,
+    save_path: str | Path | None = None,
+) -> pd.DataFrame | None:
+    """
+    Retrieve and optionally plot light curve data for a source.
 
-    if os.path.exists(db_path):
-        # get all rows from low level and high level tables, if they exist
-        con1_established = False
-        con1_closed = False
-        try:
-            con1 = sqlite3.connect(db_path)
-            con1_established = True
-            low_df = pd.read_sql_query("SELECT * FROM low_level;", con1)
+    Parameters
+    ----------
+    source_id : str
+        ID of the source as recorded in the SQLite source database.
+    db_path : str | Path, optional
+        Path to the SQLite source database, by default '../sources.db'.
+    plot : bool, optional
+        Whether to plot the source light curve, by default True.
+    table : bool, optional
+        Whether to return the light curve data as a pandas DataFrame,
+        by default True.
+    save_path : str | Path | None, optional
+        Directory in which to save the light curve plot. If None, the plot
+        is not saved, by default None.
+
+    Returns
+    -------
+    pd.DataFrame or None
+        Processed light curve data if `table` is True and there are
+        measurements for this source; otherwise, None.
+
+    Raises
+    ------
+    FileNotFoundError
+        If `db_path` does not exist.
+    ValueError
+        If the `low_level` table is empty.
+    OSError
+        If the plot cannot be saved to `save_path`.
+
+    Warns
+    -----
+    UserWarning
+        If there are no measurements for the specified source.
+
+    Notes
+    -----
+    For plotting, observations are grouped into approximate wavelength bands
+    using frequency ranges that roughly correspond to the wavelength groupings
+    commonly used for SMA light curves:
+
+    - 241.77--282.82 GHz: approximately 1.1--1.2 mm.
+    - 208.19--237.93 GHz: approximately 1.3--1.4 mm.
+    - 333.10--356.90 GHz: approximately 870 µm.
+
+    These ranges are used here to classify observations for plotting and are
+    not intended to define official SMA band boundaries. Observations outside
+    these ranges, or with unavailable frequency information, are classified as
+    `Other/not found`.
+    """
+    db_path = Path(db_path)
+
+    if db_path.exists():
+        with sqlite3.connect(db_path) as con:
+            low_df = pd.read_sql_query("SELECT * FROM low_level;", con)
             if low_df.empty:
-                raise ValueError('Table "low_level" is empty')
-            high_df = pd.read_sql_query("SELECT * FROM high_level;", con1)
-            if high_df.empty:
-                raise ValueError('Table "high_level" is empty')
-            con1.close()
-            con1_closed = True
-        except Exception as e:
-            if con1_established and not con1_closed:
-                con1.close()
-            print(f'Error reading from database at {db_path}: {e}')
+                raise ValueError('Table "low_level" is empty.')
     else:
-        raise OSError(f'Path {db_path} not found')
+        raise FileNotFoundError(f"Path {db_path} not found.")
 
     source_df = low_df[low_df['SourceID'] == source_id]
+    if source_df.empty:
+        warnings.warn(f"There are no measurements for source {source_id}.")
+        return
+
+    fmt_str = '%m-%d-%y %H:%M:%S'
+    mjd_list = [
+        float(
+            Time(
+                datetime.strptime(dt, fmt_str),
+                format='datetime',
+                scale='utc'
+            ).mjd
+        )
+        for dt in source_df['ObsDateTime']
+    ]
 
     if plot:
+        fig, ax = plt.subplots()
+
         fluxes = source_df['Flux_mJy'].to_list()
         flux_errs = source_df['FluxUncert_mJy'].to_list()
         flux_unit = 'mJy'
         if max(fluxes) > 1000:
             flux_unit = 'Jy'
-            for i in range(len(fluxes)):
-                fluxes[i] /= 1000
-                flux_errs[i] /= 1000
-        date_times = source_df['ObsDateTime'].tolist()
-        fmt_str = '%m-%d-%y %H:%M:%S'
-        date_times = [Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd for dt in date_times]
-
+            fluxes = [flux / 1000 for flux in fluxes]
+            flux_errs = [err / 1000 for err in flux_errs]
         freqs = source_df['Freq_GHz'].tolist()
-        other = []
-        small_milli = [] # 1.1-1.2mm
-        large_milli = [] # 1.3-1.4mm
-        micro = [] # 870µm
-        for i in range(len(freqs)):
-            if freqs[i] == 'Not found':
-                other.append(i)
-                pass
-            else:
-                try:
-                    float_freq = float(freqs[i])
-                    if float_freq > 241.77 and float_freq < 282.82: # 1.24-1.06mm
-                        small_milli.append(i)
-                    elif float_freq > 208.19 and float_freq < 237.93: # 1.44-1.26mm
-                        large_milli.append(i)
-                    elif float_freq > 333.10 and float_freq < 356.90: # 900-840µm
-                        micro.append(i)
-                    else:
-                        other.append(i)
-                except Exception as e:
-                    print(f'Error while getting the frequencies for source {source_id}: {e}')
-        other_dt = [date_times[a] for a in other]
-        other_flx = [fluxes[a] for a in other]
-        other_flx_err = [flux_errs[a] for a in other]
-        sm_milli_dt = [date_times[b] for b in small_milli]
-        sm_milli_flx = [fluxes[b] for b in small_milli]
-        sm_milli_flx_err = [flux_errs[b] for b in small_milli]
-        lg_milli_dt = [date_times[c] for c in large_milli]
-        lg_milli_flx = [fluxes[c] for c in large_milli]
-        lg_milli_flx_err = [flux_errs[c] for c in large_milli]
-        micro_dt = [date_times[d] for d in micro]
-        micro_flx = [fluxes[d] for d in micro]
-        micro_flx_err = [flux_errs[d] for d in micro]
 
-        plt.errorbar(sm_milli_dt, sm_milli_flx, yerr=sm_milli_flx_err, color='g', fmt='x', capsize=3, markersize=2,\
-                    capthick=0.5, elinewidth=0.5, label='~1.1-1.2mm')
-        plt.errorbar(lg_milli_dt, lg_milli_flx, yerr=lg_milli_flx_err, color='r', fmt='x', capsize=3, markersize=2,\
-                    capthick=0.5, elinewidth=0.5, label='~1.3-1.4mm')
-        plt.errorbar(micro_dt, micro_flx, yerr=micro_flx_err, color='b', fmt='x', capsize=3, markersize=2,\
-                    capthick=0.5, elinewidth=0.5, label='~870µm')
-        plt.errorbar(other_dt, other_flx, yerr=other_flx_err, color='k', fmt='x', capsize=3, markersize=2,\
-                    capthick=0.5, elinewidth=0.5, label='Other/not found')
+        band_defs = {
+            '~1.1-1.2 mm': (241.77, 282.82),
+            '~1.3-1.4 mm': (208.19, 237.93),
+            '~870 µm': (333.10, 356.90),
+        }
 
-        plt.title(f'Source {source_id[2:]}')
-        plt.xlabel('Modified Julian Date')
-        plt.ylabel(f'Flux [{flux_unit}]')
-        plt.legend()
-        plt.ylim(bottom=0)
+        # Frequency ranges roughly follow wavelength groupings commonly used
+        # for SMA light curves.
+        bands = {band_name: [] for band_name in band_defs}
+        other_band = 'Other/not found'
+        bands[other_band] = []
 
-        if save_path != '':
-            try:
-                if save_path[-1] != '/':
-                    save_path = save_path + '/'
-                plt.savefig(f'{save_path}{source_id}.jpg')
-            except:
-                print('Error saving figure. Double check path entered.')
+        for date_time, flux, flux_err, freq in zip(
+            mjd_list,
+            fluxes,
+            flux_errs,
+            freqs,
+        ):
+            category = other_band
+
+            if freq != 'Not found':
+                float_freq = float(freq)
+
+                for band_name, (lower_freq, upper_freq) in band_defs.items():
+                    if lower_freq < float_freq < upper_freq:
+                        category = band_name
+                        break
+
+            bands[category].append((date_time, flux, flux_err))
+
+        band_styles = {
+            '~1.1-1.2 mm': {'color': 'g'},
+            '~1.3-1.4 mm': {'color': 'r'},
+            '~870 µm': {'color': 'b'},
+            'Other/not found': {'color': 'k'},
+        }
+
+        for band_name, measurements in bands.items():
+            if not measurements:
+                continue
+
+            band_date_times, band_fluxes, band_flux_errs = zip(*measurements)
+
+            ax.errorbar(
+                band_date_times,
+                band_fluxes,
+                yerr=band_flux_errs,
+                fmt='x',
+                capsize=3,
+                markersize=2,
+                capthick=0.5,
+                elinewidth=0.5,
+                label=band_name,
+                **band_styles[band_name],
+            )
+
+        ax.set_title(f'Source {source_id[2:]}')
+        ax.set_xlabel('Modified Julian Date')
+        ax.set_ylabel(f'Flux [{flux_unit}]')
+        ax.legend()
+        ax.set_ylim(bottom=0)
+
+        if save_path is not None:
+            full_path = Path(save_path) / f'{source_id}.jpg'
+            fig.savefig(full_path)
+
+        plt.close(fig)
 
     if table:
-        cal_df = source_df.copy()
-        for col in cal_df.columns:
-            if col not in ['ObsDateTime', 'ObsID', 'Flux_mJy', 'FluxUncert_mJy', 'Freq_GHz']:
-                cal_df.drop(columns=col, inplace=True)
-        snr_list = [round(float(cal_df['Flux_mJy'].to_list()[i] / cal_df['FluxUncert_mJy'].to_list()[i]), 2) for i in range(len(cal_df))]
-        cal_df['SNR'] = snr_list
-        fmt_str = '%m-%d-%y %H:%M:%S'
-        mjd_list = [float(Time(datetime.strptime(dt, fmt_str), format='datetime', scale='utc').mjd) for dt in cal_df['ObsDateTime']]
+        columns = [
+            'ObsDateTime',
+            'ObsID',
+            'Flux_mJy',
+            'FluxUncert_mJy',
+            'Freq_GHz',
+        ]
+        cal_df = source_df[columns].copy()
+        cal_df['SNR'] = (
+            cal_df['Flux_mJy'] / cal_df['FluxUncert_mJy']
+        ).round(2)
         cal_df['MJD'] = mjd_list
         return cal_df
 
