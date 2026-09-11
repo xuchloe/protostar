@@ -1044,7 +1044,7 @@ def summary(
         ext_threshold: float | None = None,
         silence_dict: bool = False,
         plot: bool = True,
-        save_path: str | None = None,
+        save_path: str | Path | None = None,
         file_name: str | None = None,
     ):
     """Summarize the statistics of an image in a dictionary and/or plot, with
@@ -1074,7 +1074,7 @@ def summary(
         return the dictionary of calculated statistics.
     plot : bool, optional
         Whether to plot the image and selected statistics.
-    save_path : str | None, optional
+    save_path : str | Path | None, optional
         The path of the folder to which the plot will be saved.
     file_name : str | None, optional
         The name of the file for the saved plot. If no value is given, the file
