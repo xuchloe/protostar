@@ -385,7 +385,7 @@ def _expected_exceedances_from_rms_uncertainty(
 ) -> float:
     """Estimate the expected number of independent noise measurements, over a
     certain number of measurements, greater than or equal to `peak`, accounting
-    for uncertainty in the estimated RMS.
+    for uncertainty in the estimated RMS noise level.
 
     Parameters
     ----------
@@ -393,7 +393,7 @@ def _expected_exceedances_from_rms_uncertainty(
         The threshold value. The expected number of independent noise
         measurements greater than or equal to this value is estimated.
     rms : float
-        The estimated RMS of the Gaussian distribution.
+        The estimated RMS noise level of the Gaussian distribution.
     n_excl_meas : float
         The effective number of independent measurements contributing to the
         RMS estimate. The suffix 'excl' indicates that these measurements come
@@ -419,16 +419,16 @@ def _expected_exceedances_from_rms_uncertainty(
 
     Notes
     -----
-    The RMS uncertainty is incorporated into the expected number estimate
-    rather than assuming the measured RMS is exact. The uncertainty in the RMS
-    estimate is modeled as a Gaussian distribution with standard deviation
-    `rms / sqrt(n_excl_meas)`. The RMS may be estimated from one set of
-    measurements (the exclusion region) while the expected number may be
-    evaluated over another set of measurements (the inclusion region). The
-    input distribution is assumed to be Gaussian. The expected number is
-    estimated by numerically marginalizing over the RMS uncertainty using a
-    Gaussian weighting function sampled at 100 evenly spaced points spanning ±5
-    standard deviations.
+    The uncertainty in the RMS estimate is incorporated into the expected
+    number estimate rather than assuming the measured RMS noise level is exact.
+    The uncertainty in the RMS estimate is modeled as a Gaussian distribution
+    with standard deviation `rms / sqrt(n_excl_meas)`. The RMS noise levle may
+    be estimated from one set of measurements (the exclusion region) while the
+    expected number may becevaluated over another set of measurements (the
+    inclusion region). The input distribution is assumed to be Gaussian. The
+    expected number is estimated by numerically marginalizing over the
+    uncertainty in the RMS estimate using a Gaussian weighting function sampled
+    at 100 evenly spaced points spanning ±5 standard deviations.
     """
     if rms <= 0:
         raise ValueError(f"'rms' must be positive. Got {rms}.")
@@ -437,25 +437,28 @@ def _expected_exceedances_from_rms_uncertainty(
     if n_incl_meas is not None and n_incl_meas <= 0:
         raise ValueError(f"'n_incl_meas' must be positive. Got {n_incl_meas}.")
 
-    # Estimate RMS uncertainty assuming Gaussian noise statistics.
-    rms_err = rms / np.sqrt(n_excl_meas)
+    # Estimate uncertainty in the RMS estimate assuming Gaussian noise
+    # statistics.
+    rms_uncertainty = rms / np.sqrt(n_excl_meas)
 
     # Evaluate the expected exceedance count over possible RMS values, weighted
-    # by the assumed Gaussian distribution of RMS uncertainty.
-    uncert = np.linspace(
-        -_RMS_UNCERT_SIGMA * rms_err,
-        _RMS_UNCERT_SIGMA * rms_err,
+    # by the assumed Gaussian distribution of uncertainty in the RMS estimate.
+    deviations = np.linspace(
+        -_RMS_UNCERT_SIGMA * rms_uncertainty,
+        _RMS_UNCERT_SIGMA * rms_uncertainty,
         _RMS_UNCERT_SAMPLES
     )
-    uncert_pdf = norm.pdf(uncert, loc=0, scale=rms_err)
+    deviations_pdf = norm.pdf(deviations, loc=0, scale=rms_uncertainty)
 
-    # Marginalize the probability over the RMS uncertainty distribution and
-    # calculate expectation.
+    # Marginalize the probability over the distribution of uncertainty in the
+    # RMS estimate and calculate expectation.
     if n_incl_meas is None:
         n_incl_meas = n_excl_meas
     return float(
-        np.sum(norm.cdf(-peak / (rms + uncert)) * n_incl_meas * uncert_pdf)
-        / np.sum(uncert_pdf)
+        np.sum(
+            norm.cdf(-peak / (rms + deviations)) * n_incl_meas * deviations_pdf
+        )
+        / np.sum(deviations_pdf)
     )
 
 
@@ -574,12 +577,12 @@ def _statistics_from_rms_uncertainty(
         If `beam_fwhm` is such that the search radius is not positive.
     Notes
     -----
-    The RMS is estimated iteratively by identifying statistically significant
-    external peaks and excluding circular regions with radii equal to the beam
-    FWHM around those peaks. Using the updated RMS estimate, the expected
-    number of independent noise measurements, over the internal region, with
-    flux densities greater than or equal to those of internal peaks is then
-    evaluated.
+    The RMS noise level is estimated iteratively by identifying statistically
+    significant external peaks and excluding circular regions with radii equal
+    to the beam FWHM around those peaks. Using the updated RMS estimate, the
+    expected number of independent noise measurements, over the internal
+    region, with flux densities greater than or equal to those of internal
+    peaks is then evaluated.
 
     To reduce false detections caused by the point spread function of bright
     sources, empirical thresholds are applied. If external significance
@@ -1214,15 +1217,15 @@ def summary(
     This function modifies the global Matplotlib `rcParams` by setting the font
     size to 15.
 
-    Four methods are used to estimate the true RMS value, and the most
+    Four methods are used to estimate the RMS noise level, and the most
     conservative estimate of these four, plus the noise estimate directly from
     the FITS file if present, is chosen to calculate the SNR. The four methods
     assume Gaussian statistics.
 
     Method 1: (`rms_val`)
-    The RMS is estimated iteratively by identifying statistically significant
-    external peaks and excluding circular regions with radii equal to the beam
-    FWHM around those peaks.
+    The RMS noise level is estimated iteratively by identifying statistically
+    significant external peaks and excluding circular regions with radii equal
+    to the beam FWHM around those peaks.
 
     To reduce false detections caused by the point spread function of bright
     sources, empirical thresholds are applied. If external significance
@@ -1240,18 +1243,18 @@ def summary(
     standard deviation of the image flux density and the RMS are equivalent.
 
     Method 3: (`calc_rms_val`)
-    The RMS is estimated by calculating the RMS for which the expected number
-    of independent noise measurements, over the external region, greater than
-    or equal to the flux density of the brightest non-significant external peak
-    is one.
+    The RMS noise level is estimated by calculating the RMS for which the
+    expected number of independent noise measurements, over the external
+    region, greater than or equal to the flux density of the brightest
+    non-significant external peak is one.
 
     See `_statistics_from_extreme_peaks()` for more details.
 
     Method 4: (`neg_peak_rms_val`)
-    The RMS is estimated by calculating the RMS for which the expected number
-    of independent noise measurements, over the entire image, less than or
-    equal to the flux density of the image's most negative pixel, if such a
-    pixel exists, is one.
+    The RMS noise level is estimated by calculating the RMS for which the
+    expected number of independent noise measurements, over the entire image,
+    less than or equal to the flux density of the image's most negative pixel,
+    if such a pixel exists, is one.
 
     See `_statistics_from_extreme_peaks()` for more details.
     """
@@ -1637,27 +1640,28 @@ def significant(
     expected numbers to be less than the value of `threshold`.
 
     Method 1:
-    The RMS is estimated iteratively by identifying statistically significant
-    external peaks and excluding circular regions with radii equal to the beam
-    FWHM around those peaks. Using the updated RMS estimate, the expected
-    number of independent noise measurements, over the internal region, with
-    flux densities greater than or equal to those of internal peaks is then
-    evaluated.
+    The RMS noise level is estimated iteratively by identifying statistically
+    significant external peaks and excluding circular regions with radii equal
+    to the beam FWHM around those peaks. Using the updated RMS estimate, the
+    expected number of independent noise measurements, over the internal
+    region, with flux densities greater than or equal to those of internal
+    peaks is then evaluated.
 
     See _statistics_from_rms_uncertainty() for more details.
 
     Method 2:
-    The RMS is estimated by calculating the RMS for which the expected number
-    of independent noise measurements, over the external region, greater than
-    or equal to the flux density of the brightest non-significant external peak
-    is one. In addition, the RMS is estimated by calculating the RMS for which
-    the expected number of independent noise measurements, over the entire
-    image, less than or equal to the flux density of the image's most negative
-    pixel, if such a pixel exists, is one. If the second RMS estimate exists,
-    the two RMS estimates are compared, and the more conservative estimate is
-    used to evaluate the expected number of independent noise measurements,
-    over the internal region, with flux densities greater than or equal to
-    those of the internal peaks.
+    The RMS noise level is estimated by calculating the RMS for which the
+    expected number of independent noise measurements, over the external
+    region, greater than or equal to the flux density of the brightest
+    non-significant external peak is one. In addition, the RMS noise level is
+    estimated by calculating the RMS for which the expected number of
+    independent noise measurements, over the entire image, less than or equal
+    to the flux density of the image's most negative pixel, if such a pixel
+    exists, is one. If the second RMS estimate exists, the two RMS estimates
+    are compared, and the more conservative estimate is used to evaluate the
+    expected number of independent noise measurements, over the internal
+    region, with flux densities greater than or equal to those of the internal
+    peaks.
 
     See _statistics_from_extreme_peaks() for more details.
     """
