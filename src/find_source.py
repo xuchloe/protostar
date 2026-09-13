@@ -9,6 +9,7 @@ import matplotlib.patches as patches
 import matplotlib.ticker as ticker
 import warnings
 from pathlib import Path
+import sigfig
 
 _RMS_UNCERT_SIGMA = 5
 _RMS_UNCERT_SAMPLES = 100
@@ -1046,6 +1047,7 @@ def summary(
         plot: bool = True,
         save_path: str | Path | None = None,
         file_name: str | None = None,
+        sig_figs: int | None = 3,
     ):
     """Summarize the statistics of an image in a dictionary and/or plot, with
     the option to save the plot as a .png file.
@@ -1080,6 +1082,9 @@ def summary(
         The name of the file for the saved plot. If no value is given, the file
         name will be the fits file name with the radius buffer and external
         threshold appended.
+    sig_figs : int | None, optional
+        Number of significant figures to round the output values to. If `None`,
+        no rounding is applied.
 
     Returns
     -------
@@ -1327,7 +1332,7 @@ def summary(
     if noise is not None:
         rms_list.append(noise)
     conservative_rms = max(rms_list) # in Jy
-    conservative_snr = round(info['int_peak_val'][0] / conservative_rms, 3)
+    conservative_snr = info['int_peak_val'][0] / conservative_rms
 
     x_coords = []
     y_coords = []
@@ -1533,6 +1538,26 @@ def summary(
         short_info['conservative_snr'] = conservative_snr
 
         del short_info['next_ext_peak']
+
+        if sig_figs is not None:
+            for key, value in short_info.items():
+                if key != 'field_center':  # 'field_center' is always (0,0).
+                    if (
+                        isinstance(value, float)
+                        or isinstance(value, int)
+                    ):
+                        value = float(sigfig.round(value, sigfigs=sig_figs))
+                    elif (
+                        isinstance(value, list)
+                    ):
+                        for val in value:
+                            if (
+                                isinstance(val, float)
+                                or isinstance(val, int)
+                            ):
+                                val = float(
+                                    sigfig.round(val, sigfigs=sig_figs)
+                                )
 
         return short_info
 
