@@ -1539,6 +1539,7 @@ def summary(
 
         del short_info['next_ext_peak']
 
+        # Round numerical values if requested.
         if sig_figs is not None:
             for key, value in short_info.items():
                 if key != 'field_center':  # 'field_center' is always (0,0).
@@ -1546,18 +1547,39 @@ def summary(
                         isinstance(value, float)
                         or isinstance(value, int)
                     ):
-                        value = float(sigfig.round(value, sigfigs=sig_figs))
+                        short_info[key] = float(
+                            sigfig.round(value, sigfigs=sig_figs)
+                        )
                     elif (
                         isinstance(value, list)
                     ):
-                        for val in value:
+                        for i, val in enumerate(value):
                             if (
                                 isinstance(val, float)
                                 or isinstance(val, int)
                             ):
-                                val = float(
+                                short_info[key][i] = float(
                                     sigfig.round(val, sigfigs=sig_figs)
                                 )
+                            # Handle list of coordinates (tuples) case.
+                            elif (
+                                isinstance(val, tuple)
+                            ):
+                                temp = []
+                                for v in val:
+                                    if (
+                                        isinstance(v, float)
+                                        or isinstance(v, int)
+                                    ):
+                                        temp.append(
+                                            float(sigfig.round(
+                                                v,
+                                                sigfigs=sig_figs,
+                                            ))
+                                        )
+                                    else:
+                                        temp.append(v)
+                                    short_info[key][i] = tuple(temp)
 
         return short_info
 
