@@ -1466,6 +1466,8 @@ def summary(
 
         title = Path(fits_file).stem
 
+        if sig_figs is not None:
+            conservative_snr = sigfig.round(conservative_snr, sigfigs=sig_figs)
         # Add a text box with the SNR of the brightest internal peak.
         ax.text(
             x_min*0.96,
