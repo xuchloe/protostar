@@ -475,8 +475,8 @@ def make_catalog(
     beam_min_axis = Angle(bmin, cunit2)
     bpa_rad = math.radians(bpa)
 
-    # Solar System bodies require moving-source treatment and are not treated as
-    # stationary targets.
+    # Solar System bodies require moving-source treatment and are not treated
+    # as stationary targets.
     moving_objects = [
         'venus',
         'mars',
@@ -526,32 +526,17 @@ def make_catalog(
     else:
         n_ext_sources = len(summ['ext_peak_val'])
 
-    ra_index = 0
-    dec_index = 1
-
-    if 'RA' in ctype1:
-        ra = crval1
-    elif 'RA' in ctype2:
-        ra = crval2
-        ra_index = 1
-    else:
-        raise ValueError("No RA in image.")
-
-    if 'DEC' in ctype1:
-        dec = crval1
-        dec_index = 0
-    elif 'DEC' in ctype2:
-        dec = crval2
-    else:
-        raise ValueError("No dec in image.")
+    ra = crval1
+    dec = crval2
 
     center = SkyCoord(ra, dec, unit=cunit1)
 
     def create_source_info(
-        peak_value,
-        peak_coord,
-        internal,
-    ):
+        peak_value: float,
+        peak_coord: tuple,
+        pos_uncert: tuple,
+        internal: bool,
+    ) -> dict:
         """Create catalog metadata and measurements for a detected source.
 
         Parameters
@@ -560,6 +545,8 @@ def make_catalog(
             Peak flux density of the detected source.
         peak_coord : tuple
             Source coordinates as offsets from the image center, in arcsec.
+        pos_uncert : tuple
+            Positional uncertainty of source coordinates, in arcsec.
         internal : bool
             Whether the source was detected in the initial internal search
             region.
@@ -575,25 +562,10 @@ def make_catalog(
 
         info['Flux_mJy'] = round(peak_value * 1000, 3)
 
-        # Estimate positional uncertainties from the restoring beam and source
-        # SNR.
-        snr = peak_value / summ['conservative_rms']
-        bmin_uncert = float(beam_maj_axis.to(u.arcsec).value / snr)
-        bmaj_uncert = float(beam_min_axis.to(u.arcsec).value / snr)
+        info['RAUncert_arcsec'], info['DecUncert_arcsec'] = pos_uncert
 
-        info['RAUncert_arcsec'] = round(
-            bmin_uncert * abs(math.sin(bpa_rad))
-            + bmaj_uncert * abs(math.cos(bpa_rad)),
-            3
-        )
-        info['DecUncert_arcsec'] = round(
-            bmaj_uncert * abs(math.sin(bpa_rad))
-            + bmin_uncert * abs(math.cos(bpa_rad)),
-            3
-        )
-
-        ra_offset = peak_coord[ra_index] * u.arcsec
-        dec_offset = peak_coord[dec_index] * u.arcsec
+        ra_offset = peak_coord[0] * u.arcsec
+        dec_offset = peak_coord[1] * u.arcsec
         coord = center.spherical_offsets_by(ra_offset, dec_offset)
 
         info['RA'], info['Dec'] = _format_coordinates(coord.ra, coord.dec)
@@ -620,6 +592,7 @@ def make_catalog(
             interesting_sources[key] = create_source_info(
                 summ['int_peak_val'][i],
                 summ['int_peak_coord'][i],
+                summ['int_pos_uncert'][i],
                 internal=True,
             )
             pt_source_count += 1
@@ -630,6 +603,7 @@ def make_catalog(
         interesting_sources[key] = create_source_info(
             summ['ext_peak_val'][i],
             summ['ext_peak_coord'][i],
+            summ['ext_pos_uncert'][i],
             internal=False,
         )
         pt_source_count += 1
