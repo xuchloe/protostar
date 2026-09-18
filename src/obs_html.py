@@ -2,6 +2,7 @@ from astropy.io import fits
 import numpy as np
 from scipy.io import loadmat
 import matplotlib.pyplot as plt
+from pathlib import Path
 import glob
 import pandas as pd
 import json
@@ -11,13 +12,22 @@ from find_source import summary
 from catalogs import make_catalog, combine_catalogs
 
 
-def start_html(html_path):
-    '''
-    Starts source_info.html, in which source information can be stored.
-    '''
+def start_html(html_path: str):
+    """
+    Create an HTML file for storing source information.
 
+    Parameters
+    ----------
+    html_path : str
+        Path to the HTML file. If the file already exists, it is overwritten.
+
+    Raises
+    ------
+    OSError
+        If the file cannot be opened for writing.
+    """
     with open(html_path, 'w') as html_file:
-        start = '''
+        start = """
         <!DOCTYPE html>
         <html>
         <style>
@@ -39,27 +49,38 @@ def start_html(html_path):
         }
         </style>
         <body>
-        '''
+        """
         html_file.write(start)
-        html_file.close()
 
 
 def obs_info_to_html(json_file: str, html_path: str):
-    '''
-    Appends observation information table to source_info.html using information from a .json file.
+    """
+    Append an observation information table to the source information HTML
+    file, using information from a .json file.
 
     Parameters
     ----------
     json_file : str
-        The path of the .json file that contains the observation information.
-    '''
+        Path to the .json file that contains the observation information.
+    html_path : str
+        Path to the HTML file. If the file already exists, it is overwritten.
 
+    Raises
+    ------
+    OSError
+        If the HTML file cannot be opened for appending.
+
+    Notes
+    -----
+    The .json file is assumed to be in the format produced by the SMA POLARIS
+    pipeline.
+    """
     with open(html_path, 'a') as html_file:
         try:
             with open(json_file, 'r') as file:
                 obs_dict = json.load(file)
 
-            #cleaning up obs_dict
+            # Preparing obs_dict to be converted into a Pandas dataframe.
             for key, value in obs_dict.items():
                 if type(value) == list:
                     string = ', '.join(value)
@@ -72,14 +93,39 @@ def obs_info_to_html(json_file: str, html_path: str):
 
             html_table = df_transposed.to_html()
 
-            html_file.write(f'<p class=\'centered-large-text\'>Source Information for {base_name} (ObsID {obs_id}) </p>')
+            html_file.write(
+                '<p class=\'centered-large-text\'>Source Information for '
+                f'{base_name} (ObsID {obs_id}) </p>'
+            )
             html_file.write(html_table)
         except:
-            html_file.write('<p> Error generating observation information table. </p>')
+            html_file.write(
+                '<p> Error generating observation information table. </p>'
+            )
 
 
-def ap_eff_to_html(html_path, matlab: str):
+def ap_eff_to_html(html_path: str, matlab: str):
+    """
+    Append an aperture efficiency table to the source information HTML file,
+    using information from a MATLAB file.
 
+    Parameters
+    ----------
+    html_path : str
+        Path to the HTML file. If the file already exists, it is overwritten.
+    matlab : str
+        Path to the MATLAB file that contains the aperture efficiency data.
+
+    Raises
+    ------
+    OSError
+        If the HTML file cannot be opened for appending.
+
+    Notes
+    -----
+    The MATLAB file is assumed to be in the format produced by the SMA POLARIS
+    pipeline.
+    """
     try:
         data = loadmat(matlab)
         ap_eff_array = data['apEffCorr']
@@ -102,11 +148,43 @@ def ap_eff_to_html(html_path, matlab: str):
         with open(html_path, 'a') as html_file:
             html_file.write(html_table)
     except:
-        print('Error with aperture efficiency data.')
+        html_file.write(
+            '<p> Error generating aperture efficiency table. </p>'
+        )
 
+def calibration_plots(html_path: str, matlab: str):
+    """
+    Save calibration plots to the same directory where the HTML file is
+    located.
 
-def calibration_plots(html_path, matlab: str):
+    Parameters
+    ----------
+    html_path : str
+        Path to the HTML file.
+    matlab : str
+        Path to the MATLAB file that contains the calibration data.
 
+    Notes
+    -----
+    The MATLAB file is assumed to be in the format produced by the SMA POLARIS
+    pipeline.
+
+    The plot named 'bp_amp.jpg' is a plot with subplots for each antenna of the
+    bandpass gain amplitude vs. channel, with the points on the plot colored by
+    spectral window.
+
+    The plot named 'bp_pha.jpg' is a plot with subplots for each antenna of the
+    bandpass gain phase vs. channel, with the points on the plot colored by
+    spectral window.
+
+    The plot named 'g_amp.jpg' is a plot with subplots for each antenna of the
+    gain amplitude vs. time in UT hours, with the points on the plot colored by
+    spectral window.
+
+    The plot named 'g_pha.jpg' is a plot with subplots for each antenna of the
+    gain phase vs. time in UT hours, with the points on the plot colored by
+    spectral window.
+    """
     plt.rcdefaults()
     plt.rcParams['figure.dpi'] = 60
     plt.rcParams['font.size'] = 8
@@ -119,9 +197,9 @@ def calibration_plots(html_path, matlab: str):
     gain_type = data['gainType']
 
     n_times = len(gt)
-    n_ants = len(gws[0])
-    n_spws = len(gws[0][0])
-    n_chans = len(gcs[0][0][0])
+    n_ants = len(gws[0])  # Number of antennas.
+    n_spws = len(gws[0][0])  # Number of spectral windows.
+    n_chans = len(gcs[0][0][0])  # Number of channels.
 
     utc_midpts = []
     for t in range(len(gt)):
@@ -137,8 +215,10 @@ def calibration_plots(html_path, matlab: str):
     if all(bit == 0 for bit in (gain_type & (2**spw_bit))):
         spw_bit = 1
 
-    #plotting bandpass gain solutions for amplitude and phase
+    # Plot bandpass gain solutions for amplitude and phase, respectively.
+    # 1 subplot per antenna for amplitude.
     fig, ax = plt.subplots(nrows=n_ants, ncols=1, sharex=True, figsize=(3,8))
+    # 1 subplot per antenna for phase.
     fig2, ax2 = plt.subplots(nrows=n_ants, ncols=1, sharex=True, figsize=(3,8))
 
     max_amp = 0
@@ -147,7 +227,7 @@ def calibration_plots(html_path, matlab: str):
         if (gain_type & (2**chan_bit))[time] != 0:
             for ant in range(n_ants):
 
-                #shifting for cosmetics
+                # Apply shift for cosmetics.
                 pos = ax[ant].get_position()
                 pos.x0 += 0.05
                 pos.x1 += 0.05
@@ -157,21 +237,43 @@ def calibration_plots(html_path, matlab: str):
                 pos2.x1 += 0.06
                 ax2[ant].set_position(pos2)
 
-                #no x axis ticks
+                # Remove x-axis ticks.
                 ax[ant].xaxis.set_tick_params(labelbottom=False)
                 ax2[ant].xaxis.set_tick_params(labelbottom=False)
 
-
                 for spw in range(n_spws):
-                    amp_to_plot = [abs(a) for a in gcs.copy()[time][ant][spw]]
-                    pha_to_plot = [np.angle(p, deg=True) for p in gcs.copy()[time][ant][spw]]
+                    amp_to_plot = [
+                        abs(a) for a in gcs.copy()[time][ant][spw]
+                    ]
+                    pha_to_plot = [
+                        np.angle(p, deg=True)
+                        for p in gcs.copy()[time][ant][spw]
+                    ]
                     if max(amp_to_plot) > max_amp:
                         max_amp = max(amp_to_plot)
 
-                    x_axis = np.arange(spw * n_chans + 1, (1 + spw) * n_chans + 1)
+                    x_axis = np.arange(
+                        spw * n_chans + 1,
+                        (1 + spw) * n_chans + 1
+                    )
 
-                    ax[ant].scatter(x_axis, amp_to_plot, c=colors[spw], s=20, marker='x', linewidths=1.5)
-                    ax2[ant].scatter(x_axis, pha_to_plot, c=colors[spw], s=20, marker='x', linewidths=1.5)
+                    # Color by spectral window.
+                    ax[ant].scatter(
+                        x_axis,
+                        amp_to_plot,
+                        c=colors[spw],
+                        s=20,
+                        marker='x',
+                        linewidths=1.5,
+                    )
+                    ax2[ant].scatter(
+                        x_axis,
+                        pha_to_plot,
+                        c=colors[spw],
+                        s=20,
+                        marker='x',
+                        linewidths=1.5,
+                    )
 
                     ax[ant].yaxis.set_label_position('right')
                     ax2[ant].yaxis.set_label_position('right')
@@ -192,14 +294,27 @@ def calibration_plots(html_path, matlab: str):
     fig.savefig(os.path.join(html_folder, 'bp_amp.jpg'))
     fig2.savefig(os.path.join(html_folder, 'bp_pha.jpg'))
 
-    plt.close()
+    plt.close(fig)
+    plt.close(fig2)
 
-    #plotting gain solutions for amplitude and phase
+    # Plot gain solutions for amplitude and phase, respectively.
     n_rows = math.ceil(n_ants / 2)
     n_cols = 2
 
-    fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, figsize=(5.7,4))
-    fig2, ax2 = plt.subplots(nrows=n_rows, ncols=n_cols, sharex=True, figsize=(5.7,4))
+    # 1 subplot per antenna for amplitude.
+    fig, ax = plt.subplots(
+        nrows=n_rows,
+        ncols=n_cols,
+        sharex=True,
+        figsize=(5.7,4)
+    )
+    # 1 subplot per antenna for phase.
+    fig2, ax2 = plt.subplots(
+        nrows=n_rows,
+        ncols=n_cols,
+        sharex=True,
+        figsize=(5.7,4)
+    )
 
     max_amp, min_time, max_time = 0, float('inf'), 0
 
@@ -211,7 +326,7 @@ def calibration_plots(html_path, matlab: str):
             if ant < n_rows:
                 row, col = ant, 0
 
-                #shifting for cosmetics
+                # Apply shift for cosmetics.
                 pos = ax[row, col].get_position()
                 pos.x0 -= 0.005
                 pos.x1 -= 0.005
@@ -224,7 +339,7 @@ def calibration_plots(html_path, matlab: str):
                 row, col = ant % n_rows, 1
 
             for time in range(n_times):
-                if gain_type[time] & (2**6) != 0:
+                if gain_type[time] & (2**6 != 0):
                     amp_val = abs((gws.copy())[time][ant][spw])
                     pha_val = np.angle((gws.copy())[time][ant][spw], deg=True)
                     amp_to_plot.append(amp_val)
@@ -241,8 +356,21 @@ def calibration_plots(html_path, matlab: str):
 
                     times.append(t)
 
-            ax[row, col].scatter(times, amp_to_plot, c=colors[spw], s=4, marker='D')
-            ax2[row, col].scatter(times, pha_to_plot, c=colors[spw], s=4, marker='D')
+            # Color by spectral window.
+            ax[row, col].scatter(
+                times,
+                amp_to_plot,
+                c=colors[spw],
+                s=4,
+                marker='D'
+            )
+            ax2[row, col].scatter(
+                times,
+                pha_to_plot,
+                c=colors[spw],
+                s=4,
+                marker='D',
+            )
 
             ax[row, col].yaxis.set_label_position('right')
             ax2[row, col].yaxis.set_label_position('right')
@@ -250,8 +378,16 @@ def calibration_plots(html_path, matlab: str):
             ax2[row, col].set_ylabel(f'Ant{ant+1}')
             amp_to_plot, pha_to_plot = [], []
 
-    plt.setp(ax, xticks=np.arange(min_time//1, math.ceil(max_time), 1), yticks=np.arange(0, max_amp+1, 0.5))
-    plt.setp(ax2, xticks=np.arange(min_time//1, math.ceil(max_time), 1), yticks=[-180,-120,-60,0,60,120,180])
+    plt.setp(
+        ax,
+        xticks=np.arange(min_time // 1, math.ceil(max_time), 1),
+        yticks=np.arange(0, max_amp+1, 0.5)
+    )
+    plt.setp(
+        ax2,
+        xticks=np.arange(min_time // 1, math.ceil(max_time), 1),
+        yticks=[-180,-120,-60,0,60,120,180]
+    )
     fig.suptitle('Gain solutions for amplitude')
     fig2.suptitle('Gain solutions for phase')
     fig.supxlabel('UT hours')
@@ -262,60 +398,90 @@ def calibration_plots(html_path, matlab: str):
     fig.savefig(os.path.join(html_folder, 'g_amp.jpg'))
     fig2.savefig(os.path.join(html_folder, 'g_pha.jpg'))
 
-    plt.close()
+    plt.close(fig)
+    plt.close(fig2)
 
 
-def fig_to_html(html_path: str, fits_file: str, radius_buffer: float = 5.0, ext_threshold: float = None):
-    '''
-    Appends source figures to source_info.html.
+def fig_to_html(
+    html_path: str,
+    fits_file: str | Path,
+    radius_buffer: float = 5.0,
+    ext_threshold: float = None,
+):
+    """
+    Append an annotated figure to the source information HTML file, using
+    information from a FITS file.
 
     Parameters
     ----------
-    fits_file : str
+    html_path : str
+        Path to the HTML file.
+    fits_file : str | Path
         The path of the FITS file that contains the image.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
-    '''
+    radius_buffer : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float, optional
+        The maximum expected number of independent noise measurements, over the
+        external region, with flux densities greater than or equal to an
+        external peak for the peak to be considered significant, assuming no
+        source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
 
+    Notes
+    -----
+    Sources deemed significant are marked on the figure.
+    For more information on `radius_buffer` and `ext_threshold`, see
+    find_source.py.
+    """
+    fits_file = Path(fits_file)
     with open(html_path, 'a') as html_file:
         try:
-            summary(fits_file=fits_file, radius_buffer=radius_buffer, ext_threshold=ext_threshold,\
-                    silence_dict=True, plot=True, save_path=os.path.dirname(html_path))
+            save_path = os.path.dirname(html_path)
+            summary(
+                fits_file=fits_file,
+                radius_buffer=radius_buffer,
+                ext_threshold=ext_threshold,
+                silence_dict=True,
+                plot=True,
+                save_path=save_path,
+            )
 
-            #getting full path
-            file = fits_file
-            while '/' in file:
-                file = file[file.index('/')+1:]
-            file = file.replace('.fits', '')
-            if ext_threshold == None:
+            # Get full path of saved image.
+            file = Path(fits_file).stem
+            if ext_threshold is None:
                 ext_threshold = 'default'
             file += f'_rb{radius_buffer}_et{ext_threshold}'
-            full_path = f'./{file}.jpg'
+            full_path = Path(save_path) / f"{file}.jpg"
 
-            html_figure = f'''
+            html_figure = f"""
             <img class=\'field\' src=\'{full_path}\'>
             <br>
-            '''
+            """
 
             html_file.write(html_figure)
         except:
-            html_file.write(f'<p> Error generating figure for {fits_file}. </p>')
+            html_file.write(
+                f'<p> Error generating figure for {fits_file}. </p>'
+            )
 
 
-def catalog_to_html(catalog: dict, html_path):
-    '''
-    Appends source information table to source_info.html.
+def catalog_to_html(
+        catalog: dict,
+        html_path: str,
+    ):
+    """
+    Append a source information table to the source information HTML file.
 
     Parameters
     ----------
     catalog : dict
-        A catalog in the format returned by make_catalog().
-    '''
-
+        A source information catalog in the format returned by make_catalog().
+    html_path : str
+        Path to the HTML file.
+    """
     df = pd.DataFrame.from_dict(catalog)
     df_transposed = df.T
     html_table = df_transposed.to_html()
@@ -325,42 +491,65 @@ def catalog_to_html(catalog: dict, html_path):
 
 
 def end_html(html_path: str):
-    '''
-    Ends source_info.html, in which source information can be stored.
-    '''
+    """
+    End the source information HTML file.
 
+    Paramters
+    ---------
+    html_path : str
+        Path to the HTML file.
+    """
     with open(html_path, 'a') as html_file:
-
-        end = '''
+        end = """
         </body>
         </html>
-        '''
-
+        """
         html_file.write(end)
 
 
-def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float = 5.0, ext_threshold: float = None):
-    '''
-    From a folder of FITS files, creates source_info.html with observation information table, source figures, and source information table
-    and creates interesting_field.txt with names of objects with any (possibly) interesting detections.
+def full_html_and_txt(
+        folder: str,
+        threshold: float = 0.01,
+        radius_buffer: float = 5.0,
+        ext_threshold: float = None,
+    ):
+    """
+    Create a source information HTML file with an observation information
+    table, source figures, and source information table, using data from a
+    folder of FITS files from the same observation; create a .txt file
+    (interesting_fields.txt) with the names of objects deemed as cience targets
+    that display a significant detection in the initial inclusion region.
+
 
     Parameters
     ----------
     folder : str
         The path of the folder containing the FITS files to be analyzed.
-    threshold : float (optional)
-        The threshold for a significant detection.
-        If the probability of detecting the center region's maximum flux assuming no source in the image
-        is less than this threshold, then the detection is deemed significant.
-        If no value is given, defaults to 0.01.
-    radius_buffer : float (optional)
-        The amount of buffer, in arcsec, to add to the beam FWHM to get the initial search radius.
-        If no value is given, defaults to 5 arcsec.
-    ext_threshold : float (optional)
-        The probability that an external peak must be below for it to be considered an external source.
-        If no value is given, defaults to 0.001.
-    '''
+    threshold : float, optional
+        The maximum expected number of independent noise measurements, over the
+        internal region, with flux densities greater than or equal to an
+        internal peak for the peak to be considered significant, assuming no
+        source is present in the image.
+    radius_buffer : float, optional
+            The amount of buffer, in arcsec, to add to the beam FWHM to get the
+            initial search radius.
+    ext_threshold : float, optional
+        The maximum expected number of independent noise measurements, over the
+        external region, with flux densities greater than or equal to an
+        external peak for the peak to be considered significant, assuming no
+        source is present in the image.
+        If no value is given, `1e-3`, `1e-6`, or `1e-12` is used, depending on
+        the signal-to-noise ratio of the brightest internal peak calculated
+        using the initial external-region RMS estimate.
 
+    Notes
+    -----
+    The folder should contain a .json file ('polaris.json') of observation
+    information, assumed to be in the format produced by the SMA POLARIS
+    pipeline. The folder should also contain a MATLAB file ('gains.mat') of
+    aperture efficiency data and calibration data, assumed to be in the format
+    produced by the SMA POLARIS pipeline.
+    """
     html_path = os.path.join(folder, 'index.html')
     matlab_file = os.path.join(folder, 'gains.mat')
 
@@ -376,14 +565,14 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
         calibration_plots(html_path, matlab_file)
 
         with open(html_path, 'a') as html_file:
-            html_gain_info = f'''
+            html_gain_info = f"""
             <img class=\'bp\' src=\'./bp_amp.jpg'\'>
             <img class=\'bp\' src=\'./bp_pha.jpg'\'>
             <br>
             <img class=\'gain\' src=\'./g_amp.jpg'\'>
             <img class=\'gain\' src=\'./g_pha.jpg'\'>
             <br>
-            '''
+            """
             html_file.write(html_gain_info)
     except:
         print('Error with gain calibration information.')
@@ -398,11 +587,22 @@ def full_html_and_txt(folder: str, threshold: float = 0.01, radius_buffer: float
         for file in glob.glob(os.path.join(folder, '*.fits')):
             obj = fits.getheader(file)['OBJECT']
             if obj.lower() not in pol_cals:
-                fig_to_html(html_path, file, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+                fig_to_html(
+                    html_path,
+                    file,
+                    radius_buffer=radius_buffer,
+                    ext_threshold=ext_threshold,
+                )
             if obj.lower() in sci_targs:
-                catalog = make_catalog(file, threshold=threshold, radius_buffer=radius_buffer, ext_threshold=ext_threshold)
+                catalog = make_catalog(
+                    file,
+                    threshold=threshold,
+                    radius_buffer=radius_buffer,
+                    ext_threshold=ext_threshold,
+                )
 
-                #add field name to .txt file if it is a science target with a significant detection in the initial inclusion region
+                # Add field name to .txt file if it is a science target with a
+                # significant detection in the initial inclusion region.
                 if catalog != None:
                     for key, value in catalog.items():
                         if value['Internal'] == True:
