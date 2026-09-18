@@ -1455,7 +1455,7 @@ def summary(
     else:
         try:
             noise_estimate = (noise_estimate * u.Unit(noise_unit)).to('Jy')
-        except:
+        except Exception:
             noise_estimate = None
 
     rms_list = [
@@ -1658,7 +1658,7 @@ def summary(
                     file += f'_rb{radius_buffer}_et{ext_threshold}'
                 output_file = Path(save_path) / f"{file}.jpg"
                 plt.savefig(output_file)
-            except:
+            except Exception:
                 warnings.warn(
                     "Error saving figure. "
                     f"Double check file name ({file_name}) and/or path "
