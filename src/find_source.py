@@ -1319,6 +1319,9 @@ def summary(
     source fluxes (`int_peak_val` and `ext_peak_val`) and source flux
     uncertainties (`int_flux_uncert` and `ext_flux_uncert`).
 
+    The FITS file is assumed to be in the same format as a FITS file produced
+    by CASA.
+
     Plotting assumes that `CDELT1` and `CDELT2` are equal. If this is not the
     case, the second axis will be scaled.
 
