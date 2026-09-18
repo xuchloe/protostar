@@ -19,7 +19,7 @@ def start_html(html_path: str):
     Parameters
     ----------
     html_path : str
-        Path to the HTML file. If the file already exists, it is overwritten.
+        Path to the HTML file.
 
     Raises
     ------
@@ -98,7 +98,7 @@ def obs_info_to_html(json_file: str, html_path: str):
                 f'{base_name} (ObsID {obs_id}) </p>'
             )
             html_file.write(html_table)
-        except:
+        except Exception:
             html_file.write(
                 '<p> Error generating observation information table. </p>'
             )
@@ -147,10 +147,12 @@ def ap_eff_to_html(html_path: str, matlab: str):
 
         with open(html_path, 'a') as html_file:
             html_file.write(html_table)
-    except:
-        html_file.write(
-            '<p> Error generating aperture efficiency table. </p>'
-        )
+    except Exception:
+        with open(html_path, 'a') as html_file:
+            html_file.write(
+                '<p> Error generating aperture efficiency table. </p>'
+            )
+
 
 def calibration_plots(html_path: str, matlab: str):
     """
@@ -184,6 +186,9 @@ def calibration_plots(html_path: str, matlab: str):
     The plot named 'g_pha.jpg' is a plot with subplots for each antenna of the
     gain phase vs. time in UT hours, with the points on the plot colored by
     spectral window.
+
+    Since this package is intended for radio interferometry, this function
+    assumes more than one antenna.
     """
     plt.rcdefaults()
     plt.rcParams['figure.dpi'] = 60
@@ -243,11 +248,11 @@ def calibration_plots(html_path: str, matlab: str):
 
                 for spw in range(n_spws):
                     amp_to_plot = [
-                        abs(a) for a in gcs.copy()[time][ant][spw]
+                        abs(a) for a in gcs[time][ant][spw]
                     ]
                     pha_to_plot = [
                         np.angle(p, deg=True)
-                        for p in gcs.copy()[time][ant][spw]
+                        for p in gcs[time][ant][spw]
                     ]
                     if max(amp_to_plot) > max_amp:
                         max_amp = max(amp_to_plot)
@@ -339,9 +344,9 @@ def calibration_plots(html_path: str, matlab: str):
                 row, col = ant % n_rows, 1
 
             for time in range(n_times):
-                if gain_type[time] & (2**6 != 0):
-                    amp_val = abs((gws.copy())[time][ant][spw])
-                    pha_val = np.angle((gws.copy())[time][ant][spw], deg=True)
+                if gain_type[time] & (2**6):
+                    amp_val = abs(gws[time][ant][spw])
+                    pha_val = np.angle(gws[time][ant][spw], deg=True)
                     amp_to_plot.append(amp_val)
                     pha_to_plot.append(pha_val)
 
@@ -406,7 +411,7 @@ def fig_to_html(
     html_path: str,
     fits_file: str | Path,
     radius_buffer: float = 5.0,
-    ext_threshold: float = None,
+    ext_threshold: float | None = None,
 ):
     """
     Append an annotated figure to the source information HTML file, using
@@ -421,7 +426,7 @@ def fig_to_html(
     radius_buffer : float, optional
         The amount of buffer, in arcsec, to add to the beam FWHM to get the
         initial search radius.
-    ext_threshold : float, optional
+    ext_threshold : float | None, optional
         The maximum expected number of independent noise measurements, over the
         external region, with flux densities greater than or equal to an
         external peak for the peak to be considered significant, assuming no
@@ -439,6 +444,7 @@ def fig_to_html(
     fits_file = Path(fits_file)
     with open(html_path, 'a') as html_file:
         try:
+            # Save image to same directory as the HTML file.
             save_path = os.path.dirname(html_path)
             summary(
                 fits_file=fits_file,
@@ -449,20 +455,19 @@ def fig_to_html(
                 save_path=save_path,
             )
 
-            # Get full path of saved image.
+            # Get file name of saved image.
             file = Path(fits_file).stem
             if ext_threshold is None:
                 ext_threshold = 'default'
-            file += f'_rb{radius_buffer}_et{ext_threshold}'
-            full_path = Path(save_path) / f"{file}.jpg"
+            file += f'_rb{radius_buffer}_et{ext_threshold}.jpg'
 
             html_figure = f"""
-            <img class=\'field\' src=\'{full_path}\'>
+            <img class="field" src="{file}">
             <br>
             """
 
             html_file.write(html_figure)
-        except:
+        except Exception:
             html_file.write(
                 f'<p> Error generating figure for {fits_file}. </p>'
             )
@@ -481,6 +486,11 @@ def catalog_to_html(
         A source information catalog in the format returned by make_catalog().
     html_path : str
         Path to the HTML file.
+
+    Notes
+    -----
+    See make_catalog() in catalogs.py for more information on the catalog
+    format.
     """
     df = pd.DataFrame.from_dict(catalog)
     df_transposed = df.T
@@ -494,8 +504,8 @@ def end_html(html_path: str):
     """
     End the source information HTML file.
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     html_path : str
         Path to the HTML file.
     """
@@ -511,15 +521,15 @@ def full_html_and_txt(
         folder: str,
         threshold: float = 0.01,
         radius_buffer: float = 5.0,
-        ext_threshold: float = None,
+        ext_threshold: float | None = None,
     ):
     """
     Create a source information HTML file with an observation information
     table, source figures, and source information table, using data from a
     folder of FITS files from the same observation; create a .txt file
-    (interesting_fields.txt) with the names of objects deemed as cience targets
-    that display a significant detection in the initial inclusion region.
-
+    (interesting_fields.txt) with the names of objects deemed as science
+    targets that display a significant detection in the initial inclusion
+    region.
 
     Parameters
     ----------
@@ -531,9 +541,9 @@ def full_html_and_txt(
         internal peak for the peak to be considered significant, assuming no
         source is present in the image.
     radius_buffer : float, optional
-            The amount of buffer, in arcsec, to add to the beam FWHM to get the
-            initial search radius.
-    ext_threshold : float, optional
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        initial search radius.
+    ext_threshold : float | None, optional
         The maximum expected number of independent noise measurements, over the
         external region, with flux densities greater than or equal to an
         external peak for the peak to be considered significant, assuming no
@@ -544,6 +554,8 @@ def full_html_and_txt(
 
     Notes
     -----
+    The HTML file ('index.html') is overwritten each time this function is run.
+
     The folder should contain a .json file ('polaris.json') of observation
     information, assumed to be in the format produced by the SMA POLARIS
     pipeline. The folder should also contain a MATLAB file ('gains.mat') of
@@ -574,7 +586,7 @@ def full_html_and_txt(
             <br>
             """
             html_file.write(html_gain_info)
-    except:
+    except Exception:
         print('Error with gain calibration information.')
 
     final_catalog = {}
@@ -603,9 +615,9 @@ def full_html_and_txt(
 
                 # Add field name to .txt file if it is a science target with a
                 # significant detection in the initial inclusion region.
-                if catalog != None:
+                if catalog is not None:
                     for key, value in catalog.items():
-                        if value['Internal'] == True:
+                        if value['Internal']:
                             txt.write(f'{obj}\n')
                     final_catalog = combine_catalogs(final_catalog, catalog)
 
