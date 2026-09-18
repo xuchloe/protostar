@@ -189,6 +189,8 @@ def calibration_plots(html_path: str, matlab: str):
 
     Since this package is intended for radio interferometry, this function
     assumes more than one antenna.
+
+    If there are more than 20 spectral windows, colors will be reused.
     """
     plt.rcdefaults()
     plt.rcParams['figure.dpi'] = 60
@@ -211,7 +213,8 @@ def calibration_plots(html_path: str, matlab: str):
         midpt = 0.5 * (gt[t][0].real + gt[t][0].imag)
         utc_midpts.append((midpt%1)*24)
 
-    colors = ['blue','r','y','purple','orange','g','m','c']
+    cmap = plt.get_cmap('tab20')
+    colors = [cmap(i) for i in range(n_spws)]
 
     chan_bit = 7
     if all(bit == 0 for bit in (gain_type & (2**chan_bit))):
