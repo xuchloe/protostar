@@ -205,7 +205,7 @@ def _region_stats(
 
     mad = float(median_abs_deviation(data[0].flatten()))
     # Convert the MAD to an equivalent Gaussian standard deviation.
-    sd_mad = float(norm.ppf(0.84) / norm.ppf(0.75) * mad)
+    sd_mad = float(mad / norm.ppf(0.75))
 
     x_dim = image_hdu.header['NAXIS1']
     y_dim = image_hdu.header['NAXIS2']
@@ -414,8 +414,9 @@ def _expected_exceedances_from_rms_uncertainty(
     Raises
     ------
     ValueError
-        If `rms`, `n_excl_mease`, or `n_incl_meas` (when provided) is not
-        positive.
+        If `rms`, `n_excl_meas`, or `n_incl_meas` (when provided) is not
+        positive, or if the RMS uncertaintyrainge includes non-positive RMS
+        values.
 
     Notes
     -----
@@ -441,6 +442,12 @@ def _expected_exceedances_from_rms_uncertainty(
     # statistics.
     rms_uncertainty = rms / np.sqrt(n_excl_meas)
 
+    min_rms = rms - _RMS_UNCERT_SIGMA * rms_uncertainty
+    if min_rms <= 0:
+        raise ValueError(
+            "RMS uncertainty range includes non-positive RMS values. "
+            "This could be caused a value of n_excl_meas that is too small."
+        )
     # Evaluate the expected exceedance count over possible RMS values, weighted
     # by the assumed Gaussian distribution of uncertainty in the RMS estimate.
     deviations = np.linspace(
@@ -649,7 +656,7 @@ def _statistics_from_rms_uncertainty(
         center=center,
         invert=True,
         gaussian=False,
-        internal=False
+        internal=False,
     )
     # `n_excl_meas` is the effective number of independent beam areas in the
     # external region and is therefore the same for all external peaks.
@@ -672,8 +679,8 @@ def _statistics_from_rms_uncertainty(
         'fwhm': beam_fwhm,
         'incl_radius': search_radius,
         'neg_peak': neg_peak,
-        'int_peak_val': [],
-        'int_peak_coord': [],
+        'int_peak_val': [int_peak1],
+        'int_peak_coord': [int_coord1],
         'int_exp_exceed': [],
         'int_snr': [],
         'ext_peak_val': [],
@@ -713,6 +720,7 @@ def _statistics_from_rms_uncertainty(
         )
         peak = ext_stats['peak']
         rms = ext_stats['rms']
+        n_excl_meas = ext_stats['n_incl_meas']
 
         ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
             peak=peak,
@@ -732,6 +740,7 @@ def _statistics_from_rms_uncertainty(
             )
             coord = ext_stats['peak_coord']
             peak = ext_stats['peak']
+            n_excl_meas = ext_stats['n_incl_meas']
             ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
                 peak=peak,
                 rms=rms,
@@ -741,6 +750,7 @@ def _statistics_from_rms_uncertainty(
             prob_dict['ext_peak_coord'].append(coord)
             prob_dict['ext_exp_exceed'].append(ext_exp_exceed)
             prob_dict['ext_snr'].append(peak / rms)
+            prob_dict['n_excl_meas'] = n_excl_meas
             center.append(coord)
             radius.append(beam_fwhm)
         else:
@@ -1198,7 +1208,7 @@ def summary(
             Peaks are arranged in decreasing brightness.
             Empty if no significant internal peaks are found.
         `conservative_rms` : float
-            The most conservative (smallest value) of the estimated rms values
+            The most conservative (largest value) of the estimated rms values
             (`rms_val`, `sd_mad`, `calc_rms_val`, `neg_peak_rms_val`, and the
             noise estimate if it is included in FITS file).
         `conservative_snr` : float
@@ -1320,7 +1330,7 @@ def summary(
             noise_col = hdul[1].columns[2]
             if noise_col.name == 'Noise Est':
                 if noise_col.unit == 'mJy':
-                    noise = float(hdul[1].data[0][2] * 1e3)
+                    noise = float(hdul[1].data[0][2] * 1e-3)
                 elif noise_col.unit == 'Jy':
                     noise = float(hdul[1].data[0][2])
         except:
