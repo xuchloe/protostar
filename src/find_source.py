@@ -10,6 +10,7 @@ import matplotlib.ticker as ticker
 import warnings
 from pathlib import Path
 import sigfig
+import math
 
 _RMS_UNCERT_SIGMA = 5
 _RMS_UNCERT_SAMPLES = 100
@@ -40,8 +41,9 @@ def _fits_data_index(fits_file: str | Path) -> int:
             # Iterate through the HDUs until one containing data is found.
             # Assume the first HDU with data contains the image.
             for file_index, hdu in enumerate(hdulist):
-                if hdu.data is not None:
-                    return file_index
+                # Make sure this index contains image data.
+                if hdu.is_image and hdu.data is not None:
+                        return file_index
     except OSError as err:
         raise OSError(
             f"Unable to open FITS file: {fits_file}"
@@ -158,15 +160,20 @@ def _region_stats(
         `neg_peak` : float | None
             Most negative pixel flux density, in Jy, in the image.
             `None` if no negative pixel values are present.
+        `neg_peak_rms_val` : float | None
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements, over the entire image, less than or equal to the flux
+            density of the image's most negative pixel is one.
+            `None` if no negative pixel values are present.
 
     Raises
     ------
     OSError
         If the FITS file cannot be opened.
     ValueError
-        If FITS image data is not a 3D array containing a 2D image, if `center`
-        and `radius` have different lengths, or if the applied mask contains no
-        pixels.
+        If FITS image data is not a 3D array containing a 2D image, ir `radius`
+        is an empty list, if `center` and `radius` have different lengths, or
+        if the applied mask contains no pixels.
 
     Notes
     -----
@@ -177,6 +184,17 @@ def _region_stats(
     fails, the pixel maximum and its integer coordinates are returned.
     """
     fits_file = Path(fits_file)
+
+    if not radius:
+        raise ValueError(
+            "'radius' list must not be empty."
+        )
+
+    for r in radius:
+        if r <= 0:
+            raise ValueError(
+                "Values in 'radius' must be positive."
+            )
 
     if center:
         if len(center) != len(radius):
@@ -203,7 +221,9 @@ def _region_stats(
     if neg_peak >= 0:
         neg_peak = None
 
-    mad = float(median_abs_deviation(data[0].flatten()))
+    flat_data = data[0].flatten()
+
+    mad = float(median_abs_deviation(flat_data))
     # Convert the MAD to an equivalent Gaussian standard deviation.
     sd_mad = float(mad / norm.ppf(0.75))
 
@@ -232,12 +252,28 @@ def _region_stats(
     y_delt = Angle(abs(image_hdu.header['CDELT2']), y_unit)
     y_cell_size = y_delt.to(u.arcsec).value
 
-    # Find the beam area, in arcsec^2.
+    # Find the beam area, in arcsec^2. Assume convention where 'BMIN' and
+    # 'BMAJ' are recorded in degrees in the FITS header.
     beam_area = float(
-        ((np.pi / 4) * image_hdu.header['BMAJ'] * image_hdu.header['BMIN']
-        * (Angle(1, x_unit) * Angle(1, y_unit) / np.log(2))
-        .to(u.arcsec ** 2)).value
+        (
+            (np.pi / 4)
+            * image_hdu.header['BMAJ']
+            * image_hdu.header['BMIN']
+            * (
+                Angle(1, image_hdu.header['CUNIT1'])
+            * Angle(1, image_hdu.header['CUNIT2'])
+            / np.log(2)
+                ).to(u.arcsec ** 2)
+        ).value
     )
+
+    img_z_score = norm.ppf(
+        1 / (len(flat_data) * x_cell_size * y_cell_size / beam_area)
+    )
+    if neg_peak is not None:
+        neg_peak_rms_val = neg_peak / img_z_score
+    else:
+        neg_peak_rms_val = None
 
     # Find the axis sizes, in arcsec.
     x_axis_size = x_dim * x_cell_size
@@ -355,7 +391,7 @@ def _region_stats(
         except RuntimeError:
             pass  # Subpixel fitting failed; use pixel values instead.
 
-    rms = float(np.sqrt(np.var(masked_data)))
+    rms = float(np.nanstd(masked_data))
 
     stats = {
         'peak': peak,
@@ -371,7 +407,8 @@ def _region_stats(
         'n_excl_meas': float(excl_area / beam_area),
         'mad': mad,
         'sd_mad': sd_mad,
-        'neg_peak': neg_peak
+        'neg_peak': neg_peak,
+        'neg_peak_rms_val': neg_peak_rms_val,
     }
 
     return stats
@@ -440,7 +477,7 @@ def _expected_exceedances_from_rms_uncertainty(
 
     # Estimate uncertainty in the RMS estimate assuming Gaussian noise
     # statistics.
-    rms_uncertainty = rms / np.sqrt(n_excl_meas)
+    rms_uncertainty = rms / np.sqrt(2 * (n_excl_meas - 1))
 
     min_rms = rms - _RMS_UNCERT_SIGMA * rms_uncertainty
     if min_rms <= 0:
@@ -530,29 +567,32 @@ def _statistics_from_rms_uncertainty(
         `neg_peak` : float | None
             Most negative pixel flux density, in Jy, in the image.
             `None` if no negative pixel values are present.
+        `neg_peak_rms_val` : float | None
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements, over the entire image, less than or equal to the flux
+            density of the image's most negative pixel is one.
+            `None` if no negative pixel values are present.
         `int_peak_val` : list of float
             The flux density, in Jy, of the brightest internal peak and the
             flux densities, in Jy, of the remaining significant internal peaks,
             if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_peak_coord` : list of tuple of 2 int or float
             The pixel coordinates of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
             The expected number of independent noise measurements, over the
             internal region, with flux densities greater than or equal to the
             brightest internal peak and the remaining significant internal
             peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_snr` : list of float
             The signal to noise ratios of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `ext_peak_val` : list of float
             The flux densities, in Jy, of the significant external peaks, if
             these exist.
@@ -570,6 +610,8 @@ def _statistics_from_rms_uncertainty(
             Peaks are arranged in decreasing brightness.
         `ext_snr` : list of float
             The signal to noise ratios of the external peaks, if these exist.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
             Empty if no significant external peaks are found.
         `next_ext_peak` : float
@@ -606,7 +648,8 @@ def _statistics_from_rms_uncertainty(
     i = _fits_data_index(fits_file)
 
     # Open FITS file and extract image HDU.
-    # Extract beam information from image HDU.
+    # Extract beam information from image HDU. Assume convention where 'BMIN'
+    # and 'BMAJ' are recorded in degrees in the FITS header.
     try:
         with fits.open(fits_file) as hdulist:
             hdu = hdulist[i]
@@ -646,9 +689,11 @@ def _statistics_from_rms_uncertainty(
     mad = int_stats1['mad']
     sd_mad = int_stats1['sd_mad']
     neg_peak = int_stats1['neg_peak']
+    neg_peak_rms_val = int_stats1['neg_peak_rms_val']
 
     # Find external peaks and get their info.
-    center = [field_center]
+    if center is None:
+        center = [field_center]
     radius = [search_radius]
     ext_stats1 = _region_stats(
         fits_file=fits_file,
@@ -679,8 +724,9 @@ def _statistics_from_rms_uncertainty(
         'fwhm': beam_fwhm,
         'incl_radius': search_radius,
         'neg_peak': neg_peak,
-        'int_peak_val': [int_peak1],
-        'int_peak_coord': [int_coord1],
+        'neg_peak_rms_val': neg_peak_rms_val,
+        'int_peak_val': [],
+        'int_peak_coord': [],
         'int_exp_exceed': [],
         'int_snr': [],
         'ext_peak_val': [],
@@ -777,7 +823,7 @@ def _statistics_from_rms_uncertainty(
         int_stats_final = _region_stats(
             fits_file=fits_file,
             radius=[search_radius],
-            center=center,
+            center=[field_center],
             invert=False,
             gaussian=True,
             internal=True
@@ -786,14 +832,19 @@ def _statistics_from_rms_uncertainty(
         int_peak_final = int_stats_final['peak']
         prob_dict['int_peak_val'].append(int_peak_final)
         prob_dict['int_peak_coord'].append(int_coord_final)
-        int_exp_exceed1 = _expected_exceedances_from_rms_uncertainty(
+        int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
             peak=int_peak_final,
             rms=rms,
             n_excl_meas=n_excl_meas,
             n_incl_meas=n_incl_meas
         )
-        prob_dict['int_exp_exceed'].append(int_exp_exceed1)
+        prob_dict['int_exp_exceed'].append(int_exp_exceed)
         prob_dict['int_snr'].append(int_peak_final / rms)
+    else:
+        prob_dict['int_peak_val'].append(int_peak1)
+        prob_dict['int_peak_coord'].append(int_coord1)
+        prob_dict['int_exp_exceed'].append(int_exp_exceed1)
+        prob_dict['int_snr'].append(int_snr1)
 
     # Treat the first internal peak like an external peak, in the sense that we
     # only exclude a small area around this peak so that we can look for
@@ -895,29 +946,32 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
         `neg_peak` : float | None
             Most negative pixel flux density, in Jy, in the image.
             `None` if no negative pixel values are present.
+        `neg_peak_rms_val` : float | None
+            The RMS, in Jy, for which the expected number of independent noise
+            measurements, over the entire image, less than or equal to the flux
+            density of the image's most negative pixel is one.
+            `None` if no negative pixel values are present.
         `int_peak_val` : list of float
             The flux density, in Jy, of the brightest internal peak and the
             flux densities, in Jy, of the remaining significant internal peaks,
             if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_peak_coord` : list of tuple of 2 int or float
             The pixel coordinates of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
             The expected number of independent noise measurements, over the
             internal region, with flux densities greater than or equal to the
             brightest internal peak and the remaining significant internal
             peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_snr` : list of float
             The signal to noise ratios of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `ext_peak_val` : list of float
             The flux densities, in Jy, of the significant external peaks, if
             these exist.
@@ -933,9 +987,12 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             external region, with flux densities greater than or equal to the
             significant external peaks, if these exist.
             Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
         `ext_snr` : list of float
-            The signal to noise ratios of the external peaks, if these
-            exist.
+            The signal to noise ratios of the signficant external peaks, if
+            these exist.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
             Empty if no significant external peaks are found.
         `next_ext_peak` : float
@@ -953,13 +1010,17 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
         `calc_ext_exp_exceed` : float
             The expected number of independent noise measurements, over the
             external region, with flux densities greater than or equal to the
-            brightest non-significant external peak, calculated using the more
-            conservative of `calc_rms_val` and `neg_peak_rms_val`, when the
-            latter is available.
+            significant external peaks, if these exist, calculated using the
+            more conservative of `calc_rms_val` and `neg_peak_rms_val`, when
+            the latter is available.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
         `calc_ext_snr` : float
-            The SNR of the brightest non-significant external peak, calculated
-            with the more conservative (smaller value) of `calc_rms_val` and
-            `neg_peak_rms_val`.
+            The signal to noise ratios of the signficant external peaks, if
+            these exist, calculated with the more conservative (smaller value)
+            of `calc_rms_val` and `neg_peak_rms_val`.
+            Peaks are arranged in decreasing brightness.
+            Empty if no significant external peaks are found.
         `calc_int_exp_exceed` : list of float
             The expected number of independent noise measurements, over the
             internal region, with flux densities greater than or equal to the
@@ -967,14 +1028,12 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             peaks, if these exist, calculated using the more conservative of
             `calc_rms_val` and `neg_peak_rms_val` when the latter is available.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `calc_int_snr` : list of float
             The signal to noise ratios, calculated using the more
             conservative of `calc_rms_val` and `neg_peak_rms_val` when the
             latter is available, of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
 
     Raises
     ------
@@ -987,10 +1046,11 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
     Expected numbers are calculated assuming Gaussian statistics.
 
     This function modifies `prob_dict` in place by adding the keys
-    `calc_rms_val`, `neg_peak_rms_val`, `calc_ext_exp_exceed`, `calc_ext_snr`,
+    `calc_rms_val`, `calc_ext_exp_exceed`, `calc_ext_snr`,
     `calc_int_exp_exceed`, and `calc_int_snr`.
     """
     int_peak_val = prob_dict['int_peak_val']
+    ext_peak_val = prob_dict['ext_peak_val']
     next_ext_peak = prob_dict['next_ext_peak']
     if next_ext_peak is None:
         raise ValueError(
@@ -1018,11 +1078,9 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
     prob_dict['calc_rms_val'] = float(excl_rms_val)
 
     img_z_score = norm.ppf(1 / (n_incl_meas + n_excl_meas))
-    neg_peak = prob_dict['neg_peak']
+    neg_peak_rms_val = prob_dict['neg_peak_rms_val']
 
-    if neg_peak is not None:
-        neg_peak_rms_val = neg_peak / img_z_score
-        prob_dict['neg_peak_rms_val'] = float(neg_peak_rms_val)
+    if neg_peak_rms_val is not None:
         # Choose the more conservative of `excl_rms_val` and
         # `neg_peak_rms_val`.
         rms_val = (
@@ -1030,13 +1088,17 @@ def _statistics_from_extreme_peaks(prob_dict: dict) -> dict:
             else neg_peak_rms_val
         )
     else:
-        prob_dict['neg_peak_rms_val'] = None
         rms_val = excl_rms_val
 
-    prob_dict['calc_ext_exp_exceed'] = (
-        float(norm.cdf(-next_ext_peak / rms_val)) * n_excl_meas
-    )
-    prob_dict['calc_ext_snr'] = float(next_ext_peak / rms_val)
+    calc_ext_exp_exceed = []
+    calc_ext_snr = []
+    for peak in ext_peak_val:
+        calc_ext_exp_exceed.append(
+            float(norm.cdf(-peak / rms_val)) * n_excl_meas
+        )
+        calc_ext_snr.append(float(peak / rms_val))
+    prob_dict['calc_ext_exp_exceed'] = calc_ext_exp_exceed
+    prob_dict['calc_ext_snr'] = calc_ext_snr
 
     calc_int_exp_exceed = []
     calc_int_snr = []
@@ -1061,6 +1123,7 @@ def summary(
         save_path: str | Path | None = None,
         file_name: str | None = None,
         sig_figs: int | None = 3,
+        prim_beam_fwhm: Angle | None = None,
     ):
     """Summarize the statistics of an image in a dictionary and/or plot, with
     the option to save the plot as a .png file.
@@ -1098,13 +1161,16 @@ def summary(
     sig_figs : int | None, optional
         Number of significant figures to round the output values to. If `None`,
         no rounding is applied.
+    prim_beam_fwhm : Angle | None, optional
+        The primary beam full width at half maximum. If no value is given,
+        primary beam corrections will not be made.
 
     Returns
     -------
     dict
         Dictionary with the following keys:
         `field_center` : tuple of 2 float
-            Image center in pixel coordinates.
+            Image center in relative arcsec to the center, so (0,0).
         `rms_val` : float
             The estimated RMS, in Jy, of the image, excluding circular
             neighborhoods around flux densities that were considered to be
@@ -1130,48 +1196,48 @@ def summary(
             flux densities, in Jy, of the remaining significant internal peaks,
             if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_peak_coord` : list of tuple of 2 int or float
-            The pixel coordinates of the brightest internal peak and the
-            remaining significant internal peaks, if these exist.
+            The relative coordinates, in arcsec, of the brightest internal peak
+            and the remaining significant internal peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_exp_exceed` : list of float
             The expected number of independent noise measurements, over the
             internal region, with flux densities greater than or equal to the
             brightest internal peak and the remaining significant internal
             peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `int_snr` : list of float
             The signal to noise ratios of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
-        `ext_peak_val` : str or list of float
+        `ext_peak_val` : str | list of float
             The flux densities, in Jy, of the significant external peaks, if
             these exist. If none exist, then 'No significant external peak'
             will be used.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant external peaks are found.
-        `ext_peak_coord` : str or list of tuple of 2 int or float
-            The pixel coordinates of the significant external peaks, if these
-            exist. If none exist, then 'No significant external peak' will be
-            used.
+        `ext_peak_coord` : str | list of tuple of 2 int or float
+            The relative coordinates, in arcsec of the significant external
+            peaks, if these exist. If none exist, then 'No significant external
+            peak' will be used.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant external peaks are found.
-        `ext_exp_exceed` : str or list of float
+        `ext_exp_exceed` : str | list of float
             The expected number of independent noise measurements, over the
             external region, with flux densities greater than or equal to the
             significant external peaks, if these exist. If none exist, then
             'No significant external peak' will be used.
             Peaks are arranged in decreasing brightness.
-        `ext_snr` : str or list of float
+        `ext_snr` : str | list of float
             The signal to noise ratios of the external peaks, if these
             exist. If none exist, then 'No significant external peak' will be
             used.
+            The noise used here is the standard deviation in flux after masking
+            out the significant internal and external sources.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant external peaks are found.
+        `next_ext_peak` : float
+            The flux density, in Jy, of the brightest non-significant external
+            peak.
         `calc_rms_val` : float
             The RMS, in Jy, for which the expected number of independent noise
             measurements, over the external region, greater than or equal to
@@ -1181,16 +1247,20 @@ def summary(
             measurements, over the entire image, less than or equal to the
             image's most negative pixel is one.
             `None` if no negative pixel values are present.
-        `calc_ext_exp_exceed` : float
+        `calc_ext_exp_exceed` : str | float
             The expected number of independent noise measurements, over the
             external region, with flux densities greater than or equal to the
-            brightest non-significant external peak, calculated using the more
-            conservative of `calc_rms_val` and `neg_peak_rms_val`, when the
-            latter is available.
-        `calc_ext_snr` : float
-            The SNR of the brightest non-significant external peak, calculated
-            with the more conservative (smaller value) of `calc_rms_val` and
-            `neg_peak_rms_val`.
+            significant external peaks, if these exist, calculated using the
+            more conservative of `calc_rms_val` and `neg_peak_rms_val`, when
+            the latter is available. If none exist, then 'No significant
+            external peak' will be used.
+            Peaks are arranged in decreasing brightness.
+        `calc_ext_snr` : str | float
+            The signal to noise ratios of the signficant external peaks, if
+            these exist, calculated with the more conservative (smaller value)
+            of `calc_rms_val` and `neg_peak_rms_val`. If none exist, then 'No
+            significant external peak' will be used.
+            Peaks are arranged in decreasing brightness.
         `calc_int_exp_exceed` : list of float
             The expected number of independent noise measurements, over the
             internal region, with flux densities greater than or equal to the
@@ -1199,22 +1269,41 @@ def summary(
             `calc_rms_val` and `neg_peak_rms_val`, when the latter is
             available.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `calc_int_snr` : list of float
             The signal to noise ratios, calculated using the more
             conservative of `calc_rms_val` and `neg_peak_rms_val` when the
             latter is available, of the brightest internal peak and the
             remaining significant internal peaks, if these exist.
             Peaks are arranged in decreasing brightness.
-            Empty if no significant internal peaks are found.
         `conservative_rms` : float
             The most conservative (largest value) of the estimated rms values
             (`rms_val`, `sd_mad`, `calc_rms_val`, `neg_peak_rms_val`, and the
-            noise estimate if it is included in FITS file).
+            noise estimate if it is included in FITS file), in Jy.
         `conservative_snr` : float
             The SNR of the brightest internal peak, calculated using
             `conservative_rms`.
-
+        `int_flux_uncert` : list of float
+            The uncertainties, in Jy, of the fluxes of the brightest internal
+            peak and the remaining significant internal peaks, if these exist.
+            The order of these uncertainties corresponds to the order of the
+            fluxes in `int_peak_val`.
+        `int_pos_uncert` : list of tuple of 2 float
+            The positional uncertainties, in arcsec, of the brightest internal
+            peak and the remaining significant internal peaks, if these exist.
+            The order of these uncertainties corresponds to the order of the
+            coordinates in `int_peak_coord`.
+        `ext_flux_uncert` : str | list of float
+            The uncertainties, in Jy, of the fluxes of the significant external
+            peaks, if these exist. The order of these uncertainties corresponds
+            to the order of the fluxes in `ext_peak_val`. If no significant
+            external peaks exist, then 'No significant external peak' will be
+            used.
+        `ext_pos_uncert` : str | list of tuple of 2 float
+            The positional uncertainties, in arcsec, of the significant
+            external peaks, if these exist. The order of these uncertainties
+            corresponds to the order of the coordinates in `ext_peak_coord`. If
+            no significant external peaks exist, then 'No significant external
+            peak' will be used.
     Warns
     -----
     UserWarning
@@ -1224,6 +1313,15 @@ def summary(
 
     Notes
     -----
+    Assumes a flat noise background. Any primary beam corrections are made
+    using a Gaussian beam attenuation model after completing the statistical
+    computations and analysis. Primary beam corrections are applied only to the
+    source fluxes (`int_peak_val` and `ext_peak_val`) and source flux
+    uncertainties (`int_flux_uncert` and `ext_flux_uncert`).
+
+    Plotting assumes that `CDELT1` and `CDELT2` are equal. If this is not the
+    case, the second axis will be scaled.
+
     This function modifies the global Matplotlib `rcParams` by setting the font
     size to 15.
 
@@ -1293,13 +1391,39 @@ def summary(
     )
     center = info['field_center']
 
-    header_data = fits.getheader(fits_file)
+    img_index = _fits_data_index(fits_file)
+    with fits.open(fits_file) as hdulist:
+        header_data = hdulist[img_index].header
+        image_data = hdulist[img_index].data
+
+        noise_estimate = None
+        noise_unit = None
+
+        for hdu in hdulist:
+            if not hasattr(hdu, "columns"):
+                continue
+
+            column_names = hdu.columns.names
+
+            if "Noise Est" not in column_names:
+                continue
+
+            noise_estimate = hdu.data["Noise Est"][0]
+
+            column_index = column_names.index("Noise Est")
+            noise_unit = hdu.columns[column_index].unit
+            break
+
+    cunit1 = header_data['CUNIT1']
+    cunit2 = header_data['CUNIT2']
+
     pixel_scale = (
         Angle(
             abs(header_data['CDELT1']),
-            header_data['CUNIT1']
+            cunit1,
         ).to_value('arcsec')
     )
+
 
     int_x_coords = []
     int_y_coords = []
@@ -1324,17 +1448,16 @@ def summary(
     # Read the estimated RMS from the FITS table if present, compute the RMS's
     # with the various methods, and select the most conservative RMS and
     # use it to calculate the internal SNR.
-    with fits.open(fits_file) as hdul:
-        noise = None
+
+    # Convert noise_estimate to Jy if needed.
+    if noise_unit is None:
+        noise_estimate = None
+    else:
         try:
-            noise_col = hdul[1].columns[2]
-            if noise_col.name == 'Noise Est':
-                if noise_col.unit == 'mJy':
-                    noise = float(hdul[1].data[0][2] * 1e-3)
-                elif noise_col.unit == 'Jy':
-                    noise = float(hdul[1].data[0][2])
+            noise_estimate = (noise_estimate * u.Unit(noise_unit)).to('Jy')
         except:
-            pass
+            noise_estimate = None
+
     rms_list = [
         info['rms_val'],
         info['sd_mad'],
@@ -1342,8 +1465,8 @@ def summary(
     ]
     if info['neg_peak_rms_val'] is not None:
         rms_list.append(info['neg_peak_rms_val'])
-    if noise is not None:
-        rms_list.append(noise)
+    if noise_estimate is not None:
+        rms_list.append(noise_estimate)
     conservative_rms = max(rms_list) # in Jy
     conservative_snr = info['int_peak_val'][0] / conservative_rms
 
@@ -1351,6 +1474,7 @@ def summary(
     y_coords = []
     ext_peak_coords = info['ext_peak_coord']
     n_ext_peaks = len(ext_peak_coords)
+    n_int_peaks = len(int_peak_coords)
     for i in range(n_ext_peaks):
         # Convert external peak coordinates to offsets from the image center
         # in arcsec.
@@ -1364,13 +1488,15 @@ def summary(
         )
 
     fwhm = info['fwhm']
+    bpa_rad = np.deg2rad(header_data['BPA'])  # Assume bpa is in degrees.
+    bmaj = header_data['BMAJ']
+    bmin = header_data['BMIN']
 
     if plot:
         plt.rcParams['font.size'] = 15
         plt.rcParams['hatch.linewidth'] = 0.5
         plt.rcParams['figure.dpi'] = 60
 
-        image_data = fits.getdata(fits_file)
         shape = image_data.shape
 
         while len(shape) > 2:
@@ -1401,7 +1527,7 @@ def summary(
         for i in range(n_int_peaks):
             int_circle = patches.Circle(
                 (int_x_coords[i], int_y_coords[i]),
-                fwhm * pixel_scale,
+                fwhm,
                 edgecolor='lime',
                 fill=False
             )
@@ -1440,7 +1566,7 @@ def summary(
             for i in range(n_ext_peaks):
                 ext_circle = patches.Circle(
                     (x_coords[i], y_coords[i]),
-                    fwhm * pixel_scale,
+                    fwhm,
                     edgecolor='lime',
                     fill=False
                 )
@@ -1451,24 +1577,34 @@ def summary(
         # Find the image boundaries.
         x_min = ((0 - center[0]) - 0.5) * pixel_scale
         y_min = ((0 - center[1]) - 0.5) * pixel_scale
-        x_max = ((image_data.shape[0] -  center[0]) - 0.5) * pixel_scale
-        y_max = ((image_data.shape[1] -  center[1]) - 0.5) * pixel_scale
+        x_max = (
+            (image_data.shape[1] -  center[0]) - 0.5
+        ) * pixel_scale
+        y_max = (
+            (image_data.shape[0] -  center[1]) - 0.5
+        ) * pixel_scale
 
-        # Plot the beam for reference.
+        # Calculate angle to plot the reference beam.
+        x_direction = np.sign(header_data["CDELT1"]) * np.sin(bpa_rad)
+        y_direction = np.sign(header_data["CDELT2"]) * np.cos(bpa_rad)
+        beam_angle = np.rad2deg(np.arctan2(y_direction, x_direction)) % 180
+
+        # Plot the beam for reference. Assume convention where 'BMIN' and
+        # 'BMAJ' are recorded in degrees in the FITS header.
         beam = patches.Ellipse(
-            (x_min*0.88, y_min*0.92),
+            (x_min * 0.88, y_min * 0.92),
             Angle(
-                header_data['BMIN'],
-                header_data['CUNIT1']
+                bmin,
+                cunit2,
             ).to_value('arcsec'),
             Angle(
-                header_data['BMAJ'],
-                header_data['CUNIT1']
+                bmaj,
+                cunit1,
             ).to_value('arcsec'),
             fill=True,
             facecolor='w',
             edgecolor='k',
-            angle=header_data['BPA'],
+            angle=beam_angle,
             hatch='/////',
             lw=1
         )
@@ -1540,19 +1676,106 @@ def summary(
         for i in range(n_ext_peaks):
             ext_peaks.append((float(x_coords[i]), float(y_coords[i])))
 
+        def positional_uncertainty(
+                peak_list: list,
+                rms: float,
+                bmaj: float,
+                bmin: float,
+                cunit1: u.UnitBase,
+                cunit2: u.UnitBase,
+                bpa_rad: float,
+            ) -> list:
+            """Create a list of positional uncertainties corresponding to a
+            list of coordinates.
+
+            Parameters
+            ----------
+            peak_list : list
+                A list of fluxes of sources to calculate the positional
+                uncertainties for.
+            rms : list
+                The RMS noise of the map.
+            bmaj : float
+                The beam major axis, in units of cunit1.
+            bmin : float
+                The beam minor axis, in units of cunit2.
+            cunit1 : u.UnitBase
+                The units of the beam major axis.
+            cunit2 : u.UnitBase
+                The units of the beam minor axis.
+            bpa_rad : float
+                The beam position angle, in radians.
+
+            Returns
+            -------
+            list
+                A list of the positional uncertainties, in the order
+                corresponding to the fluxes given.
+            """
+            pos_uncert = []
+            for peak in peak_list:
+                snr = peak / rms
+                bmin_uncert = float(
+                    Angle(bmin, cunit2).to(u.arcsec).value
+                    / snr
+                )
+                bmaj_uncert = float(
+                    Angle(bmaj, cunit1).to(u.arcsec).value
+                    / snr
+                )
+                ra_uncert = round(
+                    bmin_uncert * abs(math.sin(bpa_rad))
+                    + bmaj_uncert * abs(math.cos(bpa_rad)),
+                    3
+                )
+                dec_uncert = round(
+                    bmaj_uncert * abs(math.sin(bpa_rad))
+                    + bmin_uncert * abs(math.cos(bpa_rad)),
+                    3
+                )
+                pos_uncert.append((ra_uncert, dec_uncert))
+            return pos_uncert
+
+
+        ext_pos_uncert = positional_uncertainty(
+            info['ext_peak_val'],
+            conservative_rms,
+            bmaj,
+            bmin,
+            cunit1,
+            cunit2,
+            bpa_rad,
+        )
+        int_pos_uncert = positional_uncertainty(
+            info['int_peak_val'],
+            conservative_rms,
+            bmaj,
+            bmin,
+            cunit1,
+            cunit2,
+            bpa_rad,
+        )
+
         if n_ext_peaks == 0:
             ext_peaks = 'No significant external peak'
             short_info['ext_peak_val'] = 'No significant external peak'
             short_info['ext_snr'] = 'No significant external peak'
             short_info['ext_exp_exceed'] = 'No significant external peak'
+            short_info['calc_ext_exp_exceed'] = 'No significant external peak'
+            short_info['calc_ext_snr'] = 'No significant external peak'
+            short_info['ext_flux_uncert'] = 'No significant external peak'
+            short_info['ext_pos_uncert'] = 'No significant external peak'
+        else:
+            short_info['ext_flux_uncert'] = [conservative_rms] * n_int_peaks
+            short_info['ext_pos_uncert'] = ext_pos_uncert
 
         short_info['int_peak_coord'] = int_peaks
         short_info['ext_peak_coord'] = ext_peaks
         short_info['field_center'] = (0,0)
         short_info['conservative_rms'] = conservative_rms
         short_info['conservative_snr'] = conservative_snr
-
-        del short_info['next_ext_peak']
+        short_info['int_flux_uncert'] = [conservative_rms] * n_int_peaks
+        short_info['int_pos_uncert'] = int_pos_uncert
 
         # Round numerical values if requested.
         if sig_figs is not None:
@@ -1595,6 +1818,66 @@ def summary(
                                     else:
                                         temp.append(v)
                                     short_info[key][i] = tuple(temp)
+
+            if prim_beam_fwhm is not None:
+                pb_fwhm_arcsec = prim_beam_fwhm.to(u.arcsec).value
+
+                def pb_corrected_flux(
+                    peaks: list,
+                    coords: list,
+                    pb_fwhm_arcsec: float
+                ) -> list:
+                    """
+                    Apply primary beam corrections using a Gaussian beam
+                    attenuation function.
+
+                    Parameters
+                    ----------
+                    peaks : list of float
+                        The sources' uncorrected flux values.
+                    coord : list of tuple of 2 float
+                        The sources' relative coordinates, in arcsec, from the
+                        field center. The coordinates should correspond to the
+                        fluxes in `peaks`.
+                    pb_fwhm : float
+                        The primary beam full width at half maximum, in arcsec.
+
+                    Returns
+                    -------
+                    list of float
+                        The sources' corrected flux values.
+                    """
+                    corrected = []
+                    for i, flux in enumerate(peaks):
+                        ra, dec = coords[i]
+                        attenuation = np.exp(
+                            -4 * np.log(2) * (ra ** 2 + dec ** 2)
+                            / pb_fwhm_arcsec**2
+                        )
+                        corrected.append(float(flux / attenuation))
+                    return corrected
+
+
+                short_info['int_peak_val'] = pb_corrected_flux(
+                    short_info['int_peak_val'],
+                    short_info['int_peak_coord'],
+                    pb_fwhm_arcsec,
+                )
+                short_info['int_flux_uncert'] = pb_corrected_flux(
+                    short_info['int_flux_uncert'],
+                    short_info['int_peak_coord'],
+                    pb_fwhm_arcsec,
+                )
+                short_info['ext_peak_val'] = pb_corrected_flux(
+                    short_info['ext_peak_val'],
+                    short_info['ext_peak_coord'],
+                    pb_fwhm_arcsec,
+                )
+                short_info['ext_flux_uncert'] = pb_corrected_flux(
+                    short_info['ext_flux_uncert'],
+                    short_info['ext_peak_coord'],
+                    pb_fwhm_arcsec,
+                )
 
         return short_info
 
