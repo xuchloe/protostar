@@ -12,83 +12,221 @@ import itertools
 from uncertainties import ufloat
 import sigfig
 
-def p_model(p_params, u, v, rad_bmaj, rad_barea):
+def p_model(
+    p_params,
+    u,
+    v,
+    rad_bmaj,
+    rad_barea,
+):
     peak, ra, dec = p_params
-    return peak * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    return peak * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
 
-def c_model(c_params, u, v, rad_bmaj, rad_barea):
+
+def c_model(
+    c_params,
+    u,
+    v,
+    rad_bmaj,
+    rad_barea,
+):
     peak, ra, dec, sigma = c_params
-    if sigma <= rad_bmaj / 2: # unresolved
-        return peak * np.exp(-2*np.pi**2 * sigma**2 * (u**2 + v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    return peak * 2*np.pi*sigma**2 / rad_barea * np.exp(-2*np.pi**2 * sigma**2 * (u**2 + v**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    if sigma <= rad_bmaj / 2:  # Unresolved source.
+        return (
+            peak
+            * np.exp(-2 * np.pi**2 * sigma**2 * (u**2 + v**2))
+            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+        )
+    return (
+        peak
+        * 2 * np.pi * sigma**2
+        / rad_barea
+        * np.exp(-2 * np.pi**2 * sigma**2 * (u**2 + v**2))
+        * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+    )
 
-def g_model(g_params, u, v, rad_bmaj, rad_barea):
+
+def g_model(
+    g_params,
+    u,
+    v,
+    rad_bmaj,
+    rad_barea,
+):
     peak, ra, dec, sigma, ratio, vis_theta = g_params
-    if sigma <= rad_bmaj / 2: # unresolved
-        return peak * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
-            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2 *ratio**2)) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    return peak * 2*np.pi*sigma**2 * ratio / rad_barea * np.exp(-2*np.pi**2 * sigma**2 * ((u*np.cos(vis_theta)-v*np.sin(vis_theta))**2 + \
-            (u*np.sin(vis_theta)+v*np.cos(vis_theta))**2 * ratio**2)) \
-            * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    if sigma <= rad_bmaj / 2: # Unresolved source.
+        return (
+            peak
+            * np.exp(
+                -2 * np.pi**2 * sigma**2 *
+                (
+                    (u * np.cos(vis_theta) - v * np.sin(vis_theta))**2
+                    + (u * np.sin(vis_theta) + v * np.cos(vis_theta))**2
+                    * ratio**2
+                )
+            )
+            * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
+        )
+    return (
+            peak
+            * 2 * np.pi * sigma**2 * ratio
+            / rad_barea
+            * np.exp(
+                -2 * np.pi**2 * sigma**2 *
+                (
+                    (u * np.cos(vis_theta) - v * np.sin(vis_theta))**2
+                    + (u * np.sin(vis_theta) + v * np.cos(vis_theta))**2
+                    * ratio**2
+                )
+            )
+            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+    )
 
-def d_model(d_params, u, v, rad_bmaj, rad_barea):
+
+def d_model(
+    d_params,
+    u,
+    v,
+    rad_bmaj,
+    rad_barea,
+):
     peak, ra, dec, r, ratio, vis_theta = d_params
-    u_theta = u*np.cos(vis_theta) - v*np.sin(vis_theta)
-    v_theta = u*np.sin(vis_theta) + v*np.cos(vis_theta)
+    u_theta = u * np.cos(vis_theta) - v * np.sin(vis_theta)
+    v_theta = u * np.sin(vis_theta) + v * np.cos(vis_theta)
     q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
-    if r <= rad_bmaj / 2 : # unresolved:
-        return peak / (np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
-    return peak * (np.pi * r**2 * ratio) / (rad_barea*np.pi*q_theta) * sp.j1(2*np.pi*q_theta) * np.exp(-2*np.pi*1j*(u*ra + v*dec))
+    if r <= rad_bmaj / 2 : # Unresolved source.
+        return (
+            peak
+            / (np.pi * q_theta)
+            * sp.j1(2 * np.pi * q_theta)
+            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+        )
+    return (
+        peak
+        * (np.pi * r**2 * ratio)
+        / (rad_barea * np.pi * q_theta)
+        * sp.j1(2 * np.pi * q_theta)
+        * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+    )
 
-def p_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
+
+def p_p0(
+    peak,
+    rad_coord,
+    rad_pix,
+    width_p0,
+    ratio_p0,
+    theta_p0,
+    n_walkers,
+):
     p0 = np.zeros((n_walkers, 3))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
-        p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
-        p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
+        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        p0[i,1] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[0],
+            rad_pix / 2 + rad_coord[0]
+        )
+        p0[i,2] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[1],
+            rad_pix / 2 + rad_coord[1]
+        )
     return p0
 
-def c_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
+def c_p0(
+    peak,
+    rad_coord,
+    rad_pix,
+    width_p0,
+    ratio_p0,
+    theta_p0,
+    n_walkers,
+):
     p0 = np.zeros((n_walkers, 4))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
-        p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
-        p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
+        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        p0[i,1] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[0],
+            rad_pix / 2 + rad_coord[0],
+        )
+        p0[i,2] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[1],
+            rad_pix / 2 + rad_coord[1]
+        )
+        p0[i,3] = np.random.uniform(
+            0.8 * width_p0,
+            1.2 * width_p0,
+        )
     return p0
 
-def g_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
+def g_p0(
+    peak,
+    rad_coord,
+    rad_pix,
+    width_p0,
+    ratio_p0,
+    theta_p0,
+    n_walkers,
+):
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
-        p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
-        p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
-        p0[i,4] = np.random.uniform(ratio_p0-0.15, ratio_p0+0.15)
+        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        p0[i,1] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[0],
+            rad_pix / 2 + rad_coord[0]
+        )
+        p0[i,2] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[1],
+            rad_pix / 2 + rad_coord[1],
+        )
+        p0[i,3] = np.random.uniform(
+            0.8 * width_p0,
+            1.2 * width_p0
+        )
+        p0[i,4] = np.random.uniform(ratio_p0 - 0.15, ratio_p0 + 0.15)
         if p0[i,4] == 0:
             p0[i,4] = 1e-3
         elif p0[i,4] > 1:
             p0[1,4] = 1
-        p0[i,5] = np.random.uniform(theta_p0-np.pi/15, theta_p0+np.pi/15)
-        if p0[i,5] < -np.pi/2:
-            p0[1,4] = -np.pi/2
-        elif p0[i,5] > np.pi/2:
-            p0[i,5] = np.pi/2
+        p0[i,5] = np.random.uniform(
+            theta_p0 - np.pi / 15,
+            theta_p0 + np.pi / 15,
+        )
+        if p0[i,5] < -np.pi / 2:
+            p0[1,4] = -np.pi / 2
+        elif p0[i,5] > np.pi / 2:
+            p0[i,5] = np.pi / 2
     return p0
 
-def d_p0(peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers):
+def d_p0(
+    peak,
+    rad_coord,
+    rad_pix,
+    width_p0,
+    ratio_p0,
+    theta_p0,
+    n_walkers,
+):
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
-        p0[i,0] = np.random.uniform(0.95*peak, 1.05*peak)
-        p0[i,1] = np.random.uniform(-rad_pix/2+rad_coord[0], rad_pix/2+rad_coord[0])
-        p0[i,2] = np.random.uniform(-rad_pix/2+rad_coord[1], rad_pix/2+rad_coord[1])
-        p0[i,3] = np.random.uniform(0.8*width_p0, 1.2*width_p0)
-        p0[i,4] = np.random.uniform(ratio_p0-0.15, ratio_p0+0.15)
+        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        p0[i,1] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[0],
+            rad_pix / 2 + rad_coord[0],
+        )
+        p0[i,2] = np.random.uniform(
+            -rad_pix / 2 + rad_coord[1],
+            rad_pix / 2 + rad_coord[1],
+        )
+        p0[i,3] = np.random.uniform(0.8 * width_p0, 1.2 * width_p0)
+        p0[i,4] = np.random.uniform(ratio_p0 - 0.15, ratio_p0 + 0.15)
         if p0[i,4] == 0:
             p0[i,4] = 1e-3
         elif p0[i,4] > 1:
             p0[1,4] = 1
-        p0[i,5] = np.random.uniform(theta_p0-np.pi/15, theta_p0+np.pi/15)
+        p0[i,5] = np.random.uniform(
+            theta_p0 - np.pi / 15,
+            theta_p0 + np.pi / 15,
+        )
         if p0[i,5] < -np.pi/2:
             p0[1,4] = -np.pi/2
         elif p0[i,5] > np.pi/2:
@@ -425,8 +563,8 @@ def log_probability(params, sources, vis_priors, re, im, u, v, w, rad_bmaj, rad_
     log_likelihood_value = log_likelihood(model, re, im, u, v, w)
     return log_prior + log_likelihood_value
 
-def round_tuple(tup):
-    rounded_err = sigfig.round(float(tup[1]), sigfigs=3)
+def round_tuple(tup, err_sigfigs):
+    rounded_err = sigfig.round(float(tup[1]), sigfigs=err_sigfigs)
     str_err = str(rounded_err)
     places = 0
     if '.' in str_err:
@@ -1144,7 +1282,7 @@ def uv_fit(fits_file: str, sources: list, peak_guess: list=None, ra_guess: list=
         # use reduced chi2 of lowest BIC model to estimate how well fitting occurred
         # inside if loop to silence this warning for recursive cases (when checking the extreme cases)
         if all_results[0]['red_chi2'] > 10:
-            warnings.warn("Based on reduced chi2, the fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
+            warnings.warn("Best model has a reduced chi2 > 10. The fit may have been poor. Use these results with caution. Consider re-running with different inputted guesses.")
 
         # case: brightest source is very resolved
         large_width = float(Angle(2 * rad_bmaj, units.radian).to(units.arcsec).value) # guess 2x beam major axis for a very resolved source
