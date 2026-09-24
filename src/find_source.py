@@ -1882,6 +1882,13 @@ def summary(
                     pb_fwhm_arcsec,
                 )
 
+            else:
+                warnings.warn(
+                    "This program did not perform a primary beam correction. "
+                    "Fluxes and error estimates outside the field center may "
+                    "be systematically off."
+                )
+
         return short_info
 
     return
