@@ -11,121 +11,303 @@ import warnings
 import itertools
 from uncertainties import ufloat
 import sigfig
+import np.typing as npt
 
 def p_model(
-    p_params,
-    u,
-    v,
-    rad_bmaj,
-    rad_barea,
-) -> float:
+    p_params: npt.ArrayLike,
+    u: float | npt.ArrayLike,
+    v: float | npt.ArrayLike,
+    rad_bmaj: float,
+    rad_barea: float,
+) -> complex | npt.NDArray:
+    """
+    Evaluate the complex visibility of a point source model.
+
+    Parameters
+    ----------
+    p_params : npt.ArrayLike
+        Point source model parameters `(peak, ra, dec)`, where `peak` is the
+        source peak intensity, in Jy, and `ra` and `dec` are the source
+        position offsets from the field center, in radians.
+    u : float | npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : float | npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    rad_bmaj : float
+        Beam major axis, in radians. This parameter is currently unused.
+    rad_barea : float
+        Beam area, in radians^2. This parameter is currently unused.
+
+    Returns
+    -------
+    float | npt.ArrayLike
+        Complex visibility value of the point source model.
+
+    Notes
+    -----
+    The `rad_bmaj` and `rad_barea` parameters are retained for consistency
+    with other model functions but do not affect the point source visibility.
+
+    References
+    ----------
+    .. [1] A. R. Thompson, J. M. Moran, and G. W. Swenson, Jr.,
+        *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
+        Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
+    """
     peak, ra, dec = p_params
     return peak * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
 
 
 def c_model(
-    c_params,
-    u,
-    v,
-    rad_bmaj,
-    rad_barea,
-) -> float:
+    c_params: npt.ArrayLike,
+    u: float | npt.ArrayLike,
+    v: float | npt.ArrayLike,
+    rad_bmaj: float,
+    rad_barea: float,
+) -> complex | npt.NDArray:
+    """
+    Evaluate the complex visibility of a circular Gaussian source model.
+
+    Parameters
+    ----------
+    c_params : npt.ArrayLike
+        Circular Gaussian source model parameters `(peak, ra, dec, sigma)`,
+        where `peak` is the source peak intensity, in Jy; `ra` and `dec` are
+        the source position offsets from the field center, in radian; and
+        `sigma` is the source intensity standard deviation, in radians.
+    u : float | npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : float | npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    rad_bmaj : float
+        Beam major axis, in radians.
+    rad_barea : float
+        Beam area, in radians^2.
+
+    Returns
+    -------
+    float | npt.NDArray
+        Complex visibility value of the circular Gaussian source model.
+
+    Notes
+    -----
+    For a source with a standard deviation less than or equal to half the
+    beam major axis, the model omits the source-area normalization. This
+    allows an unresolved source to approach the point source limit while
+    retaining a finite fitted intensity. Without this treatment, the source
+    area approaches zero as `sigma` approaches zero, requiring the fitted
+    intensity to diverge in order to maintain the appropriate integrated
+    flux.
+
+    References
+    ----------
+    .. [1] A. R. Thompson, J. M. Moran, and G. W. Swenson, Jr.,
+        *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
+        Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
+    """
     peak, ra, dec, sigma = c_params
-    if sigma <= rad_bmaj / 2:  # Unresolved source.
-        return (
-            peak
-            * np.exp(-2 * np.pi**2 * sigma**2 * (u**2 + v**2))
-            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
-        )
-    return (
+    visibility = (
         peak
-        * 2 * np.pi * sigma**2
-        / rad_barea
         * np.exp(-2 * np.pi**2 * sigma**2 * (u**2 + v**2))
         * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
     )
 
+    # Omit the source-area normalization for unresolved sources.
+    if sigma <= rad_bmaj / 2:
+        return visibility
+    return 2 * np.pi * sigma**2 / rad_barea * visibility
+
 
 def g_model(
-    g_params,
-    u,
-    v,
-    rad_bmaj,
-    rad_barea,
-) -> float:
+    g_params: npt.ArrayLike,
+    u: float | npt.ArrayLike,
+    v: float | npt.ArrayLike,
+    rad_bmaj: float,
+    rad_barea: float,
+) -> float | npt.NDArray:
+    """
+    Evaluate the complex visibility of a elliptical Gaussian source model.
+
+    Parameters
+    ----------
+    g_params : npt.ArrayLike
+        Elliptical Gaussian source model parameters `(peak, ra, dec, sigma,
+        ratio, vis_theta)`, where `peak` is the source peak intensity, in Jy;
+        `ra` and `dec` are the source position offsets from the field center,
+        in radians; `sigma` is the source intensity standard deviation, in
+        radians; `ratio` is the ratio of minor to major axis; and `vis_theta`
+        is the source angle in visibility space, in radians.
+    u : float | npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : float | npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    rad_bmaj : float
+        Beam major axis, in radians.
+    rad_barea : float
+        Beam area, in radians^2.
+
+    Returns
+    -------
+    float | npt.NDArray
+        Complex visibility value of the elliptical Gaussian source model.
+
+    Notes
+    -----
+    For a source with a standard deviation less than or equal to half the
+    beam major axis, the model omits the source-area normalization. This
+    allows an unresolved source to approach the point source limit while
+    retaining a finite fitted intensity. Without this treatment, the source
+    area approaches zero as `sigma` approaches zero, requiring the fitted
+    intensity to diverge in order to maintain the appropriate integrated
+    flux.
+
+    References
+    ----------
+    .. [1] A. R. Thompson, J. M. Moran, and G. W. Swenson, Jr.,
+        *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
+        Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
+    """
     peak, ra, dec, sigma, ratio, vis_theta = g_params
-    if sigma <= rad_bmaj / 2: # Unresolved source.
-        return (
-            peak
-            * np.exp(
-                -2 * np.pi**2 * sigma**2 *
-                (
-                    (u * np.cos(vis_theta) - v * np.sin(vis_theta))**2
-                    + (u * np.sin(vis_theta) + v * np.cos(vis_theta))**2
-                    * ratio**2
-                )
+    visibility = (
+        peak
+        * np.exp(
+            -2 * np.pi**2 * sigma**2 *
+            (
+                (u * np.cos(vis_theta) - v * np.sin(vis_theta))**2
+                + (u * np.sin(vis_theta) + v * np.cos(vis_theta))**2
+                * ratio**2
             )
-            * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
         )
-    return (
-            peak
-            * 2 * np.pi * sigma**2 * ratio
-            / rad_barea
-            * np.exp(
-                -2 * np.pi**2 * sigma**2 *
-                (
-                    (u * np.cos(vis_theta) - v * np.sin(vis_theta))**2
-                    + (u * np.sin(vis_theta) + v * np.cos(vis_theta))**2
-                    * ratio**2
-                )
-            )
-            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
+        * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
     )
+
+    # Omit the source-area normalization for unresolved sources.
+    if sigma <= rad_bmaj / 2:
+        return visibility
+    return peak * 2 * np.pi * sigma**2 * ratio / rad_barea * visibility
 
 
 def d_model(
-    d_params,
-    u,
-    v,
-    rad_bmaj,
-    rad_barea,
-) -> float:
+    d_params: npt.ArrayLike,
+    u: float | npt.ArrayLike,
+    v: float | npt.ArrayLike,
+    rad_bmaj: float,
+    rad_barea: float,
+) -> float | npt.NDArray:
+    """
+    Evaluate the complex visibility of a disk source model.
+
+    Parameters
+    ----------
+    d_params : npt.ArrayLike
+        Disk source model parameters `(peak, ra, dec, r, ratio, vis_theta)`,
+        where `peak` is the source peak intensity, in Jy; `ra` and `dec` are
+        the source position offsets from the field center, in radians; `r` is
+        the source radius (or major axis if the disk is rotated), in radians;
+        `ratio` is the ratio of minor to major axis; and `vis_theta` is the
+        source angle in visibility space, in radians.
+    u : float | npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : float | npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    rad_bmaj : float
+        Beam major axis, in radians.
+    rad_barea : float
+        Beam area, in radians^2.
+
+    Returns
+    -------
+    float | npt.NDArray
+        Complex visibility value of the disk source model.
+
+    Notes
+    -----
+    For a source with a radius/major axis less than or equal to half the
+    beam major axis, the model omits the source-area normalization. This
+    allows an unresolved source to approach the point source limit while
+    retaining a finite fitted intensity. Without this treatment, the source
+    area approaches zero as `r` approaches zero, requiring the fitted
+    intensity to diverge in order to maintain the appropriate integrated
+    flux.
+
+    References
+    ----------
+    .. [1] A. R. Thompson, J. M. Moran, and G. W. Swenson, Jr.,
+        *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
+        Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
+    """
     peak, ra, dec, r, ratio, vis_theta = d_params
     u_theta = u * np.cos(vis_theta) - v * np.sin(vis_theta)
     v_theta = u * np.sin(vis_theta) + v * np.cos(vis_theta)
     q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
-    if r <= rad_bmaj / 2 : # Unresolved source.
-        return (
-            peak
-            / (np.pi * q_theta)
-            * sp.j1(2 * np.pi * q_theta)
-            * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
-        )
-    return (
+    visibility = (
         peak
-        * (np.pi * r**2 * ratio)
-        / (rad_barea * np.pi * q_theta)
+        / (np.pi * q_theta)
         * sp.j1(2 * np.pi * q_theta)
         * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
     )
+    # Omit the source-area normalization for unresolved sources.
+    if r <= rad_bmaj / 2 :
+        return visibility
+    return np.pi * r**2 * ratio / rad_barea * visibility
 
 
 def p_p0(
-    peak,
-    rad_coord,
-    rad_pix,
-    width_p0,
-    ratio_p0,
-    theta_p0,
-    n_walkers,
-) -> np.ndarray:
+    peak: float,
+    rad_coord: tuple,
+    rad_pix: float,
+    width_p0: float,
+    ratio_p0: float,
+    theta_p0: float,
+    n_walkers: float,
+) -> npt.NDArray:
+    """
+    Generate point source model initial guesses for emcee walkers.
+
+    Paramters
+    ---------
+    peak : float
+        The source intensity, in Jy.
+    rad_coord : tuple
+        The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
+        source position offsets from the field center, in radians.
+    rad_pix : float
+        The size of one side of a pixel in the image domain, in radians.
+    width_p0 : float
+        This parameter is currently unused.
+    ratio_p0 : float
+        This parameter is currently unused.
+    theta_p0 : float
+        This parameter is currently unused.
+    n_walkers : float
+        The number of emcee walkers.
+
+    Returns
+    -------
+    npt.NDArray
+        point source model initial guesses for `n_walkers` number of emcee
+        walkers.
+
+    Notes
+    -----
+    Assumes square pixels in the image domain.
+
+    The `width_p0`, `ratio_p0`, and `theta_p0` parameters are retained for
+    consistency with other initial guess generating functions but do not affect
+    the point source initial guesses.
+    """
     p0 = np.zeros((n_walkers, 3))
     for i in range(n_walkers):
+        # Peak.
         p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+
+        # RA.
         p0[i,1] = np.random.uniform(
             -rad_pix / 2 + rad_coord[0],
             rad_pix / 2 + rad_coord[0]
         )
+
+        # Dec.
         p0[i,2] = np.random.uniform(
             -rad_pix / 2 + rad_coord[1],
             rad_pix / 2 + rad_coord[1]
@@ -133,25 +315,68 @@ def p_p0(
     return p0
 
 def c_p0(
-    peak,
-    rad_coord,
-    rad_pix,
-    width_p0,
-    ratio_p0,
-    theta_p0,
-    n_walkers,
-) -> np.ndarray:
+    peak: float,
+    rad_coord: tuple,
+    rad_pix: float,
+    width_p0: float,
+    ratio_p0: float,
+    theta_p0: float,
+    n_walkers: float,
+) -> npt.NDArray:
+    """
+    Generate circular Gaussian source model initial guesses for emcee walkers.
+
+    Paramters
+    ---------
+    peak : float
+        The source intensity, in Jy.
+    rad_coord : tuple
+        The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
+        source position offsets from the field center, in radians.
+    rad_pix : float
+        The size of one side of a pixel in the image domain, in radians.
+    width_p0 : float
+        A guess for the source width parameter, i.e. the source intensity
+        standard deviation, in radians.
+    ratio_p0 : float
+        This parameter is currently unused.
+    theta_p0 : float
+        This parameter is currently unused.
+    n_walkers : float
+        The number of emcee walkers.
+
+    Returns
+    -------
+    npt.NDArray
+        Circular Gaussian source model initial guesses for `n_walkers` number
+        of emcee walkers.
+
+    Notes
+    -----
+    Assumes square pixels in the image domain.
+
+    The `ratio_p0` and `theta_p0` parameters are retained for consistency with
+    other initial guess generating functions but do not affect the circular
+    Gaussian source initial guesses.
+    """
     p0 = np.zeros((n_walkers, 4))
     for i in range(n_walkers):
+        # Peak.
         p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+
+        # RA.
         p0[i,1] = np.random.uniform(
             -rad_pix / 2 + rad_coord[0],
             rad_pix / 2 + rad_coord[0],
         )
+
+        # Dec.
         p0[i,2] = np.random.uniform(
             -rad_pix / 2 + rad_coord[1],
             rad_pix / 2 + rad_coord[1]
         )
+
+        # Width (sigma).
         p0[i,3] = np.random.uniform(
             0.8 * width_p0,
             1.2 * width_p0,
@@ -159,90 +384,197 @@ def c_p0(
     return p0
 
 def g_p0(
-    peak,
-    rad_coord,
-    rad_pix,
-    width_p0,
-    ratio_p0,
-    theta_p0,
-    n_walkers,
-) -> np.ndarray:
+    peak: float,
+    rad_coord: tuple,
+    rad_pix: float,
+    width_p0: float,
+    ratio_p0: float,
+    theta_p0: float,
+    n_walkers: float,
+) -> npt.NDArray:
+    """
+    Generate elliptical Gaussian source model initial guesses for emcee
+    walkers.
+
+    Paramters
+    ---------
+    peak : float
+        The source intensity, in Jy.
+    rad_coord : tuple
+        The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
+        source position offsets from the field center, in radians.
+    rad_pix : float
+        The size of one side of a pixel in the image domain, in radians.
+    width_p0 : float
+        A guess for the source width parameter, i.e. the source intensity
+        standard deviation, in radians.
+    ratio_p0 : float
+        A guess for the source minor axis to major axis ratio.
+    theta_p0 : float
+        A guess for the source angle in visibility space, in radians.
+    n_walkers : float
+        The number of emcee walkers.
+
+    Returns
+    -------
+    npt.NDArray
+        Circular Gaussian source model initial guesses for `n_walkers` number
+        of emcee walkers.
+
+    Notes
+    -----
+    Assumes square pixels in the image domain.
+    """
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
+        # Peak.
         p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+
+        # RA.
         p0[i,1] = np.random.uniform(
             -rad_pix / 2 + rad_coord[0],
             rad_pix / 2 + rad_coord[0]
         )
+
+        # Dec.
         p0[i,2] = np.random.uniform(
             -rad_pix / 2 + rad_coord[1],
             rad_pix / 2 + rad_coord[1],
         )
+
+        # Width (sigma).
         p0[i,3] = np.random.uniform(
             0.8 * width_p0,
             1.2 * width_p0
         )
+
+        # Ratio.
         p0[i,4] = np.random.uniform(ratio_p0 - 0.15, ratio_p0 + 0.15)
-        if p0[i,4] == 0:
+        if p0[i,4] <= 0:  # Avoid zero or negative ratio.
             p0[i,4] = 1e-3
-        elif p0[i,4] > 1:
+        elif p0[i,4] > 1:  # Cap ratio at one.
             p0[1,4] = 1
+
+        # Theta.
         p0[i,5] = np.random.uniform(
             theta_p0 - np.pi / 15,
             theta_p0 + np.pi / 15,
         )
-        if p0[i,5] < -np.pi / 2:
+        if p0[i,5] < -np.pi / 2:  # Set floor of angle at -pi/2 radians.
             p0[1,4] = -np.pi / 2
-        elif p0[i,5] > np.pi / 2:
+        elif p0[i,5] > np.pi / 2:  # Cap angle at pi/2 radians.
             p0[i,5] = np.pi / 2
     return p0
 
 def d_p0(
-    peak,
-    rad_coord,
-    rad_pix,
-    width_p0,
-    ratio_p0,
-    theta_p0,
-    n_walkers,
-) -> np.ndarray:
+    peak: float,
+    rad_coord: tuple,
+    rad_pix: float,
+    width_p0: float,
+    ratio_p0: float,
+    theta_p0: float,
+    n_walkers: float,
+) -> npt.NDArray:
+    """
+    Generate disk source model initial guesses for emcee walkers.
+
+    Paramters
+    ---------
+    peak : float
+        The source intensity, in Jy.
+    rad_coord : tuple
+        The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
+        source position offsets from the field center, in radians.
+    rad_pix : float
+        The size of one side of a pixel in the image domain, in radians.
+    width_p0 : float
+        A guess for the source width parameter, i.e. the source radius (or
+        major axis if the source is rotated), in radians.
+    ratio_p0 : float
+        A guess for the source minor axis to major axis ratio.
+    theta_p0 : float
+        A guess for the source angle in visibility space, in radians.
+    n_walkers : float
+        The number of emcee walkers.
+
+    Returns
+    -------
+    npt.NDArray
+        Disk model initial guesses for `n_walkers` number of emcee walkers.
+
+    Notes
+    -----
+    Assumes square pixels in the image domain.
+    """
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
+        # Peak.
         p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+
+        # RA.
         p0[i,1] = np.random.uniform(
             -rad_pix / 2 + rad_coord[0],
             rad_pix / 2 + rad_coord[0],
         )
+
+        # Dec.
         p0[i,2] = np.random.uniform(
             -rad_pix / 2 + rad_coord[1],
             rad_pix / 2 + rad_coord[1],
         )
+
+        # Width (radius).
         p0[i,3] = np.random.uniform(0.8 * width_p0, 1.2 * width_p0)
+
+        # Ratio.
         p0[i,4] = np.random.uniform(ratio_p0 - 0.15, ratio_p0 + 0.15)
-        if p0[i,4] == 0:
+        if p0[i,4] <= 0:  # Avoid zero or negative ratio.
             p0[i,4] = 1e-3
-        elif p0[i,4] > 1:
+        elif p0[i,4] > 1:  # Cap ratio at one.
             p0[1,4] = 1
+
+        # Angle.
         p0[i,5] = np.random.uniform(
             theta_p0 - np.pi / 15,
             theta_p0 + np.pi / 15,
         )
-        if p0[i,5] < -np.pi/2:
+        if p0[i,5] < -np.pi/2:  # Set floor of angle -pi/2 radians.
             p0[1,4] = -np.pi/2
-        elif p0[i,5] > np.pi/2:
+        elif p0[i,5] > np.pi/2:  # Cap angle at pi/2 radians.
             p0[i,5] = np.pi/2
     return p0
 
 def all_p1(
-    med_sd,
-    n_walkers,
-    chain,
-) -> np.ndarray:
+    med_sd: npt.ArrayLike,
+    n_walkers: float,
+    chain: npt.ArrayLike,
+) -> npt.NDArray:
+    """
+    Generate refined initial guesses for emcee walkers based on the results of
+    a previous fit.
+
+    Paramters
+    ---------
+    med_sd : npt.ArrayLike
+        Median and standard deviation of source parameters from a previous fit.
+        Each element should correspond to a source parameters and have the
+        median at the 0th index and the standard deviation at the 1st index.
+    n_walkers : float
+        The number of emcee walkers.
+    chain : npt.ArrayLike
+        The chain of MCMC samples from the previous fit.
+
+    Returns
+    -------
+    npt.NDArray
+        Refined initial guess for `n_walkers` number of emcee walkers.
+    """
     n_params = len(med_sd)
     p1 = np.zeros((n_walkers, n_params))
     for i in range(n_walkers):
         for j in range(n_params):
-            if j in [3, 4]:  # Ensure non-negative width parameter and ratio.
+            # Ensure non-negative width parameter and ratio.
+            if j in [3, 4]:
                 p1[i,j] = np.random.uniform(
                     max(-2 * med_sd[j][1] + med_sd[j][0], 0),
                     2 * med_sd[j][1] + med_sd[j][0]
@@ -251,8 +583,11 @@ def all_p1(
                     if p1[i,j] == 0:
                         p1[i,j] = 1e-3  # Avoid zero ratio.
                     if p1[i,j] > 1:
-                        p1[i,j] = 1  # Cap ratio at 1.
-            elif j == 5 and med_sd[j][1] > 10 * np.pi / 180:  # vis_theta standard devation > 10 degrees
+                        p1[i,j] = 1  # Cap ratio at one.
+
+            # Perform some more detailed analysis if the angle did not seem to
+            # fit well (standard deviation greater than 10 degrees).
+            elif j == 5 and med_sd[j][1] > 10 * np.pi / 180:
                 vis_theta_samples = [params[j] for params in chain]
                 neg_vis_thetas = [
                     theta for theta in vis_theta_samples if theta < 0
@@ -264,14 +599,22 @@ def all_p1(
                 pos_med = np.median(pos_vis_thetas) if pos_vis_thetas else None
                 if neg_med is not None and pos_med is not None:
                     if abs(abs(neg_med) - pos_med) < 10 * np.pi / 180:
+                        # Suggests a clustering near the bounds of -pi/2 and
+                        # pi/2. Since -pi/2 and pi/2 are physically equivalent,
+                        # guess -pi/2 to encourage convergence during the next
+                        # fit.
                         theta_p0 = -np.pi / 2
                     else:
                         theta_p0 = np.median(vis_theta_samples)
+                    # Prevent guesses below -pi/2.
                     p1[i,j] = np.random.uniform(
                         max(theta_p0 - np.pi / 36, -np.pi / 2),
                         theta_p0 + np.pi / 36
                     )
-                else:  # At least all between -90 and 0 or all between 0 and 90 degrees.
+                # If all samples were between -pi/2 and 0 or between 0 and
+                # pi/2, then the poor convergence may not have been a result
+                # of clustering near the bounds. Then we simply try again.
+                else:
                     p1[i,j] = np.random.uniform(
                         -2 * med_sd[j][1] + med_sd[j][0],
                         2 * med_sd[j][1] + med_sd[j][0]
@@ -283,10 +626,38 @@ def all_p1(
                 )
     return p1
 
+
 def p_prior(
-    params,
-    vis_priors,
+    params: npt.ArrayLike,
+    vis_priors: npt.ArrayLike,
 ) -> float:
+    """
+    Find the contribution of the priors on the log probability of parameter
+    values for a point source model.
+
+    Parameters
+    ----------
+    params : npt.ArrayLike
+        Point source model parameters `(peak, ra, dec)`, where `peak` is the
+        source peak intensity, in Jy, and `ra` and `dec` are the source
+        position offsets from the field center, in radians.
+    vis_priors : npt.ArrayLike
+        Priors on the point source model. The 0th index corresponds to priors
+        on `peak`, the 1st index corresponds to priors on `ra`, and the
+        2nd index corresponds to priors on `dec`. The 0th index of the
+        array-like object for each parameter corresponds to the minimum value,
+        and the 1st index of the array-like object for each parameter
+        corresponds to the maximum value. If the array-like object for the
+        parameter is a tuple, then the endpoint(s) are not inclusive. If the
+        array-like object is a list, then the endpoint(s) are inclusive.
+
+    Returns
+    -------
+    float
+        The contribution of the priors on the log probability of the given
+        parameters.
+        0 if the parameters are within the priors and -np.inf if not.
+    """
     peak, ra, dec = params
     if vis_priors is not None:
         peak_priors = vis_priors[0]
@@ -300,7 +671,7 @@ def p_prior(
             return -np.inf
         if peak_max is not None and peak > peak_max:
             return -np.inf
-        if type(peak_priors) is tuple:
+        if isinstance(peak_priors, tuple):
             if peak_min is not None and peak == peak_min:
                 return -np.inf
             if peak_max is not None and peak == peak_max:
@@ -309,7 +680,7 @@ def p_prior(
             return -np.inf
         if ra_max is not None and ra > ra_max:
             return -np.inf
-        if type(ra_priors) is tuple:
+        if isinstance(ra_priors, tuple):
             if ra_min is not None and ra == ra_min:
                 return -np.inf
             if ra_max is not None and ra == ra_max:
@@ -318,20 +689,53 @@ def p_prior(
             return -np.inf
         if dec_max is not None and dec > dec_max:
             return -np.inf
-        if type(dec_priors) is tuple:
+        if isinstance(dec_priors, tuple):
             if dec_min is not None and dec == dec_min:
                 return -np.inf
             if dec_max is not None and dec == dec_max:
                 return -np.inf
     return 0.0
 
+
 def c_prior(
-    params,
-    vis_priors,
+    params: npt.ArrayLike,
+    vis_priors: npt.ArrayLike,
 ) -> float:
+    """
+    Find the contribution of the priors on the log probability of parameter
+    values for a circular Gaussian source model.
+
+    Parameters
+    ----------
+    params : npt.ArrayLike
+        Circular Gaussian source model parameters `(peak, ra, dec, sigma)`,
+        where `peak` is the source peak intensity, in Jy; `ra` and `dec` are
+        the source position offsets from the field center, in radian; and
+        `sigma` is the source intensity standard deviation, in radians.
+    vis_priors : npt.ArrayLike
+        Priors on the circular Gaussian source model. The 0th index corresponds
+        to priors on `peak`, the 1st index corresponds to priors on `ra`, the
+        2nd index corresponds to priors on `dec`, and the 3rd index corresopnds
+        to priors on `sigma`. The 0th index of the array-like object for each
+        parameter corresponds to the minimum value, and the 1st index of the
+        array-like object for each parameter corresponds to the maximum value.
+        If the array-like object for the parameter is a tuple, then the
+        endpoint(s) are not inclusive. If the array-like object is a list, then
+        the endpoint(s) are inclusive.
+
+    Returns
+    -------
+    float
+        The contribution of the priors on the log probability of the given
+        parameters.
+        0 if the parameters are within the priors and -np.inf if not.
+    """
     peak, ra, dec, sigma = params
-    if sigma <= 0: # hardcoded prior
+    # Hardcode the requirement that the width parameter of a source should be
+    # positive.
+    if sigma <= 0:
         return -np.inf
+
     if vis_priors is not None:
         peak_priors = vis_priors[0]
         ra_priors = vis_priors[1]
@@ -346,7 +750,7 @@ def c_prior(
             return -np.inf
         if peak_max is not None and peak > peak_max:
             return -np.inf
-        if type(peak_priors) is tuple:
+        if isinstance(peak_priors, tuple):
             if peak_min is not None and peak == peak_min:
                 return -np.inf
             if peak_max is not None and peak == peak_max:
@@ -355,7 +759,7 @@ def c_prior(
             return -np.inf
         if ra_max is not None and ra > ra_max:
             return -np.inf
-        if type(ra_priors) is tuple:
+        if isinstance(ra_priors, tuple):
             if ra_min is not None and ra == ra_min:
                 return -np.inf
             if ra_max is not None and ra == ra_max:
@@ -364,7 +768,7 @@ def c_prior(
             return -np.inf
         if dec_max is not None and dec > dec_max:
             return -np.inf
-        if type(dec_priors) is tuple:
+        if isinstance(dec_priors, tuple):
             if dec_min is not None and dec == dec_min:
                 return -np.inf
             if dec_max is not None and dec == dec_max:
@@ -373,7 +777,7 @@ def c_prior(
             return -np.inf
         if sigma_max is not None and sigma > sigma_max:
             return -np.inf
-        if type(sigma_priors) is tuple:
+        if isinstance(sigma_priors, tuple):
             if sigma_min is not None and sigma == sigma_min:
                 return -np.inf
             if sigma_max is not None and sigma == sigma_max:
@@ -381,21 +785,59 @@ def c_prior(
     return 0.0
 
 def g_prior(
-    params,
-    vis_priors,
+    params: npt.ArrayLike,
+    vis_priors: npt.ArrayLike,
 ) -> float:
+    """
+    Find the contribution of the priors on the log probability of parameter
+    values for a circular Gaussian source model.
+
+    Parameters
+    ----------
+    params : npt.ArrayLike
+        Circular Gaussian source model parameters `(peak, ra, dec, sigma,
+        ratio, vis_theta)`, where `peak` is the source peak intensity, in Jy;
+        `ra` and `dec` are the source position offsets from the field center,
+        in radians; `sigma` is the source intensity standard deviation, in
+        radians; `ratio` is the ratio of minor to major axis; and `vis_theta`
+        is the source angle in visibility space, in radians.
+    vis_priors : npt.ArrayLike
+        Priors on the circular Gaussian source model. The 0th index
+        corresponds to priors on `peak`, the 1st index corresponds to priors
+        on `ra`, the 2nd index corresponds to priors on `dec`, the 3rd index
+        corresopnds to priors on `sigma`, the 4th index corresponds to priors
+        on `ratio`, and the 5th index corresponds to priors on `vis_theta`. The
+        0th index of the array-like object for each parameter corresponds to
+        the minimum value, and the 1st index of the array-like object for each
+        parameter corresponds to the maximum value. If the array-like object
+        for the parameter is a tuple, then the endpoint(s) are not inclusive.
+        If the array-like object is a list, then the endpoint(s) are inclusive.
+
+    Returns
+    -------
+    float
+        The contribution of the priors on the log probability of the given
+        parameters.
+        0 if the parameters are within the priors and -np.inf if not.
+    """
     peak, ra, dec, sigma, ratio, vis_theta = params
-    # hardcoded priors
+    # Hardcode the requirement that the width parameter of a source should be
+    # positive.
     if sigma <= 0:
         return -np.inf
+    # Hardcode the requirement that the ratio of the source's minor axis to
+    # major axis should be positive but less than or equal to 1.
     if ratio <= 0:
         return -np.inf
     if ratio > 1:
         return -np.inf
+    # Hardcode the requirement that the source angle should be between -pi/2
+    # and pi/2, inclusive. This prevents the fit from spinning in circles.
     if vis_theta < -np.pi/2:
         return -np.inf
     if vis_theta > np.pi/2:
         return -np.inf
+
     if vis_priors is not None:
         peak_priors = vis_priors[0]
         ra_priors = vis_priors[1]
@@ -414,7 +856,7 @@ def g_prior(
             return -np.inf
         if peak_max is not None and peak > peak_max:
             return -np.inf
-        if type(peak_priors) is tuple:
+        if isinstance(peak_priors, tuple):
             if peak_min is not None and peak == peak_min:
                 return -np.inf
             if peak_max is not None and peak == peak_max:
@@ -423,7 +865,7 @@ def g_prior(
             return -np.inf
         if ra_max is not None and ra > ra_max:
             return -np.inf
-        if type(ra_priors) is tuple:
+        if isinstance(ra_priors, tuple):
             if ra_min is not None and ra == ra_min:
                 return -np.inf
             if ra_max is not None and ra == ra_max:
@@ -432,7 +874,7 @@ def g_prior(
             return -np.inf
         if dec_max is not None and dec > dec_max:
             return -np.inf
-        if type(dec_priors) is tuple:
+        if isinstance(dec_priors, tuple):
             if dec_min is not None and dec == dec_min:
                 return -np.inf
             if dec_max is not None and dec == dec_max:
@@ -441,7 +883,7 @@ def g_prior(
             return -np.inf
         if sigma_max is not None and sigma > sigma_max:
             return -np.inf
-        if type(sigma_priors) is tuple:
+        if isinstance(sigma_priors, tuple):
             if sigma_min is not None and sigma == sigma_min:
                 return -np.inf
             if sigma_max is not None and sigma == sigma_max:
@@ -450,7 +892,7 @@ def g_prior(
             return -np.inf
         if ratio_max is not None and ratio > ratio_max:
             return -np.inf
-        if type(ratio_priors) is tuple:
+        if isinstance(ratio_priors, tuple):
             if ratio_min is not None and ratio == ratio_min:
                 return -np.inf
             if ratio_max is not None and ratio == ratio_max:
@@ -459,29 +901,68 @@ def g_prior(
             return -np.inf
         if vis_theta_max is not None and vis_theta > vis_theta_max:
             return -np.inf
-        if type(vis_theta_priors) is tuple:
+        if isinstance(vis_theta_priors, tuple):
             if vis_theta_min is not None and vis_theta == vis_theta_min:
                 return -np.inf
             if vis_theta_max is not None and vis_theta == vis_theta_max:
                 return -np.inf
     return 0.0
 
+
 def d_prior(
-    params,
-    vis_priors,
+    params: npt.ArrayLike,
+    vis_priors: npt.ArrayLike,
 ) -> float:
+    """
+    Find the contribution of the priors on the log probability of parameter
+    values for a disk source model.
+
+    Parameters
+    ----------
+    params : npt.ArrayLike
+        Disk source model parameters `(peak, ra, dec, r, ratio, vis_theta)`,
+        where `peak` is the source peak intensity, in Jy; `ra` and `dec` are
+        the source position offsets from the field center, in radians; `r` is
+        the source radius (or major axis if the disk is rotated), in radians;
+        `ratio` is the ratio of minor to major axis; and `vis_theta` is the
+        source angle in visibility space, in radians.
+    vis_priors : npt.ArrayLike
+        Priors on the disk source model. The 0th index corresponds to priors on
+        `peak`, the 1st index corresponds to priors on `ra`, the 2nd index
+        corresponds to priors on `dec`, the 3rd index corresopnds to priors on
+        `sigma`, the 4th index corresponds to priors on `ratio`, and the 5th
+        index corresponds to priors on `vis_theta`. The 0th index of the
+        array-like object for each parameter corresponds to the minimum value,
+        and the 1st index of the array-like object for each parameter
+        corresponds to the maximum value. If the array-like object for the
+        parameter is a tuple, then the endpoint(s) are not inclusive. If the
+        array-like object is a list, then the endpoint(s) are inclusive.
+
+    Returns
+    -------
+    float
+        The contribution of the priors on the log probability of the given
+        parameters.
+        0 if the parameters are within the priors and -np.inf if not.
+    """
     peak, ra, dec, r, ratio, vis_theta = params
-    # hardcoded priors
+    # Hardcode the requirement that the width parameter of a source should be
+    # positive.
     if r <= 0:
         return -np.inf
+    # Hardcode the requirement that the ratio of the source's minor axis to
+    # major axis should be positive but less than or equal to 1.
     if ratio <= 0:
         return -np.inf
     if ratio > 1:
         return -np.inf
+    # Hardcode the requirement that the source angle should be between -pi/2
+    # and pi/2, inclusive. This prevents the fit from spinning in circles.
     if vis_theta < -np.pi/2:
         return -np.inf
     if vis_theta > np.pi/2:
         return -np.inf
+
     if vis_priors is not None:
         peak_priors = vis_priors[0]
         ra_priors = vis_priors[1]
@@ -500,7 +981,7 @@ def d_prior(
             return -np.inf
         if peak_max is not None and peak > peak_max:
             return -np.inf
-        if type(peak_priors) is tuple:
+        if isinstance(peak_priors, tuple):
             if peak_min is not None and peak == peak_min:
                 return -np.inf
             if peak_max is not None and peak == peak_max:
@@ -509,7 +990,7 @@ def d_prior(
             return -np.inf
         if ra_max is not None and ra > ra_max:
             return -np.inf
-        if type(ra_priors) is tuple:
+        if isinstance(ra_priors, tuple):
             if ra_min is not None and ra == ra_min:
                 return -np.inf
             if ra_max is not None and ra == ra_max:
@@ -518,7 +999,7 @@ def d_prior(
             return -np.inf
         if dec_max is not None and dec > dec_max:
             return -np.inf
-        if type(dec_priors) is tuple:
+        if isinstance(dec_priors, tuple):
             if dec_min is not None and dec == dec_min:
                 return -np.inf
             if dec_max is not None and dec == dec_max:
@@ -527,7 +1008,7 @@ def d_prior(
             return -np.inf
         if r_max is not None and r > r_max:
             return -np.inf
-        if type(r_priors) is tuple:
+        if isinstance(r_priors, tuple):
             if r_min is not None and r == r_min:
                 return -np.inf
             if r_max is not None and r == r_max:
@@ -536,7 +1017,7 @@ def d_prior(
             return -np.inf
         if ratio_max is not None and ratio > ratio_max:
             return -np.inf
-        if type(ratio_priors) is tuple:
+        if isinstance(ratio_priors, tuple):
             if ratio_min is not None and ratio == ratio_min:
                 return -np.inf
             if ratio_max is not None and ratio == ratio_max:
@@ -545,7 +1026,7 @@ def d_prior(
             return -np.inf
         if vis_theta_max is not None and vis_theta > vis_theta_max:
             return -np.inf
-        if type(vis_theta_priors) is tuple:
+        if isinstance(vis_theta_priors, tuple):
             if vis_theta_min is not None and vis_theta == vis_theta_min:
                 return -np.inf
             if vis_theta_max is not None and vis_theta == vis_theta_max:
@@ -1189,7 +1670,7 @@ def uv_fit(
                                 Angle(priors[i][j][1], units.arcsec)
                                 .to(units.radian).value
                             )
-                        if type(priors[i][j]) is tuple:
+                        if isinstance(priors[i][j], tuple):
                             mini_vis_priors.append((rad_min, rad_max))
                         else: # is list
                             mini_vis_priors.append([rad_min, rad_max])
@@ -1217,7 +1698,7 @@ def uv_fit(
                             theta_max = (priors[i][j][1] - 90) * np.pi / 180 # shift by 90 to go from image to visibility angle
                             if theta_max < -90:
                                 theta_max += 180 # because -90 to -180 is the same as 90 to 0
-                        if type(priors[i][j]) is tuple:
+                        if isinstance(type(priors[i][j], tuple):
                             if theta_max is not None and theta_min is not None:
                                 if theta_max >= theta_min: # check because upper bound may now be less than lower bound due to the conversion above
                                     mini_vis_priors.append(
