@@ -11,7 +11,7 @@ import warnings
 import itertools
 from uncertainties import ufloat
 import sigfig
-import np.typing as npt
+import numpy.typing as npt
 
 def p_model(
     p_params: npt.ArrayLike,
@@ -1034,14 +1034,35 @@ def d_prior(
     return 0.0
 
 def log_likelihood(
-    model,
-    re,
-    im,
-    u,
-    v,
-    w,
+    model: float | npt.ArrayLike,
+    re: float | npt.ArrayLike,
+    im: float | npt.ArrayLike,
+    w: float | npt.ArrayLike,
 ) -> float:
+    """
+    Find the log likelihood of model value(s), given visibility data.
+
+    Parameters
+    ----------
+    model : float | npt.ArrayLike
+        The complex visibility data produced by the model function.
+    re : float | npt.ArrayLike
+        The real component(s) of visibility data, in Jy.
+    im : float | npt.ArrayLike
+        The imaginary component(s) of visibility data, in Jy.
+    w : float | np.ArrayLike
+        The data weight(s), equal to 1 over the uncertainty squared, in 1/Jy^2.
+
+    Returns
+    -------
+    The log likelihood of the model value(s).
+
+    Notes
+    -----
+    This function does not consider priors, in contrast to log_probability().
+    """
     return -0.5 * np.sum(w * ((re - model.real)**2 + (im - model.imag)**2))
+
 
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
@@ -1055,18 +1076,69 @@ SOURCE_TYPES = {
     'd': [6, d_p0, d_prior, d_model, D_PARAMS]
 }
 
+
 def log_probability(
-    params,
-    sources,
-    vis_priors,
-    re,
-    im,
-    u,
-    v,
-    w,
-    rad_bmaj,
-    rad_bmin,
+    params: npt.ArrayLike,
+    sources: npt.ArrayLike,
+    vis_priors: npt.ArrayLike,
+    re: float | npt.ArrayLike,
+    im: float | npt.ArrayLike,
+    u: float | npt.ArrayLike,
+    v: float | npt.ArrayLike,
+    w: float | npt.ArrayLike,
+    rad_bmaj: float,
+    rad_bmin: float,
+    min_sep: float,
 ) -> float:
+    """
+    Find the log probability of the model, given the priors and visibility
+    data.
+
+    Parameters
+    ----------
+    params : npt.ArrayLike
+        Parameter values whose log probability will be calculated.
+    sources : npt.ArrayLike
+        Source type(s) to identify the model(s) with which the parameter values
+        will be evaluated.
+    vis_priors : npt.ArrayLike
+        Priors corresponding to the parameter values. For each parameter, the
+        prior may either be `None` (no prior), [`min`, `max`] (inclusive), or
+        (`min`, `max`) (exclusive).
+    re : float | npt.ArrayLike
+        The real component(s) of visibility data, in Jy.
+    im : float | npt.ArrayLike
+        The imaginary component(s) of visibility data, in Jy.
+    u : float | npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : float | npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    w : float | npt.ArrayLike
+        The data weight(s), equal to 1 over the uncertainty squared, in 1/Jy^2.
+    rad_bmaj : float
+        Beam major axis, in radians.
+    rad_bmin : float
+        Beam minor axis, in radians.
+    min_sep : float
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
+
+    Returns
+    -------
+    float
+        The log probability of the model.
+
+    Notes
+    -----
+    If the parameters describe multiple sources separated by a distance of less
+    than `min_sep`, then it is assumed that they describe the same source,
+    instead of discinct sources as intended. As a result, the log probability
+    returned will be negative infinity.
+
+    The value of `min_sep` is assumed to be small, so the separation of sources
+    is calculated using a flat space approximation instead of spherical
+    offsets.
+    """
     log_prior = 0.0
     model = 0.0
     start = 0
@@ -1094,16 +1166,34 @@ def log_probability(
             (ra_list[idx1] - ra_list[idx2]) ** 2
             + (dec_list[idx1] - dec_list[idx2]) ** 2
         )
-        # TODO: make threshold distance an inputtable parameter
-        if dist < rad_bmaj/10:  # 1/10 of beam major axis as threshold distance to consider sources too close
+        if dist < min_sep:
             return -np.inf
-    log_likelihood_value = log_likelihood(model, re, im, u, v, w)
+    log_likelihood_value = log_likelihood(model, re, im, w)
     return log_prior + log_likelihood_value
 
 def round_tuple(
-    tup,
-    err_sigfigs,
+    tup : tuple ,
+    err_sigfigs: int = 3,
 ) -> tuple:
+    """
+    Given a tuple of a value and its uncertainty, round the to a given number
+    of significant figures and round the value to the appropriate number of
+    digits to match the rounded uncertainty.
+
+    Parameters
+    ----------
+    tup : tuple
+        A tuple of a value and its uncertainty as (`value`, `uncertainty`.
+    err_sigfigs : int, optional
+        The number of significant figures to which to round the uncertainty.
+
+    Returns
+    -------
+    tuple
+        (`value`, `uncertainty`), where `uncertainty` has been rounded to a
+        given number of significant figures and `value` has been rounded to the
+        appropriate number of digits to match `uncertainty`.
+    """
     rounded_err = sigfig.round(float(tup[1]), sigfigs=err_sigfigs)
     str_err = str(rounded_err)
     places = 0
@@ -1112,7 +1202,26 @@ def round_tuple(
         places = len(decimal)
     return (round(float(tup[0]), places), rounded_err)
 
-def sigmas(param_chain) -> tuple:
+def sigmas(param_chain: npt.ArrayLike) -> tuple:
+    """
+    Find the 2.5th, 16th, 50th, 84th, and 97.5th percentile of data.
+
+    Parameters
+    ----------
+    param_chain : npt.ArrayLike
+        The data whose 2.5th, 16th, 50th, 84th, and 97.5th percentile will
+        be found.
+
+    Returns
+    -------
+    tuple of float
+        The 2.5th, 16th, 50th, 84th, and 97.5th percentile of data.
+
+    Notes
+    -----
+    The intention of this function is to give the user a quick way to see
+    whether the parameter sampling was roughly Gaussian.
+    """
     return (
         np.percentile(param_chain, 2.5),
         np.percentile(param_chain, 16),
@@ -1122,15 +1231,147 @@ def sigmas(param_chain) -> tuple:
     )
 
 def auto_detect(
-    vis: dict,
+    vis: npt.ArrayLike,
     info: dict,
-    n_sources: int=None,
-    clean_output=True,
-    corner_plot=True,
+    n_sources: int,
+    clean_output: bool = True,
+    corner_plot: bool = True,
+    min_sep: float | None = None,
 ):
-    # Assume everything is a point source
+    """
+    Perform a fit of a given number of point sources, with the results
+    summarized in a list and/or corner plot.
+
+    Parameters
+    ----------
+    vis : npt.ArrayLike
+        An array-like object with 5 indices, corresponding to the data for the
+        `u` coordinate of the visibility, in wavelengths; the `v` coordinate of
+        the visilibyt, in wavelenghts; the real part of the visibility, in Jy;
+        the imaginary part of the visibility, in Jy; and the weight (the
+        inverse of the uncertainty squared) for each visibility measurement, in
+        1/Jy^2.
+    info : dict
+        Image domain information and some results from image domain fitting.
+        Should include the following keys:
+        `all_peaks` : npt.ArrayLike
+            Array-like object with each element corresponding to a source
+            detected in image fitting. Each element is an array-like object
+            with the first index corresponding to the intensity, in Jy, of the
+            peak detected in the image domain and the second index
+            corresponding to the coordinates, each in arcseconds, of the
+            detected peak.
+        `n_peaks` : int
+            The number of peaks detected in the image domain.
+        `rad_pix` : float
+            The length of one side of a pixel (assumed to be square), in
+            radians.
+        `rad_barea` : float
+            Beam area, in radians^2.
+        `naxis1` : int
+            The number of pixels in the first axis of the image (assumed to be
+            square).
+        `rad_bmaj` : float
+            Beam major axis, in radians.
+        `rad_bmin` : float
+            Beam minor axis, in radians.
+    n_sources : int
+        The number of point sources in the model that will be fit to the data.
+    clean_output : bool, optional
+        Whether to return the list of fit results in a more human-parsable
+        format. See Returns section for more details.
+    corner_plot : bool, optional
+        Whether to create a corner plot for each source.
+    min_sep : float | None, optional
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
+
+    Returns
+    -------
+    list of dict
+        A list of a dictionary with the following keys:
+        `n_sources` : int
+            The number of point sources for which the fit was performed.
+        `result` : dict
+            A dictionary with the following keys:
+            `source_m` : dict
+                A dictionary, for each source (m = 1 through m = `n_sources`),
+                with the following keys:
+                    `type` : str
+                        The source type, as a single character code (a key of
+                        SOURCE_TYPES).
+                        By definition, 'p' for all the sources in
+                        auto_detect().
+                    `peak` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted peak estimate and its
+                        uncertainty, respectively, in Jy. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sampled
+                        parameters, in Jy, all rounded to 3 signficant figures.
+                        Else, a tuple of the fitted peak estimate and its
+                        uncertainty, respectively, in Jy.
+                    `ra` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted Right Ascension
+                        estimate and its uncertainty, respectively, in
+                        arcseconds relative to the field center. The
+                        uncertainty is rounded to 3 significant figures and the
+                        estimate is rounded to the appropriate number of digits
+                        to match the uncertainty. The second tuple contains
+                        the 2.5th, 16th, 50th, 84th, and 97.5th percentile of
+                        sample parameters, in relative arcseconds, all rounded
+                        to 3 significant figures.
+                        Else, a tuple of the fitted Right Ascension estimate
+                        and its uncertainty, respectively, in radians relative
+                        to the field center.
+                    `dec` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted Declination estimate
+                        and its uncertainty, respectively, in arcseconds
+                        relative to the field center. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sample
+                        parameters, in relative arcseconds, all rounded to 3
+                        significant figures.
+                        Else, a tuple of the fitted Declination estimate and
+                        its uncertainty, respectively, in radians relative to
+                        the field center.
+                    `best` : dict
+                        This key is only present if `clean_output` is False.
+                        A dictionary, of the collection of sample parameters
+                        that resulted in the lowest chi-squared value, with the
+                        following keys:
+                            `peak` : float
+                                The peak intensity, in Jy.
+                            `ra` : float
+                                The right ascension, in radians relative to the
+                                field center.
+                            `dec` : float
+                                The declination, in radians relative to the
+                                field center.
+        `bic` : float
+            The Bayesian Information Criterion (BIC), estimated as
+            chi^2 + k * ln(n), where chi^2 is the chi-squared value of the
+            estimated parameters, k is the number of parameters, and n is the
+            number of data points to which the model is being fit.
+            If `clean_output` is True, the BIC is rounded to the hundredths.
+
+    Raises
+    ------
+    ValueError
+        If a ValueError occurs during the emcee sampler run. Most likely due to
+        extremely poor initial guesses or extremely poor model choice.
+    RuntimeError
+        Autocorrelation time for parameters could not be estimated. Most likely
+        due to extremely poor initial guesses or extremely poor model choice.
+    """
     u, v, re, im, w = vis
-    all_peaks = info['all_peaks']
+    all_peaks = info['all_peaks']  # Information from image fitting.
     n_peaks = info['n_peaks']
     rad_pix = info['rad_pix']
     rad_barea = info['rad_barea']
@@ -1138,24 +1379,33 @@ def auto_detect(
     rad_bmaj = info['rad_bmaj']
     rad_bmin = info['rad_bmin']
 
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
+
+    # For auto-detection, we do not impose additional priors, for generality,
+    # simplicity, and speed.
     vis_priors = [
         [[None, None] for _ in range(6)] for _ in range(n_sources)
-    ] # no priors for auto-detection
+    ]
 
-    # Calculate n_params and n_walkers
+    # Calculate n_params and n_walkers.
     permutation = tuple(['p'] * n_sources)
     n_params = 0
     for i in range(n_sources):
         n_params += SOURCE_TYPES['p'][0]
     n_walkers = 2 * n_params
 
-    # Initial guesses
-    width_p0 = None
+    # Determine initial guesses.
+    width_p0 = None  # Since this will not be used for point-source fitting.
     ratio_p0 = None
     theta_p0 = None
     fluxes = [flux_coord[0] for flux_coord in all_peaks]
     min_index = np.argmin(fluxes)
     for i in range(n_sources):
+        # If the number of sources to be fit exceeds the number of sources
+        # found in the image domain, use the value of the dimmest peak detected
+        # in the image domain to prompt the initial guess(es) for the
+        # intensity/intensities of the remaining source(s).
         peak = all_peaks[i][0] if i < n_peaks else all_peaks[min_index][0]
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (
@@ -1182,7 +1432,11 @@ def auto_detect(
                 theta_p0,
                 n_walkers,
             )
-            if i >= n_peaks: # edit ra, dec initial guesses
+            # If the number of sources to be fit exceeds the number of sources
+            # found in the image domain, allow the initial guess(es) for the
+            # coordinates of the remaining source(s) to come from the entire
+            # image.
+            if i >= n_peaks:
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(
                         -naxis1 / 2 * rad_pix,
@@ -1194,21 +1448,34 @@ def auto_detect(
                     )
             p0 = np.append(p0, mini_p0, axis=1)
 
-    # Set up and run MCMC
+    # Set up and run MCMC.
     all_results = []
     n_steps = 100
     sampler = emcee.EnsembleSampler(
         n_walkers,
         n_params,
         log_probability,
-        args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin)
+        args=(
+            permutation,
+            vis_priors,
+            re,
+            im,
+            u,
+            v,
+            w,
+            rad_bmaj,
+            rad_bmin,
+            min_sep,
+        )
     )
+    # Run the sampler for a bit to get an estimate for the autocorrelation
+    # time.
     try:
         state = sampler.run_mcmc(p0, n_steps)
     except emcee.autocorr.AutocorrError:
         pass
-    except ValueError:
-        raise ValueError("Error encountered during MCMC run.")
+    except ValueError as e:
+        raise ValueError("Error encountered during MCMC run.") from e
     tau = sampler.get_autocorr_time(quiet=True)
     if np.isnan(tau).all():
         raise RuntimeError(
@@ -1217,15 +1484,17 @@ def auto_detect(
         )
     int_tau = math.ceil(np.nanmax(tau))
     steps_to_50_tau = abs(int_tau * 50 - n_steps)
+
+    # Run the sampler until it reaches 50 times the autocorrelation time.
     try:
         sampler.run_mcmc(state, steps_to_50_tau, skip_initial_state_check=True)
-    except ValueError:
-        raise ValueError("Error encountered during MCMC run.")
+    except ValueError as e:
+        raise ValueError("Error encountered during MCMC run.") from e
     chain = sampler.get_chain(discard = int_tau * 10, flat=True)
     log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
     max_prob_index = np.argmax(log_probs)
 
-    # Find parameter estimates and uncertainties and calculate chi2
+    # Find parameter estimates and uncertainties and calculate chi2.
     result = {}
     model = 0.0
     start = 0
@@ -1233,9 +1502,9 @@ def auto_detect(
         n_source_params = SOURCE_TYPES['p'][0]
         source_chain = chain[:, start:start + n_source_params]
         source_result = {'type': 'p'}
-        temp_medians = [] # to store medians
-        temp_bests = {} # to store best values (that maximimize probability)
-        temp_max_probs = [] # to store max prob values
+        temp_medians = []  # To store medians.
+        temp_bests = {}  # To store best values (that maximimize probability).
+        temp_max_probs = []  # To store candidate maximum probabilities.
         for j in range(n_source_params):
             samples = source_chain[:, j]
             temp_max_probs.append(samples[max_prob_index])
@@ -1268,6 +1537,7 @@ def auto_detect(
 
     if clean_output:
         result = all_results[0]['result']
+        all_results[0]['bic'] = round(all_results[0]['bic'], 2)
         start = 0
         permutation_chain = all_results[0]['chain']
         for i in range(n_sources):
@@ -1278,7 +1548,7 @@ def auto_detect(
             n_walkers = 2 * n_source_params
             source_chain = permutation_chain[:, start:start+n_source_params]
 
-            # peak
+            # Round peak and uncertainty and find percentiles.
             peak_chain = source_chain[:, 0]
             peak_sigmas = tuple([
                 float(sigfig.round(sigma, sigfigs=3))
@@ -1290,7 +1560,8 @@ def auto_detect(
                 ), peak_sigmas
             )
 
-            # convert ra, dec to arcsec
+            # Convert ra, dec to arcsec. Round values and uncertainties and
+            # find percentiles.
             ra_chain = source_chain[:, 1]
             dec_chain = source_chain[:, 2]
             ra_sigmas = tuple([
@@ -1326,6 +1597,7 @@ def auto_detect(
 
             start += n_source_params
 
+    # Create a corner plot for each source, if requested.
     if corner_plot:
         result = all_results[0]['result']
         chain = all_results[0]['chain']
@@ -1350,9 +1622,10 @@ def auto_detect(
 
 def best_auto_detect(
     fits_file: str,
-    n_sources = None,
-    clean_output=True,
-    corner_plot=True,
+    n_sources: int | None = None,
+    clean_output: bool = True,
+    corner_plot: bool = True,
+    min_sep: float | None = None
 ):
     # inputting a non-None n_sources is like an override for the searching for best fit
 
@@ -1375,6 +1648,9 @@ def best_auto_detect(
     ext_peaks = summ['ext_peak_val']
     ext_coords = summ['ext_peak_coord']
     rms = summ['conservative_rms']
+
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
 
     if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
         int_peaks = int_peaks[:1]
@@ -1458,6 +1734,7 @@ def best_auto_detect(
             n_sources=n_sources,
             clean_output=clean_output,
             corner_plot=corner_plot,
+            min_sep=min_sep,
         )
 
     if results:
@@ -1478,7 +1755,8 @@ def uv_fit(
     clean_output=True,
     corner_plot=True,
     additional_runs: int = 2,
-    extreme_case_check=True
+    extreme_case_check=True,
+    min_sep: float | None = None,
 ):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
     # but (tuple) for exclusive and [list] for inclusive
@@ -1596,7 +1874,7 @@ def uv_fit(
     rad_theta = []
     for i in range(n_sources):
         if sources[i] != 'p':
-            if width_guess[i] is None:
+            if width_guess is None or width_guess[i] is None:
                 raise ValueError(
                     "Value required for width initial guess unless only "
                     "fitting point sources."
@@ -1698,7 +1976,7 @@ def uv_fit(
                             theta_max = (priors[i][j][1] - 90) * np.pi / 180 # shift by 90 to go from image to visibility angle
                             if theta_max < -90:
                                 theta_max += 180 # because -90 to -180 is the same as 90 to 0
-                        if isinstance(type(priors[i][j], tuple):
+                        if isinstance(priors[i][j], tuple):
                             if theta_max is not None and theta_min is not None:
                                 if theta_max >= theta_min: # check because upper bound may now be less than lower bound due to the conversion above
                                     mini_vis_priors.append(
@@ -1742,6 +2020,9 @@ def uv_fit(
     int_coords = summ['int_peak_coord']
     ext_peaks = summ['ext_peak_val']
     ext_coords = summ['ext_peak_coord']
+
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
 
     int_info = list(zip(int_peaks, int_coords))
     if type(ext_peaks) is list:
@@ -1880,7 +2161,18 @@ def uv_fit(
             n_walkers,
             n_params,
             log_probability,
-            args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin)
+            args=(
+                permutation,
+                vis_priors,
+                re,
+                im,
+                u,
+                v,
+                w,
+                rad_bmaj,
+                rad_bmin,
+                min_sep,
+            )
         )
         try:
             state = sampler.run_mcmc(p0, n_steps)
@@ -2070,7 +2362,8 @@ def uv_fit(
                     v,
                     w,
                     rad_bmaj,
-                    rad_bmin
+                    rad_bmin,
+                    min_sep,
                 )
             )
             try:
@@ -2512,8 +2805,8 @@ def uv_fit(
                         labels=source_params
                     )
                 fig.suptitle(
-                    f'Permutation {j+1}: {permutation_info["permutation"]}, "
-                    "source {i+1} of {n_sources}'
+                    f"Permutation {j+1}: {permutation_info['permutation']}, "
+                    "source {i+1} of {n_sources}"
                 )
                 start = end
 
@@ -2524,7 +2817,7 @@ def uv_fit(
 
 
 def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa: list=None, priors: list=None, \
-    clean_output=True, corner_plot=True, additional_runs: int = 2):
+    clean_output=True, corner_plot=True, additional_runs: int = 2, min_sep: float | None = None):
     # clean up inputted guesses
     rad_width = []
     rad_theta = []
@@ -2568,6 +2861,9 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
     ext_peaks = info['ext_peak_val']
     ext_coords = info['ext_peak_coord']
     rms = info['conservative_rms']
+
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
 
     if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
         int_peaks = int_peaks[:1]
@@ -2658,7 +2954,7 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
 
         # Set up and run MCMC
         n_steps = 100
-        sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
+        sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin, min_sep))
         try:
             state = sampler.run_mcmc(p0, n_steps)
         except emcee.autocorr.AutocorrError:
@@ -2761,7 +3057,7 @@ def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa:
 
             # Set up and run MCMC
             n_steps = 100
-            sampler1 = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
+            sampler1 = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin, min_sep))
             try:
                 state = sampler1.run_mcmc(p1, n_steps)
             except emcee.autocorr.AutocorrError:
