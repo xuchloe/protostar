@@ -12,6 +12,7 @@ import itertools
 from uncertainties import ufloat
 import sigfig
 import numpy.typing as npt
+from pathlib import Path
 
 def p_model(
     p_params: npt.ArrayLike,
@@ -1230,17 +1231,17 @@ def sigmas(param_chain: npt.ArrayLike) -> tuple:
         np.percentile(param_chain, 97.5)
     )
 
-def auto_detect(
+def _auto_detect(
     vis: npt.ArrayLike,
     info: dict,
     n_sources: int,
     clean_output: bool = True,
     corner_plot: bool = True,
     min_sep: float | None = None,
-):
+) -> list:
     """
-    Perform a fit of a given number of point sources, with the results
-    summarized in a list and/or corner plot.
+    Perform a visbility domain fit of a given number of point sources and
+    summarize the results in a list and/or corner plot.
 
     Parameters
     ----------
@@ -1301,7 +1302,7 @@ def auto_detect(
                         The source type, as a single character code (a key of
                         SOURCE_TYPES).
                         By definition, 'p' for all the sources in
-                        auto_detect().
+                        _auto_detect().
                     `peak` : tuple of tuple | tuple of float
                         If `clean_output` is True, a tuple of 2 tuples. The
                         first tuple contains the fitted peak estimate and its
@@ -1620,54 +1621,173 @@ def auto_detect(
 
     return all_results
 
+
 def best_auto_detect(
-    fits_file: str,
+    fits_file: str | Path,
     n_sources: int | None = None,
     clean_output: bool = True,
     corner_plot: bool = True,
     min_sep: float | None = None
-):
-    # inputting a non-None n_sources is like an override for the searching for best fit
+) -> list:
+    """
+    Perform a visibility domain fit of a given number of point sources and
+    summarize the results in a list and/or corner plot, or perform a visibility
+    domain fit with different numbers of point sources and summarize the
+    results of the best fit in a list and/or corner plot.
 
-    # Extract data from fits file
-    file = fits.open(fits_file)
-    cdelt1 = file[0].header['CDELT1']
-    cunit1 = file[0].header['CUNIT1']
-    naxis1 = file[0].header['NAXIS1']
-    data = file[1].data
+    Paramters
+    ---------
+    fits_file : str | Path
+        The path of the FITS file that contains the visibility data.
+    n_sources : int | None, optional
+        The number of point sources in the model that will be fit to the data.
+        If none, models with different numbers of point sources will be fit to
+        the data and the results of the best-fit model will be reported.
+    clean_output : bool, optional
+        Whether to return the list of fit results in a more human-parsable
+        format. See Returns section for more details.
+    corner_plot : bool, optional
+        Whether to create a corner plot for each source.
+    min_sep : float | None, optional
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
 
+    Returns
+    -------
+    list of dict
+        A list of a dictionary with the following keys:
+        `n_sources` : int
+            The number of point sources for which the fit was performed.
+        `result` : dict
+            A dictionary with the following keys:
+            `source_m` : dict
+                A dictionary, for each source (m = 1 through m = `n_sources`),
+                with the following keys:
+                    `type` : str
+                        The source type, as a single character code (a key of
+                        SOURCE_TYPES).
+                        By definition, 'p' for all the sources in
+                        best_auto_detect().
+                    `peak` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted peak estimate and its
+                        uncertainty, respectively, in Jy. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sampled
+                        parameters, in Jy, all rounded to 3 signficant figures.
+                        Else, a tuple of the fitted peak estimate and its
+                        uncertainty, respectively, in Jy.
+                    `ra` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted Right Ascension
+                        estimate and its uncertainty, respectively, in
+                        arcseconds relative to the field center. The
+                        uncertainty is rounded to 3 significant figures and the
+                        estimate is rounded to the appropriate number of digits
+                        to match the uncertainty. The second tuple contains
+                        the 2.5th, 16th, 50th, 84th, and 97.5th percentile of
+                        sample parameters, in relative arcseconds, all rounded
+                        to 3 significant figures.
+                        Else, a tuple of the fitted Right Ascension estimate
+                        and its uncertainty, respectively, in radians relative
+                        to the field center.
+                    `dec` : tuple of tuple | tuple of float
+                        If `clean_output` is True, a tuple of 2 tuples. The
+                        first tuple contains the fitted Declination estimate
+                        and its uncertainty, respectively, in arcseconds
+                        relative to the field center. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sample
+                        parameters, in relative arcseconds, all rounded to 3
+                        significant figures.
+                        Else, a tuple of the fitted Declination estimate and
+                        its uncertainty, respectively, in radians relative to
+                        the field center.
+                    `best` : dict
+                        This key is only present if `clean_output` is False.
+                        A dictionary, of the collection of sample parameters
+                        that resulted in the lowest chi-squared value, with the
+                        following keys:
+                            `peak` : float
+                                The peak intensity, in Jy.
+                            `ra` : float
+                                The right ascension, in radians relative to the
+                                field center.
+                            `dec` : float
+                                The declination, in radians relative to the
+                                field center.
+        `bic` : float
+            The Bayesian Information Criterion (BIC), estimated as
+            chi^2 + k * ln(n), where chi^2 is the chi-squared value of the
+            estimated parameters, k is the number of parameters, and n is the
+            number of data points to which the model is being fit.
+            If `clean_output` is True, the BIC is rounded to the hundredths.
+
+    Raises
+    ------
+    ValueError
+        If all models attempted fail to converge.
+
+    Notes
+    -----
+    This function operates under several assumptions:
+    1.  Assume that the presence of more than 2 internal detected peaks
+        suggests the source is extended, rather than the presence of more than
+        2 separate sources in the interior region.
+    2.  Assume that extended external sources are extremely rare, so do not
+        apply a similar assumption as (1) to cases with more than 2 external
+        sources.
+    3.  Assume that summary() more often has false positives than false
+        negatives. As a consequence, when `n_sources` is None, begin guesses
+        for the number of point sources at the number of peaks detected in the
+        image domain and then try models with fewer and fewer sources.
+    """
+    # Extract data from the FITS file.
+    fits_file = Path(fits_file)
+    with fits.open(fits_file) as file:
+        cdelt1 = file[0].header['CDELT1']
+        cunit1 = file[0].header['CUNIT1']
+        naxis1 = file[0].header['NAXIS1']
+        data = file[1].data
+        bmaj = file[0].header['BMAJ']
+        bmin = file[0].header['BMIN']
+        rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+        rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+        rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+        rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+
+    # Get image domain fitting results.
     summ = summary(fits_file, plot=False)
-    bmaj = file[0].header['BMAJ'] # cunit1
-    bmin = file[0].header['BMIN'] # cunit1
-    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
-    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
-    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
     int_peaks = summ['int_peak_val']
     int_coords = summ['int_peak_coord']
     ext_peaks = summ['ext_peak_val']
     ext_coords = summ['ext_peak_coord']
-    rms = summ['conservative_rms']
 
     if min_sep is None:
         min_sep = rad_bmaj / 10
 
-    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+    # Assume the presence of more than 2 internal detected peaks suggests the
+    # source is extended, rather than the presence of more than 2 separate
+    # sources in the interior region.
+    if len(int_peaks) > 2:
         int_peaks = int_peaks[:1]
         int_coords = int_coords[:1]
-
-    # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
 
     int_info = list(zip(int_peaks, int_coords))
     if type(ext_peaks) is list:
         ext_info = list(zip(ext_peaks, ext_coords))
     else:
         ext_info = []
-    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord))
-    all_peaks.sort(reverse=True) # sort by peak value
+
+    # Create a list of image domain detected peak information. The list
+    # elements are tuples (peak, (ra, dec)).
+    all_peaks = int_info + ext_info
+    all_peaks.sort(reverse=True)  # Sort by peak intensity (high to low).
     n_peaks = len(all_peaks)
-    if n_sources is None:
-        n_sources = n_peaks
 
     vis = np.array(data)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
@@ -1680,7 +1800,7 @@ def best_auto_detect(
         im.append(float(im_data/w_data))
         w.append(float(w_data))
 
-    # Adding in conjugate half of data
+    # Add in the conjugate half of the visibility data.
     freq_bin *= 2
     neg_u = [-1 * val for val in u]
     u += neg_u
@@ -1698,9 +1818,7 @@ def best_auto_detect(
     im = np.array(im)
     w = np.array(w)
 
-    file.close() # good practice
-
-    input_vis = [u,v,re,im,w]
+    input_vis = [u, v, re, im, w]
     info = {
         'all_peaks': all_peaks,
         'n_peaks': n_peaks,
@@ -1713,8 +1831,11 @@ def best_auto_detect(
 
     results = []
     if n_sources is None:
-        for i in range(n_peaks,0,-1): # assumption: summary more often has false positives than false negatives
-            temp = auto_detect(
+        # Assuming that summary() more often has false positives than false
+        # negatives, start at the number of peaks detected in the image domain
+        # and try models with fewer and fewer sources.
+        for i in range(n_peaks, 0, -1):
+            temp = _auto_detect(
                 vis=input_vis,
                 info=info,
                 n_sources=i,
@@ -1728,7 +1849,7 @@ def best_auto_detect(
                 else:
                     results = temp
     else:
-        results = auto_detect(
+        results = _auto_detect(
             vis=input_vis,
             info=info,
             n_sources=n_sources,
@@ -1741,6 +1862,7 @@ def best_auto_detect(
         return results
     else:
         raise ValueError("All attempts failed to converge.")
+
 
 def uv_fit(
     fits_file: str,
