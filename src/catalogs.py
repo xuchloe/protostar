@@ -107,7 +107,7 @@ def _interpolation_function(
     node_neg1 = node_x[0] - h
     node_Nplus1 = node_x[N] + h
     c_neg1 = node_val[2] - 3 * node_val[1] + 3 * node_val[0]
-    c_Nplus1 = 3*node_val[N] - 3 * node_val[N-1] + 3 * node_val[N-2]
+    c_Nplus1 = 3 * node_val[N] - 3 * node_val[N-1] + 3 * node_val[N-2]
 
     interpolated_val = c_neg1 * _interpolation_kernel((x - node_neg1) / h)
     for k in range(num_nodes):
@@ -209,9 +209,9 @@ def thumbnail(
     # Restrict the image to a box centered on the source, clipped to the
     # original image boundaries.
     y_start = max(abs_y - delta, 0)
-    y_stop = min(abs_y + delta, y_dim)
+    y_stop = min(abs_y + delta + 1, y_dim)
     x_start = max(abs_x - delta, 0)
-    x_stop = min(abs_x + delta, x_dim)
+    x_stop = min(abs_x + delta + 1, x_dim)
 
     new_data = data_array[y_start:y_stop, x_start:x_stop]
 
@@ -279,7 +279,12 @@ def thumbnail(
             round(pixel_scale, 2)
         )
     )
-    img = ax.imshow(interpolated_data, vmin=min_flux, vmax=max_flux)
+    img = ax.imshow(
+        interpolated_data,
+        origin='lower',
+        vmin=min_flux,
+        vmax=max_flux
+    )
     fig.colorbar(img)
 
     buffer = io.BytesIO()
@@ -963,7 +968,7 @@ def high_level_table(
         mean_coord.representation_type = 'spherical'
 
         return mean_coord.ra, mean_coord.dec
-    
+
 
     for i, source_id in enumerate(unique_sources['SourceID']):
         temp_df = low_df[(low_df['SourceID']) == source_id]
@@ -1298,8 +1303,6 @@ def light_curve(
         if save_path is not None:
             full_path = Path(save_path) / f'{source_id}.jpg'
             fig.savefig(full_path)
-
-        plt.close(fig)
 
     if table:
         columns = [
