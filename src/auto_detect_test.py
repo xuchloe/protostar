@@ -19,12 +19,12 @@ from matplotlib.ticker import PercentFormatter
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
 G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
-D_PARAMS = ['peak', 'ra', 'dec', 'r']
+D_PARAMS = ['peak', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
 
 SOURCE_TYPES = {'p': [3, p_p0, p_prior, p_model, P_PARAMS], \
                 'c': [4, c_p0, c_prior, c_model, C_PARAMS], \
                 'g': [6, g_p0, g_prior, g_model, G_PARAMS], \
-                'd': [4, d_p0, d_prior, d_model, D_PARAMS]}
+                'd': [6, d_p0, d_prior, d_model, D_PARAMS]}
 
 def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths=None, ratios=None, thetas=None):
     # peak in Jy, coords in arcsec, noise in Jy, widths in arcsec, ratios unitless, thetas in degrees
@@ -54,7 +54,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     for source in sources:
         if source in ['c', 'd', 'g']:
             num_widths += 1
-            if source == 'g':
+            if source in ['d', 'g']:
                 num_ratios += 1
                 num_thetas += 1
 
@@ -76,6 +76,21 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     naxis2 = file[0].header['NAXIS2']
     bmaj = file[0].header['BMAJ']
     bmin = file[0].header['BMIN']
+
+    if file[1].header['TTYPE2'] == 'indexU':
+        u_index = 'indexU'
+        u_res = file[1].header['U_RES']
+    else:
+        u_index = 'U'
+        u_res = 1
+    if file[1].header['TTYPE3'] == 'indexV':
+        v_index = 'indexV'
+        v_res = file[1].header['V_RES']
+    else:
+        v_index = 'V'
+        v_res = 1
+
+    file.close() # good practice
 
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
     search_radius = arcsec_bmaj + 2
@@ -130,7 +145,7 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
-            model = model_func(source_info, row['U'], row['V'], bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
+            model = model_func(source_info, row[u_index]*u_res, row[v_index]*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
             if i == 0:
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
@@ -138,9 +153,15 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 clean_re[j] += model.real
                 clean_im[j] += model.imag
 
+    freq_name = 'Frequency'
+    try:
+        temp = data[0][freq_name]
+    except KeyError:
+        freq_name = 'Frequency bin'
+
     for i in range(len(data)):
         row = data[i]
-        new_row = (row['Frequency'], row['U'], row['V'], (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        new_row = (row[freq_name], row[u_index]*u_res, row[v_index]*v_res, (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
         vis.append(new_row)
 
     return info, vis
@@ -221,17 +242,20 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
         n_params += SOURCE_TYPES['p'][0]
     n_walkers = 2 * n_params
 
-    total_flux = None
-
     # Initial guesses
+    width_guess = None
+    ratio_guess = None
+    theta_guess = None
+    fluxes = [flux_coord[0] for flux_coord in all_peaks]
+    min_index = np.argmin(fluxes)
     for i in range(n_sources):
-        peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
-        coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+        peak = all_peaks[i][0] if i < n_peaks else all_peaks[min_index][0]
+        coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
         if i == 0:
-            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
         else:
-            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, rad_barea, total_flux, n_walkers)
+            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
             if i >= n_peaks: # edit ra, dec initial guesses
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
@@ -291,8 +315,6 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     bic = float(k * np.log(n) + chi2)
     all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
 
-    # all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
-
     if clean_output:
         result = all_results[0]['result']
         start = 0
@@ -343,6 +365,39 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
     del all_results[0]['chain']
 
     return all_results
+
+def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
+
+    int_peaks = info['int_peak_val']
+    int_coords = info['int_peak_coord']
+    ext_peaks = info['ext_peak_val']
+    ext_coords = info['ext_peak_coord']
+
+    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+        int_peaks = int_peaks[:1]
+        int_coords = int_coords[:1]
+
+    n_peaks = len(int_peaks)
+    if type(ext_peaks) is list:
+        n_peaks += len(ext_peaks)
+
+    results = []
+    if n_sources is None:
+        for i in range(n_peaks,0,-1): # assumption: summary more often has false positives than false negatives
+            temp = sim_auto_detect(vis=vis, info=info, n_sources=i, clean_output=clean_output, corner_plot=corner_plot)
+            if temp:
+                if results:
+                    if results[0]['bic'] - temp[0]['bic'] > 10:
+                        results = temp
+                else:
+                    results = temp
+    else:
+        results = sim_auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
+
+    if results:
+        return results
+    else:
+        raise ValueError('All attempts failed to converge.')
 
 def score(z):
     k = int(abs(z)) # sigma bin
