@@ -15,38 +15,79 @@ import sigfig
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
-# Source parameters -- do not change these
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
 G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
 D_PARAMS = ['peak', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
 
-SOURCE_TYPES = {'p': [3, p_p0, p_prior, p_model, P_PARAMS], \
-                'c': [4, c_p0, c_prior, c_model, C_PARAMS], \
-                'g': [6, g_p0, g_prior, g_model, G_PARAMS], \
-                'd': [6, d_p0, d_prior, d_model, D_PARAMS]}
+SOURCE_TYPES = {
+    'p': [3, p_p0, p_prior, p_model, P_PARAMS],
+    'c': [4, c_p0, c_prior, c_model, C_PARAMS],
+    'g': [6, g_p0, g_prior, g_model, G_PARAMS],
+    'd': [6, d_p0, d_prior, d_model, D_PARAMS],
+}
 
-def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths=None, ratios=None, thetas=None):
+
+def generate_synthetic_info_vis(
+    fits_file: str | Path,
+    sources: list,
+    peaks: list,
+    coords: list,
+    noise: float,
+    widths: list | None = None,
+    ratios: list | None = None,
+    thetas: list | None = None,
+):
+    """
+    Using the UV-coordinates and weights from a FITS file, generate a synthetic
+    visibility table and image information dictionary for a single- or multi-
+    source model.
+
+    Parameters
+    ----------
+    
+    """
     # peak in Jy, coords in arcsec, noise in Jy, widths in arcsec, ratios unitless, thetas in degrees
     num_sources = len(sources)
     if num_sources == 0:
-        raise ValueError("At least one peak, coordinate, and source type must be provided.")
+        raise ValueError(
+            "At least one peak, coordinate, and source type must be provided."
+        )
     if num_sources != len(peaks):
-        raise ValueError("Length of sources and peaks must be the same.")
+        raise ValueError(
+            "Length of sources and peaks must be the same."
+        )
     if num_sources != len(coords):
-        raise ValueError("Length of sources and coords must be the same.")
+        raise ValueError(
+            "Length of sources and coords must be the same."
+        )
     for i in range(num_sources):
         if sources[i] not in SOURCE_TYPES.keys():
-            raise ValueError(f"Source type '{sources[i]}' is not recognized. Source type must be one of the following: \
-                            'p' (point), 'c' (circular gaussian), 'g' (gaussian), or 'd' (disk).")
+            raise ValueError(
+                f"Source type '{sources[i]}' is not recognized. Source type "
+                "must be one of the following: 'p' (point), 'c' (circular "
+                "gaussian), 'g' (gaussian), or 'd' (disk)."
+            )
         if type(coords[i]) not in [tuple, list] or len(coords[i]) != 2:
-            raise ValueError(f"Coordinate for source {i+1} must be a tuple or list of length 2 representing (ra, dec) in radians.")
+            raise ValueError(
+                f"Coordinate for source {i+1} must be a tuple or list of "
+                "length 2 representing (ra, dec) in radians."
+            )
     if widths is not None and num_sources != len(widths):
-        raise ValueError("Length of sources and widths must be the same if specifying widths.")
+        raise ValueError(
+            "Length of sources and widths must be the same if specifying "
+            "widths."
+        )
     if ratios is not None and num_sources != len(ratios):
-        raise ValueError("Length of sources and ratios must be the same if specifying ratios.")
+        raise ValueError(
+            "Length of sources and ratios must be the same if specifying "
+            "ratios."
+        )
     if thetas is not None and num_sources != len(thetas):
-        raise ValueError("Length of sources and thetas must be the same if specifying thetas.")
+        raise ValueError(
+            "Length of sources and source angles must be the same if "
+            "specifying source angles."
+        )
 
     num_widths = 0
     num_ratios = 0
@@ -60,37 +101,45 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
     if widths is not None:
         if len(widths) != num_widths:
-            raise ValueError(f"{num_widths} sources require widths, but only {len(widths)} have been given.")
+            raise ValueError(
+                f"{num_widths} sources require widths, but only {len(widths)} "
+                "have been given."
+            )
     if ratios is not None:
         if len(ratios) != num_ratios:
-            raise ValueError(f"{num_ratios} sources require ratios, but only {len(ratios)} have been given.")
+            raise ValueError(
+                f"{num_ratios} sources require ratios, but only {len(ratios)} "
+                "have been given."
+            )
     if thetas is not None:
         if len(thetas) != num_thetas:
-            raise ValueError(f"{num_thetas} sources require thetas, but only {len(thetas)} have been given.")
+            raise ValueError(
+                f"{num_thetas} sources require thetas, but only {len(thetas)} "
+                "have been given."
+            )
 
-    file = fits.open(fits_file)
-    data = file[1].data
-    cdelt1 = file[0].header['CDELT1']
-    cunit1 = file[0].header['CUNIT1']
-    naxis1 = file[0].header['NAXIS1']
-    naxis2 = file[0].header['NAXIS2']
-    bmaj = file[0].header['BMAJ']
-    bmin = file[0].header['BMIN']
+    fits_file = Path(fits_file)
+    with fits.open(fits_file) as file:
+        data = file[1].data
+        cdelt1 = file[0].header['CDELT1']
+        cunit1 = file[0].header['CUNIT1']
+        naxis1 = file[0].header['NAXIS1']
+        naxis2 = file[0].header['NAXIS2']
+        bmaj = file[0].header['BMAJ']
+        bmin = file[0].header['BMIN']
 
-    if file[1].header['TTYPE2'] == 'indexU':
-        u_index = 'indexU'
-        u_res = file[1].header['U_RES']
-    else:
-        u_index = 'U'
-        u_res = 1
-    if file[1].header['TTYPE3'] == 'indexV':
-        v_index = 'indexV'
-        v_res = file[1].header['V_RES']
-    else:
-        v_index = 'V'
-        v_res = 1
-
-    file.close() # good practice
+        if file[1].header['TTYPE2'] == 'indexU':
+            u_index = 'indexU'
+            u_res = file[1].header['U_RES']
+        else:
+            u_index = 'U'
+            u_res = 1
+        if file[1].header['TTYPE3'] == 'indexV':
+            v_index = 'indexV'
+            v_res = file[1].header['V_RES']
+        else:
+            v_index = 'V'
+            v_res = 1
 
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
     search_radius = arcsec_bmaj + 2
@@ -103,7 +152,10 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
     ext_coords = []
 
     for i in range(num_sources):
-        if np.sqrt((coords[i][0] - pix_field_center[0])**2 + (coords[i][1] - pix_field_center[1])**2) <= search_radius:
+        if np.sqrt(
+            (coords[i][0] - pix_field_center[0]) ** 2
+            + (coords[i][1] - pix_field_center[1]) ** 2
+        ) <= search_radius:
             int_peaks.append(peaks[i])
             int_coords.append(coords[i])
         else:
@@ -137,7 +189,10 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
         model_func = SOURCE_TYPES[sources[i]][3]
         source_info = [peaks[i], l0, m0]
         if sources[i] in ['c', 'd', 'g']:
-            source_info.append(Angle(widths[width_counter], units.arcsec).to(units.radian).value)
+            source_info.append(
+                Angle(widths[width_counter], units.arcsec)
+                .to(units.radian).value
+            )
             width_counter += 1
             if sources[i] == 'g':
                 source_info.append(ratios[g_counter])
@@ -145,7 +200,13 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
-            model = model_func(source_info, row[u_index]*u_res, row[v_index]*v_res, bmaj, np.pi * bmaj * bmin / (4 * np.log(2)))
+            model = model_func(
+                source_info,
+                row[u_index] * u_res,
+                row[v_index] * v_res,
+                bmaj,
+                np.pi * bmaj * bmin / (4 * np.log(2))
+            )
             if i == 0:
                 clean_re.append(model.real)
                 clean_im.append(model.imag)
@@ -161,10 +222,415 @@ def generate_synthetic_info_vis(fits_file, sources, peaks, coords, noise, widths
 
     for i in range(len(data)):
         row = data[i]
-        new_row = (row[freq_name], row[u_index]*u_res, row[v_index]*v_res, (np.random.normal(scale=vis_err) + clean_re[i]) * weight, (np.random.normal(scale=vis_err) + clean_im[i]) * weight, weight)
+        new_row = (
+            row[freq_name],
+            row[u_index] * u_res,
+            row[v_index] * v_res,
+            (np.random.normal(scale=vis_err) + clean_re[i]) * weight,
+            (np.random.normal(scale=vis_err) + clean_im[i]) * weight,
+            weight
+        )
         vis.append(new_row)
 
     return info, vis
+
+
+def sim_uv_fit(info, vis, sources: list, width: list=None, ratio: list=None, pa: list=None, priors: list=None, \
+    clean_output=True, corner_plot=True, additional_runs: int = 2, min_sep: float | None = None):
+    # clean up inputted guesses
+    rad_width = []
+    rad_theta = []
+    for i in range(len(sources)):
+        if sources[i] != 'p':
+            if width[i] is None:
+                raise ValueError("Value required for width initial guess unless only fitting point sources.")
+            # Convert width from arcsec to radians, if needed
+            if width[i] < 0:
+                raise ValueError("Width initial guesses may not be negative.")
+            rad_width.append(float(Angle(width[i], units.arcsec).to(units.radian).value))
+        else:
+            rad_width.append(None)
+        if sources[i] not in ['p', 'c']:
+            if ratio[i] is None:
+                raise ValueError("Value required for ratio initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
+            # Ensure ratio is in correct range
+            if ratio[i] <= 0 or ratio[i] > 1:
+                raise ValueError("If not None, ratio initial guesses must be greater than 0 and less than or equal to 1.")
+            if pa[i] is None:
+                raise ValueError("Value required for position angle initial guess if fitting elliptical gaussian ('g'), disk ('d'), or 'any' for that source.")
+            # Convert position angle from degrees to radians, if needed
+            temp_pa = ((pa[i]+90)%180) - 90 # now angle is between -90 and 90
+            rad_theta.append(temp_pa * np.pi/180)
+        else:
+            rad_theta.append(None)
+
+    # Extract data from info
+    cdelt1 = info['CDELT1']
+    cunit1 = info['CUNIT1']
+    naxis1 = info['NAXIS1']
+
+    bmaj = info['BMAJ'] # cunit1
+    bmin = info['BMIN'] # cunit1
+    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+    int_peaks = info['int_peak_val']
+    int_coords = info['int_peak_coord']
+    ext_peaks = info['ext_peak_val']
+    ext_coords = info['ext_peak_coord']
+    rms = info['conservative_rms']
+
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
+
+    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+        int_peaks = int_peaks[:1]
+        int_coords = int_coords[:1]
+
+    # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
+
+    int_peaks.sort(reverse=True) # descending peak value
+    int_info = list(zip(int_peaks, int_coords))
+    if type(ext_peaks) is list:
+        ext_peaks.sort(reverse=True) # descending peak value
+        ext_info = list(zip(ext_peaks, ext_coords))
+    else:
+        ext_info = []
+    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
+    n_peaks = len(all_peaks)
+    n_sources = len(sources)
+    if n_peaks < n_sources:
+        warnings.warn(f"Number of detected peaks ({n_peaks}) is less than number of sources to fit ({n_sources}).")
+
+
+    vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
+
+    freq_bin, u, v, re, im, w = [], [], [], [], [], []
+    for row in vis:
+        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
+        freq_bin.append(int(freq_bin_data))
+        u.append(int(u_data))
+        v.append(int(v_data))
+        re.append(float(re_data/w_data))
+        im.append(float(im_data/w_data))
+        w.append(float(w_data))
+
+    # Adding in conjugate half of data
+    freq_bin *= 2
+    neg_u = [-1 * val for val in u]
+    u += neg_u
+    neg_v = [-1 * val for val in v]
+    v += neg_v
+    re *= 2
+    neg_im = [-1 * val for val in im]
+    im += neg_im
+    w *= 2
+
+    freq_bin = np.array(freq_bin)
+    u = np.array(u)
+    v = np.array(v)
+    re = np.array(re)
+    im = np.array(im)
+    w = np.array(w)
+
+    # All possible permutations
+    sample_space = list(SOURCE_TYPES.keys()) * n_sources
+    all_permutations = list(itertools.permutations(sample_space, n_sources))
+
+    for i in range(n_sources):
+        if sources[i] != 'any':
+            all_permutations = [p for p in all_permutations if p[i] == sources[i]] # remove unwanted permutations
+    all_permutations = list(set(all_permutations)) # remove duplicates
+
+    all_results = []
+    for permutation in all_permutations:
+        # Calculate n_params and n_walkers
+        n_params = 0
+        for i in range(n_sources):
+            source = permutation[i]
+            n_params += SOURCE_TYPES[source][0]
+        n_walkers = 2 * n_params
+
+        # Initial guesses
+        for i in range(n_sources):
+            width_p0 = rad_width[i]
+            ratio_p0 = ratio[i]
+            theta_p0 = rad_theta[i]
+            source = permutation[i]
+            peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
+            coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+            rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
+            if i == 0:
+                p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
+            else:
+                mini_p0 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
+                if i >= n_peaks: # edit ra, dec initial guesses to be the entire image
+                    for j in range(n_walkers):
+                        mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
+                        mini_p0[j,2] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
+                p0 = np.append(p0, mini_p0, axis=1)
+
+        # Set up and run MCMC
+        n_steps = 100
+        sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin, min_sep))
+        try:
+            state = sampler.run_mcmc(p0, n_steps)
+        except emcee.autocorr.AutocorrError:
+            pass
+        except ValueError:
+            print(f"Error encountered during MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        tau = sampler.get_autocorr_time(quiet=True)
+        if np.isnan(tau).all():
+            warnings.warn(f"Autocorrelation time for first run of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        int_tau = math.ceil(np.nanmax(tau))
+        steps_to_50_tau = abs(int_tau * 50 - n_steps)
+        try:
+            sampler.run_mcmc(state, steps_to_50_tau)
+        except ValueError:
+            print(f"Error encountered during second MCMC run for permutation {permutation}. Skipping this permutation.")
+            all_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+            continue
+        chain = sampler.get_chain(discard = int_tau * 10, flat=True)
+        log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
+        max_prob_index = np.argmax(log_probs)
+
+        # Find parameter estimates and uncertainties and calculate chi2
+        result = {}
+        model = 0.0
+        start = 0
+        for i in range(n_sources):
+            source = permutation[i]
+            n_source_params = SOURCE_TYPES[source][0]
+            source_chain = chain[:, start:start+n_source_params]
+            source_result = {'type': source}
+            temp_medians = [] # to store medians
+            temp_bests = {} # to store best values (that maximimize probability)
+            temp_max_probs = [] # to store max prob values
+            for j in range(n_source_params):
+                samples = source_chain[:, j]
+                temp_max_probs.append(samples[max_prob_index])
+                samples_med = np.median(samples)
+                samples_sd = np.nanstd(samples)
+                param_name = SOURCE_TYPES[source][4][j]
+                source_result[param_name] = (float(samples_med), float(samples_sd))
+                temp_bests[param_name] = float(samples[max_prob_index])
+                temp_medians.append(samples_med)
+            source_result['best'] = temp_bests
+            model += SOURCE_TYPES[source][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+            result[f'source_{i+1}'] = source_result
+            start += n_source_params
+        chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
+
+        all_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain})
+
+    # Do it again with refined initial guesses, if requested
+    for reps in range(additional_runs):
+        second_results = []
+        for permutation_info in all_results:
+            # Calculate n_params and n_walkers
+            permutation = permutation_info['permutation']
+            chain = permutation_info['chain']
+            n_params = 0
+            for i in range(n_sources):
+                source = permutation[i]
+                n_params += SOURCE_TYPES[source][0]
+            n_walkers = 2 * n_params
+
+            # New initial guesses from previous results
+            for i in range(n_sources):
+                source = permutation[i]
+                coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
+                rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
+                if permutation_info['result'] is None: # fitting didn't happen, so can't actually refine
+                    # Keep inputted guesses since we have nothing better right now
+                    width_p0 = rad_width[i]
+                    ratio_p0 = ratio[i]
+                    theta_p0 = rad_theta[i]
+                    peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
+                    if i == 0:
+                        p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
+                    else:
+                        mini_p1 = SOURCE_TYPES[source][1](peak, rad_coord, rad_pix, width_p0, ratio_p0, theta_p0, n_walkers)
+                        if i >= n_peaks: # edit ra, dec initial guesses
+                            for j in range(n_walkers):
+                                mini_p1[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
+                                mini_p1[j,2] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
+                        p1 = np.append(p1, mini_p1, axis=1)
+                else:
+                    source_result = permutation_info['result'][f'source_{i+1}']
+                    best_params = []
+                    med_sd = []
+                    for param_name in SOURCE_TYPES[source][4]:
+                        med_sd.append(source_result[param_name])
+                        best_params.append(source_result[param_name][0])
+
+                    if i == 0:
+                        p1 = all_p1(med_sd, n_walkers, chain)
+                    else:
+                        p1 = np.append(p1, all_p1(med_sd, n_walkers, chain), axis=1)
+
+            # Set up and run MCMC
+            n_steps = 100
+            sampler1 = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin, min_sep))
+            try:
+                state = sampler1.run_mcmc(p1, n_steps)
+            except emcee.autocorr.AutocorrError:
+                pass
+            except ValueError:
+                print(f"Error encountered during MCMC run number {reps+2} for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            tau = sampler1.get_autocorr_time(quiet=True)
+            if np.isnan(tau).all():
+                warnings.warn(f"Autocorrelation time for MCMC run number {reps+2} of {permutation} could not be estimated; all values are NaN.", RuntimeWarning)
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            int_tau = math.ceil(np.nanmax(tau))
+            steps_to_50_tau = abs(int_tau * 50 - n_steps)
+            try:
+                sampler1.run_mcmc(state, steps_to_50_tau)
+            except ValueError:
+                print(f"Error encountered during MCMC run number {reps+2} for permutation {permutation}. Skipping this permutation.")
+                second_results.append({'permutation': permutation, 'n_params': n_params, 'result': None, 'chi2': np.inf, 'chain': None})
+                continue
+            chain1 = sampler1.get_chain(discard = int_tau * 10, flat=True)
+            log_probs1 = sampler1.get_log_prob(discard = int_tau * 10, flat=True)
+            max_prob_index1 = np.argmax(log_probs1)
+
+            # Find parameter estimates and uncertainties and calculate chi2
+            result = {}
+            model = 0.0
+            start = 0
+            for i in range(n_sources):
+                source = permutation[i]
+                n_source_params = SOURCE_TYPES[source][0]
+                source_chain = chain1[:, start:start+n_source_params]
+                source_result = {'type': source}
+                temp_medians = [] # to store medians for chi2 calculation
+                temp_bests = {} # to store best values (that maximimize probability)
+                temp_max_probs = [] # to store max prob values
+                for j in range(n_source_params):
+                    samples = source_chain[:, j]
+                    temp_max_probs.append(samples[max_prob_index1])
+                    samples_med = np.median(samples)
+                    samples_sd = np.nanstd(samples)
+                    param_name = SOURCE_TYPES[source][4][j]
+                    source_result[param_name] = (float(samples_med), float(samples_sd))
+                    temp_bests[param_name] = float(samples[max_prob_index1])
+                    temp_medians.append(samples_med)
+                source_result['best'] = temp_bests
+                model += SOURCE_TYPES[source][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
+                result[f'source_{i+1}'] = source_result
+                start += n_source_params
+            chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
+            second_results.append({'permutation': permutation, 'n_params': n_params, 'result': result, 'chi2': chi2, 'chain': chain1})
+        all_results = []
+        for permutation_info in second_results:
+            all_results.append(permutation_info)
+
+    # Bayesian Information Criterion
+    n = len(re)
+    for permutation_info in all_results:
+        k = permutation_info['n_params']
+        chi2 = permutation_info['chi2']
+        if chi2 is np.inf:
+            permutation_info['bic'] = np.inf
+            continue
+        bic = k * np.log(n) + chi2
+        permutation_info['bic'] = float(bic)
+    all_results.sort(key=lambda x: x['bic']) # lowest to highest BIC
+
+    if clean_output:
+        for permutation_info in all_results:
+            result = permutation_info['result']
+            start = 0
+            permutation_chain = permutation_info['chain']
+            if result is None:
+                continue
+            for i in range(n_sources):
+                source_key = f'source_{i+1}'
+                source_result = result[source_key]
+                source_type = source_result['type']
+                source_params = SOURCE_TYPES[source_type][4]
+                n_source_params = SOURCE_TYPES[source_type][0]
+                n_walkers = 2 * n_source_params
+                source_chain = permutation_chain[:, start:start+n_source_params]
+
+                # peak
+                peak_chain = source_chain[:, 0]
+                peak_sigmas = tuple([float(sigfig.round(sigma, sigfigs=3)) for sigma in sigmas(peak_chain)])
+                source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
+
+                # convert ra, dec to arcsec
+                ra_chain = source_chain[:, 1]
+                dec_chain = source_chain[:, 2]
+                ra_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(ra_chain)])
+                dec_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(dec_chain)])
+                source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
+                source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
+
+                if source_type != 'p': # convert visibility width to image width in arcsec
+                    width_chain = source_chain[:, 3]
+                    width_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(width_chain)])
+                    source_result['sigma'] = (round_tuple((float(Angle(source_result[source_params[3]][0], units.radian).to(units.arcsec).value), \
+                                                    float(Angle(source_result[source_params[3]][1], units.radian).to(units.arcsec).value))), width_sigmas)
+                    if source_type == 'd':
+                        del source_result['r']
+
+                if source_type in ['g', 'd']: # convert visibility theta to image theta in degrees and convert sigma and ratio into major and minor
+                    theta_chain = source_chain[:, 5]
+                    vis_theta_sigmas = sigmas(theta_chain)
+                    theta_sigmas = tuple([float(sigfig.round((theta * 180/np.pi), sigfigs=3)) for theta in vis_theta_sigmas])
+                    uvis_theta = ufloat(source_result['vis_theta'][0], source_result['vis_theta'][1])
+                    uimg_theta = (uvis_theta * (180/np.pi))
+                    del source_result['vis_theta']
+                    source_result['theta'] = (round_tuple((uimg_theta.n, uimg_theta.s)), theta_sigmas)
+
+                    uwidth_maj = ufloat(source_result['sigma'][0][0], source_result['sigma'][0][1])
+                    uratio = ufloat(source_result['ratio'][0], source_result['ratio'][1])
+                    uwidth_min = uwidth_maj * uratio
+                    del source_result['sigma']
+                    del source_result['ratio']
+                    source_result['major_axis'] = (round_tuple((uwidth_maj.n, uwidth_maj.s)), tuple([float(sigfig.round(width, sigfigs=3)) for width in width_sigmas]))
+                    source_result['minor_axis'] = (round_tuple((uwidth_min.n, uwidth_min.s)), tuple([float(sigfig.round(width * uratio.n, sigfigs=3)) for width in width_sigmas]))
+
+                del source_result['best']
+
+                start += n_source_params
+
+    if corner_plot:
+        for j in range(len(all_results)):
+            permutation_info = all_results[j]
+            result = permutation_info['result']
+            if result is None:
+                continue
+            chain = permutation_info['chain']
+            start = 0
+            end = 0
+            for i in range(n_sources):
+                source_key = f'source_{i+1}'
+                source_result = result[source_key]
+                source_type = source_result['type']
+                n_params = SOURCE_TYPES[source_type][0]
+                source_params = SOURCE_TYPES[source_type][4]
+                end += n_params
+                if i == n_sources-1:
+                    fig = corner.corner(chain[:, start:], labels=source_params)
+                else:
+                    fig = corner.corner(chain[:, start:end], labels=source_params)
+                fig.suptitle(f'Permutation {j+1}: {permutation_info["permutation"]}, source {i+1} of {n_sources}')
+                start = end
+
+    for permutation_info in all_results:
+        del permutation_info['chain']
+
+    return all_results
+
 
 def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
     # Extract data from info
@@ -366,6 +832,7 @@ def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_
 
     return all_results
 
+
 def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
 
     int_peaks = info['int_peak_val']
@@ -399,11 +866,13 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
     else:
         raise ValueError('All attempts failed to converge.')
 
+
 def score(z):
     k = int(abs(z)) # sigma bin
     numerator = 2 * (norm.cdf(k+1) - norm.cdf(k)) # probability of being in this sigma bin
     denominator = 2 * (norm.cdf(1) - norm.cdf(0)) # probability of being in 0 to 1 sigma bin, normalization factor so that score of 1 corresponds to being in 0 to 1 sigma bin
     return numerator / denominator
+
 
 def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios=None, thetas=None, reps=100):
     all_points = []
@@ -544,6 +1013,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
             'average ra points': round(float(np.mean(ra_pts)),2), 'std ra points': round(float(np.std(ra_pts)),2),\
             'average dec points': round(float(np.mean(dec_pts)),2), 'std dec points': round(float(np.std(dec_pts)),2),\
             'number of errors': num_errors}
+
 
 def average_by_snr(fits_file, sources, coords, noise, widths=None, ratios=None, thetas=None, reps_per_snr=50, snr_vals=[3,4,5,6,7,8,9,10,20,50,100,200,500,1000]):
     # single source only for now, can be extended to multiple sources in the future

@@ -960,7 +960,10 @@ def high_level_table(
             representation_type='cartesian',
         )
 
+        mean_coord.representation_type = 'spherical'
+
         return mean_coord.ra, mean_coord.dec
+    
 
     for i, source_id in enumerate(unique_sources['SourceID']):
         temp_df = low_df[(low_df['SourceID']) == source_id]
