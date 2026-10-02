@@ -2417,6 +2417,7 @@ def uv_fit(
             vis_priors.append([[None, None]] * 6)
 
     # Extract data from FITS file.
+    fits_file = Path(fits_file)
     with fits.open(fits_file) as file:
         cdelt1 = file[0].header['CDELT1']
         cunit1 = file[0].header['CUNIT1']
