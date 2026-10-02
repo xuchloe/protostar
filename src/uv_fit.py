@@ -315,6 +315,7 @@ def p_p0(
         )
     return p0
 
+
 def c_p0(
     peak: float,
     rad_coord: tuple,
@@ -383,6 +384,7 @@ def c_p0(
             1.2 * width_p0,
         )
     return p0
+
 
 def g_p0(
     peak: float,
@@ -467,6 +469,7 @@ def g_p0(
             p0[i,5] = np.pi / 2
     return p0
 
+
 def d_p0(
     peak: float,
     rad_coord: tuple,
@@ -544,6 +547,7 @@ def d_p0(
         elif p0[i,5] > np.pi/2:  # Cap angle at pi/2 radians.
             p0[i,5] = np.pi/2
     return p0
+
 
 def all_p1(
     med_sd: npt.ArrayLike,
@@ -784,6 +788,7 @@ def c_prior(
             if sigma_max is not None and sigma == sigma_max:
                 return -np.inf
     return 0.0
+
 
 def g_prior(
     params: npt.ArrayLike,
@@ -1034,6 +1039,7 @@ def d_prior(
                 return -np.inf
     return 0.0
 
+
 def log_likelihood(
     model: float | npt.ArrayLike,
     re: float | npt.ArrayLike,
@@ -1203,6 +1209,7 @@ def round_tuple(
         places = len(decimal)
     return (round(float(tup[0]), places), rounded_err)
 
+
 def sigmas(param_chain: npt.ArrayLike) -> tuple:
     """
     Find the 2.5th, 16th, 50th, 84th, and 97.5th percentile of data.
@@ -1231,6 +1238,7 @@ def sigmas(param_chain: npt.ArrayLike) -> tuple:
         np.percentile(param_chain, 97.5)
     )
 
+
 def _auto_detect(
     vis: npt.ArrayLike,
     info: dict,
@@ -1240,8 +1248,8 @@ def _auto_detect(
     min_sep: float | None = None,
 ) -> list:
     """
-    Perform a visbility domain fit of a given number of point sources and
-    summarize the results in a list and/or corner plot.
+    Fit a given number of point sources to visibility data and summarize the
+    results in a list and/or corner plot.
 
     Parameters
     ----------
@@ -1630,10 +1638,9 @@ def best_auto_detect(
     min_sep: float | None = None
 ) -> list:
     """
-    Perform a visibility domain fit of a given number of point sources and
-    summarize the results in a list and/or corner plot, or perform a visibility
-    domain fit with different numbers of point sources and summarize the
-    results of the best fit in a list and/or corner plot.
+    Fit visibility data from a FITS file to a given number of point sources or
+    to different numbers of point sources, and summarize the results of the
+    (best) fit in a list and/or corner plot.
 
     Paramters
     ---------
@@ -1734,6 +1741,9 @@ def best_auto_detect(
 
     Notes
     -----
+    This function employs Markov chain Monte Carlo (MCMC) via the emcee package
+    to sample the parameter space.
+
     This function operates under several assumptions:
     1.  Assume that the presence of more than 2 internal detected peaks
         suggests the source is extended, rather than the presence of more than
@@ -1755,10 +1765,11 @@ def best_auto_detect(
         data = file[1].data
         bmaj = file[0].header['BMAJ']
         bmin = file[0].header['BMIN']
-        rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
-        rad_bmin = Angle(bmin, cunit1).to(units.radian).value
-        rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-        rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+
+    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
 
     # Get image domain fitting results.
     summ = summary(fits_file, plot=False)
@@ -1865,19 +1876,19 @@ def best_auto_detect(
 
 
 def uv_fit(
-    fits_file: str,
+    fits_file: str | Path,
     sources: list,
-    peak_guess: list=None,
-    ra_guess: list=None,
-    dec_guess: list=None,
-    width_guess: list=None,
-    ratio_guess: list=None,
-    pa_guess: list=None,
-    priors: list=None,
-    clean_output=True,
-    corner_plot=True,
+    peak_guess: list | None = None,
+    ra_guess: list | None = None,
+    dec_guess: list | None = None,
+    width_guess: list | None = None,
+    ratio_guess: list | None = None,
+    pa_guess: list | None = None,
+    priors: list | None = None,
+    clean_output: bool = True,
+    corner_plot: bool = True,
     additional_runs: int = 2,
-    extreme_case_check=True,
+    extreme_case_check: bool = True,
     min_sep: float | None = None,
 ):
     # priors = [[(peak_min, peak_max), (ra_min, ra_max), (dec_min, dec_max), (width_param_min, width_param_max), (ratio_min, ratio_max), (theta_min, theta_max)], ...]
@@ -1885,15 +1896,46 @@ def uv_fit(
     # TODO: documentation
     # width in arcsec, input None if no guess, interpret 0 as very very small like point source
     # theta in deg, input None if no guess, interpret 0 as 0 degrees
-    '''
-    Fit UV data from a FITS file with specified source types using MCMC.
+    """
+    Fit visibility data from a FITS file to a model of a given source type or
+    given source types.
 
     Parameters
     ----------
-    fits_file (str): Path to the UV FITS file.
-    sources (list): List of source types to fit. Each source type should be one of
-                    'p' (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any' (try all and pick best fit).
-    '''
+    fits_file : str
+        The path of the FITS file that contains the visibility data.
+    sources : list
+        List of source types to fit. Each source type should be one of 'p'
+        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
+        (try all and pick best fit).
+    peak_guess : list | None, optional
+    ra_guess : list | None, optional
+    dec_guess : list | None, optional
+    width_guess : list | None, optional
+    ratio_guess : list | None, optional
+    pa_guess : list | None, optional
+    priors : list | None, optional
+    clean_output : bool, optional
+        Whether to return the list of fit results in a more human-parsable
+        format. See Returns section for more details.
+    additional_runs : int, optional
+        The number of MCMC runs beyond the first to perform.
+    extreme_case_check : bool, optional
+        Whether to check for extreme cases: the brightest source is a very
+        large Gaussian, a very large disk, or a point source.
+    min_sep : float | None, optional
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
+
+
+    Notes
+    -----
+    Additional MCMC runs use the fitting results from the previous run to
+    create initial guesses.
+
+    For the very large Gaussian and very large disk checks, the width initial
+    guesses are created around twice the beam major axis.
+    """
     n_sources = len(sources)
 
     # Check additional_runs
@@ -2124,20 +2166,31 @@ def uv_fit(
         else: # nothing to convert
             vis_priors.append([[None, None]] * 6)
 
-    # Extract data from fits file
-    file = fits.open(fits_file)
-    cdelt1 = file[0].header['CDELT1']
-    cunit1 = file[0].header['CUNIT1']
-    naxis1 = file[0].header['NAXIS1']
-    data = file[1].data
+    # Extract data from FITS file.
+    with fits.open(fits_file) as file:
+        cdelt1 = file[0].header['CDELT1']
+        cunit1 = file[0].header['CUNIT1']
+        naxis1 = file[0].header['NAXIS1']
+        data = file[1].data
+        bmaj = file[0].header['BMAJ']
+        bmin = file[0].header['BMIN']
+        # Account for different visiblity conventions.
+        if file[1].header['TTYPE2'] == 'indexU':
+            u_res = file[1].header['U_RES']
+        else:
+            u_res = 1
+        if file[1].header['TTYPE3'] == 'indexV':
+            v_res = file[1].header['V_RES']
+        else:
+            v_res = 1
 
-    summ = summary(fits_file, plot=False)
-    bmaj = file[0].header['BMAJ'] # cunit1
-    bmin = file[0].header['BMIN'] # cunit1
     rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
     rad_bmin = Angle(bmin, cunit1).to(units.radian).value
     rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
     rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+
+    # Get image domain fitting results.
+    summ = summary(fits_file, plot=False)
     int_peaks = summ['int_peak_val']
     int_coords = summ['int_peak_coord']
     ext_peaks = summ['ext_peak_val']
@@ -2159,25 +2212,15 @@ def uv_fit(
             f"sources to fit ({n_sources})."
         )
 
-    # to account for different visiblity conventions
-    if file[1].header['TTYPE2'] == 'indexU':
-        u_res = file[1].header['U_RES']
-    else:
-        u_res = 1
-    if file[1].header['TTYPE3'] == 'indexV':
-        v_res = file[1].header['V_RES']
-    else:
-        v_res = 1
-
     vis = np.array(data)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
         freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
         freq_bin.append(int(freq_bin_data))
-        u.append(int(u_data*u_res))
-        v.append(int(v_data*v_res))
-        re.append(float(re_data/w_data))
-        im.append(float(im_data/w_data))
+        u.append(int(u_data * u_res))
+        v.append(int(v_data * v_res))
+        re.append(float(re_data / w_data))
+        im.append(float(im_data / w_data))
         w.append(float(w_data))
 
     # Adding in conjugate half of data
@@ -2197,8 +2240,6 @@ def uv_fit(
     re = np.array(re)
     im = np.array(im)
     w = np.array(w)
-
-    file.close() # good practice
 
     # All possible permutations
     sample_space = list(SOURCE_TYPES.keys()) * n_sources
