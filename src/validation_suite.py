@@ -27,39 +27,107 @@ SOURCE_TYPES = {
     'd': [6, d_p0, d_prior, d_model, D_PARAMS],
 }
 
-
 def generate_synthetic_info_vis(
     fits_file: str | Path,
     sources: list,
+    radius_buffer : float,
     peaks: list,
     coords: list,
     noise: float,
     widths: list | None = None,
     ratios: list | None = None,
     thetas: list | None = None,
-):
+) -> tuple:
     """
-    Using the UV-coordinates and weights from a FITS file, generate a synthetic
-    visibility table and image information dictionary for a single- or multi-
-    source model.
+    Using the frequencies or frequency bins, UV-coordinates, and weights from a
+    FITS file, generate a synthetic visibility table and image information
+    dictionary for a single- or multi- source model.
 
     Parameters
     ----------
     fits_file : str | Path
-    source : list
+        The path to the FITS file that contains the visibility table as its
+        index 1 element.
+    sources : list
+        List of source types to fit to simulate. Each source type should be one
+        of 'p' (point), 'c' (circular gaussian), 'g' (gaussian), or 'd' (disk).
+    radius_buffer : float
+        The amount of buffer, in arcsec, to add to the beam FWHM to get the
+        radius of the circle differentiating the 'internal' and 'external'
+        regions of the field.
     peaks : list
+        List of source intensities, in Jy, corresponding to each source in
+        `sources`.
     coords : list
+        List of coordinates as (`ra`, `dec`), in arcsec, corresponding to each
+        source in `sources`.
     noise : float
-    widths : list | None = None
-    ratios : list | None = None
-    thetas : list | None = None
+        Noise of the map, in Jy.
+    widths : list | None, optional
+        List of widths, in arcsec, corresponding to each extended source in
+        `sources`.
+    ratios : list | None, optional
+        List of ratios corresponding to each non-symmetrical source in
+        `sources`.
+    thetas : list | None, optional
+        List of source angles corresponding to each non-symmetrical source in
+        `sources`.
+
+    Returns
+        tuple of
+            dict
+                Dictionary with the following keys:
+                `CDELT1` : float
+                    The pixel size of the first axis, in the units of
+                    `info['CUNIT1']`.
+                `CUNIT1` : u.UnitBase
+                    The units of the first axis.
+                `NAXIS1` : int
+                    The length of the first axis, in pixels.
+                `BMAJ` : float
+                    The beam major axis, in degrees.
+                `BMIN` : float
+                    The beam minor axis, in degrees.
+                `int_peak_val` : list
+                    A list of guesses for the internal peak intensities, in Jy.
+                `int_peak_coord` : tuple of float
+                    A list of guesses for the internal peak coordinates, in
+                    relative arcseconds.
+                `ext_peak_val` : float
+                    A list of guesses for the external peak intensities, in Jy.
+                `ext_peak_coord` : tuple float
+                    A list of guesses for the external peak coordinates, in
+                    relative arcseconds.
+            list
+                The visibility table. List elements are rows of 6 elements
+                each: the 0th index corresponding to the frequency or frequency
+                bin, the 1st index corresponding to the `u` coordinate, in
+                wavelengths; the 2nd index corresponding to the `v` coordinate,
+                in wavelengths; the 3rd index corresponding to the real
+                component of the visibility, in Jy; the 4th index corresponding
+                to the imaginary component of the visibility, in Jy; and the
+                5th index corresponding to the visibility weight (the inverse
+                of the uncertainty squared), in 1/Jy^2.
 
     Raises
     ------
     ValueError
+        If less than one peak, coordinate, or source type is provided, if
+        different numbers of peaks, coordinates, or source types are provided,
+        if an invalid source type is provided, if a coordinate is provided in
+        an invalid format, if an incorrect number of widths is provided, if an
+        incorrect number of ratios is provided, or if an incorrect number of
+        source angles is given.
 
+    Notes
+    -----
+    Assumes the FITS file contains a table as its index 1 element and that this
+    table has columns "Frequency" or "Frequency bin", "U" or "indexU", and "V"
+    or "indexV".
+
+    `radius_buffer` impacts which sources are deemed 'internal' or 'external'
+    in the returned dictionary `info`.
     """
-    # peak in Jy, coords in arcsec, noise in Jy, widths in arcsec, ratios unitless, thetas in degrees
     num_sources = len(sources)
     if num_sources == 0:
         raise ValueError(
@@ -85,22 +153,9 @@ def generate_synthetic_info_vis(
                 f"Coordinate for source {i+1} must be a tuple or list of "
                 "length 2 representing (ra, dec) in radians."
             )
-    if widths is not None and num_sources != len(widths):
-        raise ValueError(
-            "Length of sources and widths must be the same if specifying "
-            "widths."
-        )
-    if ratios is not None and num_sources != len(ratios):
-        raise ValueError(
-            "Length of sources and ratios must be the same if specifying "
-            "ratios."
-        )
-    if thetas is not None and num_sources != len(thetas):
-        raise ValueError(
-            "Length of sources and source angles must be the same if "
-            "specifying source angles."
-        )
 
+    # Count how many widths, ratios, and source angles there should be
+    # according to the given source types.
     num_widths = 0
     num_ratios = 0
     num_thetas = 0
@@ -126,8 +181,8 @@ def generate_synthetic_info_vis(
     if thetas is not None:
         if len(thetas) != num_thetas:
             raise ValueError(
-                f"{num_thetas} sources require thetas, but only {len(thetas)} "
-                "have been given."
+                f"{num_thetas} sources require source angles, but only "
+                "{len(thetas)} have been given."
             )
 
     fits_file = Path(fits_file)
@@ -136,7 +191,6 @@ def generate_synthetic_info_vis(
         cdelt1 = file[0].header['CDELT1']
         cunit1 = file[0].header['CUNIT1']
         naxis1 = file[0].header['NAXIS1']
-        naxis2 = file[0].header['NAXIS2']
         bmaj = file[0].header['BMAJ']
         bmin = file[0].header['BMIN']
 
@@ -154,7 +208,7 @@ def generate_synthetic_info_vis(
             v_res = 1
 
     arcsec_bmaj = Angle(bmaj, cunit1).to(units.arcsec).value
-    search_radius = arcsec_bmaj + 2
+    search_radius = arcsec_bmaj + radius_buffer
 
     pix_field_center = (0,0)
 
@@ -163,6 +217,8 @@ def generate_synthetic_info_vis(
     ext_peaks = []
     ext_coords = []
 
+    # Divide the sources into 'internal' and 'external' sources based on their
+    # coordinates.
     for i in range(num_sources):
         if np.sqrt(
             (coords[i][0] - pix_field_center[0]) ** 2
@@ -184,7 +240,6 @@ def generate_synthetic_info_vis(
     info['int_peak_coord'] = int_coords
     info['ext_peak_val'] = ext_peaks
     info['ext_peak_coord'] = ext_coords
-    info['conservative_rms'] = noise
 
     vis_err = noise * np.sqrt(len(data)) * np.sqrt(2)
     weight = 1/(vis_err**2)
@@ -193,6 +248,7 @@ def generate_synthetic_info_vis(
     clean_re = []
     clean_im = []
 
+    # Sum the visibilities of each source.
     width_counter = 0
     g_counter = 0
     for i in range(num_sources):
@@ -208,7 +264,7 @@ def generate_synthetic_info_vis(
             width_counter += 1
             if sources[i] == 'g':
                 source_info.append(ratios[g_counter])
-                source_info.append(thetas[g_counter] * np.pi/180) # convert from degrees to radians
+                source_info.append(thetas[g_counter] * np.pi/180)
                 g_counter += 1
         for j in range(len(data)):
             row = data[j]
@@ -226,6 +282,8 @@ def generate_synthetic_info_vis(
                 clean_re[j] += model.real
                 clean_im[j] += model.imag
 
+    # Determine whether the given FITS file has a column named 'Frequency' or
+    # a column named 'Frequency bin'.
     freq_name = 'Frequency'
     try:
         temp = data[0][freq_name]
@@ -247,226 +305,237 @@ def generate_synthetic_info_vis(
     return info, vis
 
 
-def sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
-    # Extract data from info
+def sim_best_auto_detect(
+    info: dict,
+    vis: list,
+    n_sources: int | None = None,
+    clean_output: bool = True,
+    corner_plot: bool = True,
+    min_sep : float | None = None,
+) -> list:
+    """
+    Fit visibility data from a FITS file to a given number of point sources or
+    to different numbers of point sources, and summarize the results of the
+    (best) fit in a list and/or corner plot.
+
+    Paramters
+    ---------
+    info : dict
+        Image domain information and some results from image domain fitting.
+        Should include the following keys:
+        `all_peaks` : npt.ArrayLike
+            Array-like object with each element corresponding to a source
+            detected in image fitting. Each element is an array-like object
+            with the first index corresponding to the flux density, in Jy, of
+            the peak detected in the image domain and the second index
+            corresponding to the coordinates, each in arcseconds, of the
+            detected peak.
+        `n_peaks` : int
+            The number of peaks detected in the image domain.
+        `rad_pix` : float
+            The length of one side of a pixel (assumed to be square), in
+            radians.
+        `rad_barea` : float
+            Beam area, in radians^2.
+        `naxis1` : int
+            The number of pixels in the first axis of the image (assumed to be
+            square).
+        `rad_bmaj` : float
+            Beam major axis, in radians.
+        `rad_bmin` : float
+            Beam minor axis, in radians.
+    vis : npt.ArrayLike
+        An array-like object with 6 indices, corresponding to the data for the
+        frequency or frequency bin; the `u` coordinate of the visibility, in
+        wavelengths; the `v` coordinate of the visibility, in wavelenghts; the
+        real part of the visibility, in Jy; the imaginary part of the
+        visibility, in Jy; and the weight (the inverse of the uncertainty
+        squared) for each visibility measurement, in 1/Jy^2.
+    n_sources : int | None, optional
+        The number of point sources in the model that will be fit to the data.
+        If none, models with different numbers of point sources will be fit to
+        the data and the results of the best-fit model will be reported.
+    clean_output : bool, optional
+        Whether to return the list of fit results in a more human-parsable
+        format. See Returns section for more details.
+    corner_plot : bool, optional
+        Whether to create a corner plot for each source.
+    min_sep : float | None, optional
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
+
+    Returns
+    -------
+    list of dict
+        A list of a dictionary with the following keys:
+        `n_sources` : int
+            The number of point sources for which the fit was performed.
+        `result` : dict
+            A dictionary with the following keys:
+            `source_m` : dict
+                A dictionary, for each source (m = 1 through m = `n_sources`),
+                with the following keys:
+                    `type` : str
+                        The source type, as a single character code (a key of
+                        SOURCE_TYPES).
+                        By definition, 'p' for all the sources in
+                        best_auto_detect().
+                    `peak` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted peak estimate and its
+                        uncertainty, respectively, in Jy. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sampled
+                        parameters, in Jy, all rounded to 3 signficant figures.
+                        Else, a tuple of the fitted peak estimate and its
+                        uncertainty, respectively, in Jy.
+                    `ra` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted Right Ascension
+                        estimate and its uncertainty, respectively, in
+                        arcseconds relative to the field center. The
+                        uncertainty is rounded to 3 significant figures and the
+                        estimate is rounded to the appropriate number of digits
+                        to match the uncertainty. The second tuple contains
+                        the 2.5th, 16th, 50th, 84th, and 97.5th percentile of
+                        sample parameters, in relative arcseconds, all rounded
+                        to 3 significant figures.
+                        Else, a tuple of the fitted Right Ascension estimate
+                        and its uncertainty, respectively, in radians relative
+                        to the field center.
+                    `dec` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted Declination estimate
+                        and its uncertainty, respectively, in arcseconds
+                        relative to the field center. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sample
+                        parameters, in relative arcseconds, all rounded to 3
+                        significant figures.
+                        Else, a tuple of the fitted Declination estimate and
+                        its uncertainty, respectively, in radians relative to
+                        the field center.
+                    `best` : dict
+                        This key is only present if `clean_output` is `False`.
+                        A dictionary, of the collection of sample parameters
+                        that resulted in the lowest chi-squared value, with the
+                        following keys:
+                            `peak` : float
+                                The peak flux density, in Jy.
+                            `ra` : float
+                                The right ascension, in radians relative to the
+                                field center.
+                            `dec` : float
+                                The declination, in radians relative to the
+                                field center.
+        `bic` : float
+            The Bayesian Information Criterion (BIC), estimated as
+            chi^2 + k * ln(n), where chi^2 is the chi-squared value of the
+            fit, k is the number of parameters, and n is the  number of data
+            points to which the model is being fit.
+            If `clean_output` is `True`, the BIC is rounded to the hundredths.
+
+    Raises
+    ------
+    ValueError
+        If all models attempted fail to converge.
+
+    Notes
+    -----
+    The visibility table should contain as its elements  rows of 6 elements
+    each: the 0th index corresponding to the frequency or frequency bin, the
+    1st index corresponding to the `u` coordinate, in wavelengths; the 2nd
+    index corresponding to the `v` coordinate, in wavelengths; the 3rd index
+    corresponding to the real component of the visibility, in Jy; the 4th index
+    corresponding to the imaginary component of the visibility, in Jy; and the
+    5th index corresponding to the visibility weight (the inverse of the
+    uncertainty squared), in 1/Jy^2.
+
+    Regardless of `clean_output`, corner plots will be of the visibility
+    parameters. This means that the RA and Dec will be in radians, and the
+    position angle will be in radians and rotated by pi/2 relative to the
+    position angle in the image domain.
+
+    This function employs Markov chain Monte Carlo (MCMC) via the emcee package
+    to sample the parameter space.
+
+    This function operates under several assumptions:
+    1.  Assume that the presence of more than 2 internal detected peaks
+        suggests the source is extended, rather than the presence of more than
+        2 separate sources in the interior region.
+    2.  Assume that extended external sources are extremely rare, so do not
+        apply a similar assumption as (1) to cases with more than 2 external
+        sources.
+    3.  Assume that the image analysis more often has false positives than
+        false negatives. As a consequence, when `n_sources` is None, begin
+        guesses for the number of point sources at the number of peaks detected
+        in the image domain and then try models with fewer and fewer sources.
+    """
     cdelt1 = info['CDELT1']
     cunit1 = info['CUNIT1']
     naxis1 = info['NAXIS1']
+    bmaj = info['BMAJ']
+    bmin = info['BMIN']
 
-    bmaj = info['BMAJ'] # cunit1
-    bmin = info['BMIN'] # cunit1
     rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
     rad_bmin = Angle(bmin, cunit1).to(units.radian).value
     rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
     rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+
     int_peaks = info['int_peak_val']
     int_coords = info['int_peak_coord']
     ext_peaks = info['ext_peak_val']
     ext_coords = info['ext_peak_coord']
-    rms = info['conservative_rms']
 
-    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
+    if min_sep is None:
+        min_sep = rad_bmaj / 10
+
+    # Assume the presence of more than 2 internal detected peaks suggests the
+    # source is extended, rather than the presence of more than 2 separate
+    # sources in the interior region.
+    if len(int_peaks) > 2:
         int_peaks = int_peaks[:1]
         int_coords = int_coords[:1]
 
-    # TODO: handle extended external source? or just ignore since extended sources are less likely to be real?
-
-    int_peaks.sort(reverse=True) # descending peak value
     int_info = list(zip(int_peaks, int_coords))
     if type(ext_peaks) is list:
-        ext_peaks.sort(reverse=True) # descending peak value
         ext_info = list(zip(ext_peaks, ext_coords))
     else:
         ext_info = []
-    all_peaks = int_info + ext_info # list of tuples (peak_value, (l_coord, m_coord)), int in descending peaks then ext in descending peaks
+
+    # Create a list of image domain detected peak information. The list
+    # elements are tuples (peak, (ra, dec)).
+    all_peaks = int_info + ext_info
+    all_peaks.sort(reverse=True)  # Sort by peak flux density (high to low).
     n_peaks = len(all_peaks)
-    if n_sources is not None:
-        if n_peaks != n_sources:
-            print(f"Warning: Number of peaks detected ({n_peaks}) does not match n_sources ({n_sources}). Proceeding with {n_sources}, but results may not be realiable")
-    else:
-        n_sources = n_peaks
 
-    vis_priors = [[[None, None] for _ in range(6)] for _ in range(n_sources)]
-
-    freq_bin, u, v, re, im, w = [], [], [], [], [], []
-    for row in vis:
-        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
-        freq_bin.append(int(freq_bin_data))
-        u.append(int(u_data))
-        v.append(int(v_data))
-        re.append(float(re_data/w_data))
-        im.append(float(im_data/w_data))
-        w.append(float(w_data))
-
-    # Adding in conjugate half of data
-    freq_bin *= 2
-    neg_u = [-1 * val for val in u]
-    u += neg_u
-    neg_v = [-1 * val for val in v]
-    v += neg_v
-    re *= 2
-    neg_im = [-1 * val for val in im]
-    im += neg_im
-    w *= 2
-
-    freq_bin = np.array(freq_bin)
-    u = np.array(u)
-    v = np.array(v)
-    re = np.array(re)
-    im = np.array(im)
-    w = np.array(w)
-
-    # Calculate n_params and n_walkers
-    permutation = tuple(['p'] * n_sources)
-    n_params = 0
-    for i in range(n_sources):
-        n_params += SOURCE_TYPES['p'][0]
-    n_walkers = 2 * n_params
-
-    # Initial guesses
-    width_guess = None
-    ratio_guess = None
-    theta_guess = None
-    fluxes = [flux_coord[0] for flux_coord in all_peaks]
-    min_index = np.argmin(fluxes)
-    for i in range(n_sources):
-        peak = all_peaks[i][0] if i < n_peaks else all_peaks[min_index][0]
-        coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
-        rad_coord = (float(Angle(coord0[0], units.arcsec).to(units.radian).value), float(Angle(coord0[1], units.arcsec).to(units.radian).value))
-        if i == 0:
-            p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
-        else:
-            mini_p0 = SOURCE_TYPES['p'][1](peak, rad_coord, rad_pix, width_guess, ratio_guess, theta_guess, n_walkers)
-            if i >= n_peaks: # edit ra, dec initial guesses
-                for j in range(n_walkers):
-                    mini_p0[j,1] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
-                    mini_p0[j,2] = np.random.uniform(-naxis1/2*rad_pix, naxis1/2*rad_pix)
-            p0 = np.append(p0, mini_p0, axis=1)
-
-    # Set up and run MCMC
-    all_results = []
-    n_steps = 100
-    sampler = emcee.EnsembleSampler(n_walkers, n_params, log_probability, args=(permutation, vis_priors, re, im, u, v, w, rad_bmaj, rad_bmin))
-    try:
-        state = sampler.run_mcmc(p0, n_steps)
-    except emcee.autocorr.AutocorrError:
-        pass
-    except ValueError:
-        raise ValueError(f"Error encountered during MCMC run.")
-    tau = sampler.get_autocorr_time(quiet=True)
-    if np.isnan(tau).all():
-        raise RuntimeError(f"Autocorrelation time for parameters could not be estimated; all values are NaN.")
-    int_tau = math.ceil(np.nanmax(tau))
-    steps_to_50_tau = abs(int_tau * 50 - n_steps)
-    try:
-        sampler.run_mcmc(state, steps_to_50_tau, skip_initial_state_check=True)
-    except ValueError:
-        raise ValueError(f"Error encountered during MCMC run.")
-    chain = sampler.get_chain(discard = int_tau * 10, flat=True)
-    log_probs = sampler.get_log_prob(discard = int_tau * 10, flat=True)
-    max_prob_index = np.argmax(log_probs)
-
-    # Find parameter estimates and uncertainties and calculate chi2
-    result = {}
-    model = 0.0
-    start = 0
-    for i in range(n_sources):
-        n_source_params = SOURCE_TYPES['p'][0]
-        source_chain = chain[:, start:start+n_source_params]
-        source_result = {'type': 'p'}
-        temp_medians = [] # to store medians
-        temp_bests = {} # to store best values (that maximimize probability)
-        temp_max_probs = [] # to store max prob values
-        for j in range(n_source_params):
-            samples = source_chain[:, j]
-            temp_max_probs.append(samples[max_prob_index])
-            samples_med = np.median(samples)
-            samples_sd = np.nanstd(samples)
-            param_name = SOURCE_TYPES['p'][4][j]
-            source_result[param_name] = (float(samples_med), float(samples_sd))
-            temp_bests[param_name] = float(samples[max_prob_index])
-            temp_medians.append(samples_med)
-        source_result['best'] = temp_bests
-        model += SOURCE_TYPES['p'][3](temp_max_probs, u, v, rad_bmaj, rad_barea)
-        result[f'source_{i+1}'] = source_result
-        start += n_source_params
-    chi2 = float(np.sum(w * ((re - model.real)**2 + (im - model.imag)**2)))
-    n = len(re)
-    k = n_params
-    bic = float(k * np.log(n) + chi2)
-    all_results.append({'n_sources': n_sources, 'result': result, 'bic': bic, 'chain': chain})
-
-    if clean_output:
-        result = all_results[0]['result']
-        start = 0
-        permutation_chain = all_results[0]['chain']
-        for i in range(n_sources):
-            source_key = f'source_{i+1}'
-            source_result = result[source_key]
-            source_params = SOURCE_TYPES['p'][4]
-            n_source_params = SOURCE_TYPES['p'][0]
-            n_walkers = 2 * n_source_params
-            source_chain = permutation_chain[:, start:start+n_source_params]
-
-            # peak
-            peak_chain = source_chain[:, 0]
-            peak_sigmas = tuple([float(sigfig.round(sigma, sigfigs=3)) for sigma in sigmas(peak_chain)])
-            source_result['peak'] = (round_tuple((source_result['peak'][0], source_result['peak'][1])), peak_sigmas)
-
-            # convert ra, dec to arcsec
-            ra_chain = source_chain[:, 1]
-            dec_chain = source_chain[:, 2]
-            ra_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(ra_chain)])
-            dec_sigmas = tuple([float(sigfig.round(Angle(sigma, units.radian).to(units.arcsec).value, sigfigs=3)) for sigma in sigmas(dec_chain)])
-            source_result['ra'] = (round_tuple(tuple([float(Angle(l, units.radian).to(units.arcsec).value) for l in source_result['ra']])), ra_sigmas)
-            source_result['dec'] = (round_tuple(tuple([float(Angle(m, units.radian).to(units.arcsec).value) for m in source_result['dec']])), dec_sigmas)
-
-            del source_result['best']
-
-            start += n_source_params
-
-    if corner_plot:
-        result = all_results[0]['result']
-        chain = all_results[0]['chain']
-        start = 0
-        end = 0
-        for i in range(n_sources):
-            source_key = f'source_{i+1}'
-            source_result = result[source_key]
-            n_params = SOURCE_TYPES['p'][0]
-            source_params = SOURCE_TYPES['p'][4]
-            end += n_params
-            if i == n_sources-1:
-                fig = corner.corner(chain[:, start:], labels=source_params)
-            else:
-                fig = corner.corner(chain[:, start:end], labels=source_params)
-            fig.suptitle(f'Source {i+1} of {n_sources}')
-            start = end
-
-    del all_results[0]['chain']
-
-    return all_results
-
-
-def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, corner_plot=True):
-
-    int_peaks = info['int_peak_val']
-    int_coords = info['int_peak_coord']
-    ext_peaks = info['ext_peak_val']
-    ext_coords = info['ext_peak_coord']
-
-    if len(int_peaks) > 2: # assume this means that source is extended instead of having more than 2 separate sources in this interior region
-        int_peaks = int_peaks[:1]
-        int_coords = int_coords[:1]
-
-    n_peaks = len(int_peaks)
-    if type(ext_peaks) is list:
-        n_peaks += len(ext_peaks)
+    new_info = {
+        'all_peaks': all_peaks,
+        'n_peaks': n_peaks,
+        'rad_pix': rad_pix,
+        'rad_barea': rad_barea,
+        'naxis1': naxis1,
+        'rad_bmaj': rad_bmaj,
+        'rad_bmin': rad_bmin
+    }
 
     results = []
     if n_sources is None:
-        for i in range(n_peaks,0,-1): # assumption: summary more often has false positives than false negatives
-            temp = sim_auto_detect(vis=vis, info=info, n_sources=i, clean_output=clean_output, corner_plot=corner_plot)
+        # Assuming that the image analysis more often has false positives than
+        # false negatives, start at the number of peaks detected in the image
+        # domain and try models with fewer and fewer sources.
+        for i in range(n_peaks, 0, -1):
+            temp = auto_detect(
+                vis=vis,
+                info=new_info,
+                n_sources=i,
+                clean_output=clean_output,
+                corner_plot=corner_plot,
+            )
             if temp:
                 if results:
                     if results[0]['bic'] - temp[0]['bic'] > 10:
@@ -474,12 +543,19 @@ def best_sim_auto_detect(info, vis, n_sources: int = None, clean_output=True, co
                 else:
                     results = temp
     else:
-        results = sim_auto_detect(vis=vis, info=info, n_sources=n_sources, clean_output=clean_output, corner_plot=corner_plot)
+        results = auto_detect(
+            vis=vis,
+            info=new_info,
+            n_sources=n_sources,
+            clean_output=clean_output,
+            corner_plot=corner_plot,
+            min_sep=min_sep,
+        )
 
     if results:
         return results
     else:
-        raise ValueError('All attempts failed to converge.')
+        raise ValueError("All attempts failed to converge.")
 
 
 def score(z):
