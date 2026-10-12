@@ -15,43 +15,6 @@ import math
 _RMS_UNCERT_SIGMA = 5
 _RMS_UNCERT_SAMPLES = 100
 
-def _fits_data_index(fits_file: str | Path) -> int:
-    """Return the index of the first HDU containing image data.
-
-    Parameters
-    ----------
-    fits_file : str | Path
-        The path to the FITS file.
-
-    Returns
-    -------
-    int
-        The index of the first HDU whose `data` attribute is not `None`.
-
-    Raises
-    ------
-    OSError
-        If the FITS file cannot be opened.
-    ValueError
-        If the FITS file contains no HDU with data.
-    """
-    fits_file = Path(fits_file)
-    try:
-        with fits.open(fits_file) as hdulist:
-            # Iterate through the HDUs until one containing data is found.
-            # Assume the first HDU with data contains the image.
-            for file_index, hdu in enumerate(hdulist):
-                # Make sure this index contains image data.
-                if hdu.is_image and hdu.data is not None:
-                        return file_index
-    except OSError as err:
-        raise OSError(
-            f"Unable to open FITS file: {fits_file}"
-            ) from err
-    raise ValueError(
-        f"No HDU containing image data found in {fits_file}."
-        )
-
 def _gaussian_2d(
     coord: tuple,
     amp: float,
@@ -98,8 +61,7 @@ def _region_stats(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image. Image data must be
-        a 3D array containing a 2D image.
+        The path of the FITS file that contains the image.
     radius : list
         Sequence of radii, in arcseconds, corresponding to each center
         coordinate.
@@ -170,10 +132,6 @@ def _region_stats(
     ------
     OSError
         If the FITS file cannot be opened.
-    ValueError
-        If FITS image data is not a 3D array containing a 2D image, ir `radius`
-        is an empty list, if `center` and `radius` have different lengths, or
-        if the applied mask contains no pixels.
 
     Notes
     -----
@@ -202,26 +160,20 @@ def _region_stats(
                 f"'center' and 'radius' must have the same length. "
                 f"(got {len(center)} and {len(radius)})."
             )
-    i = _fits_data_index(fits_file)
 
     try:
         with fits.open(fits_file) as hdulist:
-            image_hdu = hdulist[i]
+            image_hdu = hdulist[0]
             data = image_hdu.data
     except OSError as err:
         raise OSError(f'Unable to open {fits_file}') from err
 
-    if data.ndim != 3 or data.shape[0] != 1:
-        raise ValueError(
-            "FITS image data must be a 3D array containing a 2D image."
-        )
-
     # Record the most negative pixel value for image diagnostics.
-    neg_peak = float(np.min(data[0]))
+    neg_peak = float(np.min(data[0][0]))
     if neg_peak >= 0:
         neg_peak = None
 
-    flat_data = data[0].flatten()
+    flat_data = data[0][0].flatten()
 
     mad = float(median_abs_deviation(flat_data))
     # Convert the MAD to an equivalent Gaussian standard deviation.
@@ -231,7 +183,7 @@ def _region_stats(
     y_dim = image_hdu.header['NAXIS2']
 
     x_dist_array = np.tile(np.arange(x_dim), (y_dim, 1))
-    y_dist_array = x_dist_array.T
+    y_dist_array = np.tile(np.arange(y_dim), (x_dim, 1)).T
 
     # Keep center pixel coordinates if specified or set to default if
     # unspecified.
@@ -312,7 +264,7 @@ def _region_stats(
     incl_area = float(mask.sum() * x_cell_size * y_cell_size)
     excl_area = float(np.logical_not(mask).sum() * x_cell_size * y_cell_size)
 
-    masked_data = data[0][mask]
+    masked_data = data[0][0][mask]
 
     # Get the peak flux density.
     try:
@@ -326,7 +278,7 @@ def _region_stats(
     # Find the coordinates of the peak.
     # Use the first occurrence within the mask if multiple pixels share the
     # maximum value.
-    peak_pix = np.where(mask & (data[0] == peak))
+    peak_pix = np.where(mask & (data[0][0] == peak))
     peak_x = int(peak_pix[1][0])
     peak_y = int(peak_pix[0][0])
     peak_coord = (peak_x, peak_y)
@@ -334,7 +286,7 @@ def _region_stats(
     # Refine the peak value and location using a bounded 2D Gaussian fit.
     # Use data from a 5x5 region if the peak is internal and if this region
     # fits in the image.
-    data_array = np.array(data[0])
+    data_array = np.array(data[0][0])
     if (
         gaussian
         and internal
@@ -519,8 +471,7 @@ def _statistics_from_rms_uncertainty(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image. Image data must be
-        a 3D array containing a 2D image.
+        The path of the FITS file that contains the image.
     center : list | None, optional
         A list of center coordinates in units of pixels.
         If `None` or empty, field center coordinates are used.
@@ -645,14 +596,12 @@ def _statistics_from_rms_uncertainty(
     """
     fits_file = Path(fits_file)
 
-    i = _fits_data_index(fits_file)
-
     # Open FITS file and extract image HDU.
     # Extract beam information from image HDU. Assume convention where 'BMIN'
     # and 'BMAJ' are recorded in degrees in the FITS header.
     try:
         with fits.open(fits_file) as hdulist:
-            hdu = hdulist[i]
+            hdu = hdulist[0]
             beam_fwhm = float(
                 (Angle(hdu.header['BMAJ'], hdu.header['CUNIT1']))
                 .to(u.arcsec).value
@@ -1131,8 +1080,8 @@ def summary(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image. Image data must be
-        a 3D array containing a 2D image.
+        The path of the FITS file that contains the image. The FITS file is
+        assumed to be in the same format as produced by CASA.
     threshold : float, optional
         The maximum expected number of independent noise measurements with flux
         densities greater than or equal to an internal peak for the peak to be
@@ -1319,9 +1268,6 @@ def summary(
     source fluxes (`int_peak_val` and `ext_peak_val`) and source flux
     uncertainties (`int_flux_uncert` and `ext_flux_uncert`).
 
-    The FITS file is assumed to be in the same format as a FITS file produced
-    by CASA.
-
     Plotting assumes that `CDELT1` and `CDELT2` are equal. If this is not the
     case, the second axis will be scaled.
 
@@ -1394,10 +1340,9 @@ def summary(
     )
     center = info['field_center']
 
-    img_index = _fits_data_index(fits_file)
     with fits.open(fits_file) as hdulist:
-        header_data = hdulist[img_index].header
-        image_data = hdulist[img_index].data
+        header_data = hdulist[0].header
+        image_data = hdulist[0].data
 
         noise_estimate = None
         noise_unit = None
@@ -1500,11 +1445,7 @@ def summary(
         plt.rcParams['hatch.linewidth'] = 0.5
         plt.rcParams['figure.dpi'] = 60
 
-        shape = image_data.shape
-
-        while len(shape) > 2:
-            image_data = image_data[0]
-            shape = image_data.shape
+        image_data = image_data[0][0]
 
         plt.set_cmap('inferno')
         fig, ax = plt.subplots(figsize=(6.7, 5.1))
@@ -1907,8 +1848,8 @@ def significant(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image. Image data must be
-        a 3D array containing a 2D image.
+        The path of the FITS file that contains the image. The FITS file is
+        assumed to be in the same format as produced by CASA.
     threshold : float, optional
         The maximum expected number of independent noise measurements, over the
         internal region, with flux densities greater than or equal to an

@@ -15,7 +15,7 @@ import re
 import warnings
 from PIL import Image
 from pathlib import Path
-from find_source import summary, _fits_data_index
+from find_source import summary
 
 
 def _interpolation_kernel(s: float):
@@ -134,7 +134,8 @@ def thumbnail(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image.
+        The path of the FITS file that contains the image. The FITS file is
+        assumed to be in the same format as produced by CASA.
     peak_coord : tuple
         A tuple `(x, y)` containing the x- and y-coordinates of the source, in
         arcseconds relative to the field center.
@@ -169,19 +170,14 @@ def thumbnail(
         )
 
     fits_file = Path(fits_file)
-    hdu_index = _fits_data_index(fits_file)
 
     # Extract image data array and header from FITS file.
     with fits.open(fits_file) as hdulist:
-        image_hdu = hdulist[hdu_index]
+        image_hdu = hdulist[0]
         data = image_hdu.data
         header_data = image_hdu.header
 
-    if data.ndim != 3 or data.shape[0] != 1:
-        raise ValueError(
-            "FITS image data must be a 3D array containing a 2D image."
-        )
-    data_array = data[0]
+    data_array = data[0][0]
 
     min_flux = np.min(data_array)
     max_flux = np.max(data_array)
@@ -339,7 +335,8 @@ def make_catalog(
     Parameters
     ----------
     fits_file : str | Path
-        The path of the FITS file that contains the image.
+        The path of the FITS file that contains the image. The FITS file is
+        assumed to be in the same format as produced by CASA.
     threshold : float, optional
         The maximum expected number of independent noise measurements with flux
         densities greater than or equal to an internal peak for the peak to be
