@@ -212,8 +212,8 @@ def _region_stats(
             * image_hdu.header['BMAJ']
             * image_hdu.header['BMIN']
             * (
-                Angle(1, image_hdu.header['CUNIT1'])
-            * Angle(1, image_hdu.header['CUNIT2'])
+                Angle(1, u.deg)
+            * Angle(1, u.deg)
             / np.log(2)
                 ).to(u.arcsec ** 2)
         ).value
@@ -603,7 +603,7 @@ def _statistics_from_rms_uncertainty(
         with fits.open(fits_file) as hdulist:
             hdu = hdulist[0]
             beam_fwhm = float(
-                (Angle(hdu.header['BMAJ'], hdu.header['CUNIT1']))
+                (Angle(hdu.header['BMAJ'], u.deg))
                 .to(u.arcsec).value
             )
     except OSError as err:
@@ -713,6 +713,7 @@ def _statistics_from_rms_uncertainty(
             gaussian=False,
             internal=False
         )
+        coord = ext_stats['peak_coord']
         peak = ext_stats['peak']
         rms = ext_stats['rms']
         n_excl_meas = ext_stats['n_incl_meas']
@@ -733,14 +734,19 @@ def _statistics_from_rms_uncertainty(
                 gaussian=True,
                 internal=False
             )
-            coord = ext_stats['peak_coord']
-            peak = ext_stats['peak']
-            n_excl_meas = ext_stats['n_incl_meas']
-            ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
-                peak=peak,
-                rms=rms,
-                n_excl_meas=n_excl_meas
-            )
+            # If the fractional difference between the peak value with and
+            # without Gaussian fitting is less than 10%, then the Gaussian
+            # fitting probably returned a reasonable result that we will use.
+            if abs(ext_stats['peak'] - peak) / peak < 0.1:
+                coord = ext_stats['peak_coord']
+                peak = ext_stats['peak']
+                rms = ext_stats['rms']
+                n_excl_meas = ext_stats['n_incl_meas']
+                ext_exp_exceed = _expected_exceedances_from_rms_uncertainty(
+                    peak=peak,
+                    rms=rms,
+                    n_excl_meas=n_excl_meas
+                )
             prob_dict['ext_peak_val'].append(peak)
             prob_dict['ext_peak_coord'].append(coord)
             prob_dict['ext_exp_exceed'].append(ext_exp_exceed)
@@ -814,6 +820,7 @@ def _statistics_from_rms_uncertainty(
             internal=True,
             outer_radius=search_radius
         )
+        int_coord = int_stats['peak_coord']
         int_peak = int_stats['peak']
         int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
             peak=int_peak,
@@ -836,14 +843,18 @@ def _statistics_from_rms_uncertainty(
                 internal=True,
                 outer_radius=search_radius
             )
-            int_coord = int_stats['peak_coord']
-            int_peak = int_stats['peak']
-            int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
-                peak=int_peak,
-                rms=rms,
-                n_excl_meas=n_excl_meas,
-                n_incl_meas=n_incl_meas
-            )
+            # If the fractional difference between the peak value with and
+            # without Gaussian fitting is less than 10%, then the Gaussian
+            # fitting probably returned a reasonable result that we will use.
+            if abs(int_stats['peak'] - int_peak) / int_peak < 0.1:
+                int_coord = int_stats['peak_coord']
+                int_peak = int_stats['peak']
+                int_exp_exceed = _expected_exceedances_from_rms_uncertainty(
+                    peak=int_peak,
+                    rms=rms,
+                    n_excl_meas=n_excl_meas,
+                    n_incl_meas=n_incl_meas
+                )
             prob_dict['int_peak_val'].append(int_peak)
             prob_dict['int_peak_coord'].append(int_coord)
             prob_dict['int_exp_exceed'].append(int_exp_exceed)
@@ -1542,11 +1553,11 @@ def summary(
             (x_min * 0.88, y_min * 0.92),
             Angle(
                 bmin,
-                cunit2,
+                u.deg,
             ).to_value('arcsec'),
             Angle(
                 bmaj,
-                cunit1,
+                u.deg,
             ).to_value('arcsec'),
             fill=True,
             facecolor='w',
@@ -1628,8 +1639,6 @@ def summary(
                 rms: float,
                 bmaj: float,
                 bmin: float,
-                cunit1: u.UnitBase,
-                cunit2: u.UnitBase,
                 bpa_rad: float,
             ) -> list:
             """Create a list of positional uncertainties corresponding to a
@@ -1643,13 +1652,9 @@ def summary(
             rms : list
                 The RMS noise of the map.
             bmaj : float
-                The beam major axis, in units of cunit1.
+                The beam major axis, in units of degrees.
             bmin : float
-                The beam minor axis, in units of cunit2.
-            cunit1 : u.UnitBase
-                The units of the beam major axis.
-            cunit2 : u.UnitBase
-                The units of the beam minor axis.
+                The beam minor axis, in units of degrees.
             bpa_rad : float
                 The beam position angle, in radians.
 
@@ -1663,11 +1668,11 @@ def summary(
             for peak in peak_list:
                 snr = peak / rms
                 bmin_uncert = float(
-                    Angle(bmin, cunit2).to(u.arcsec).value
+                    Angle(bmin, u.deg).to(u.arcsec).value
                     / snr
                 )
                 bmaj_uncert = float(
-                    Angle(bmaj, cunit1).to(u.arcsec).value
+                    Angle(bmaj, u.deg).to(u.arcsec).value
                     / snr
                 )
                 ra_uncert = round(
@@ -1689,8 +1694,6 @@ def summary(
             conservative_rms,
             bmaj,
             bmin,
-            cunit1,
-            cunit2,
             bpa_rad,
         )
         int_pos_uncert = positional_uncertainty(
@@ -1698,8 +1701,6 @@ def summary(
             conservative_rms,
             bmaj,
             bmin,
-            cunit1,
-            cunit2,
             bpa_rad,
         )
 
