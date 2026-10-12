@@ -1268,9 +1268,6 @@ def summary(
     source fluxes (`int_peak_val` and `ext_peak_val`) and source flux
     uncertainties (`int_flux_uncert` and `ext_flux_uncert`).
 
-    Plotting assumes that `CDELT1` and `CDELT2` are equal. If this is not the
-    case, the second axis will be scaled.
-
     This function modifies the global Matplotlib `rcParams` by setting the font
     size to 15.
 
@@ -1365,13 +1362,19 @@ def summary(
     cunit1 = header_data['CUNIT1']
     cunit2 = header_data['CUNIT2']
 
-    pixel_scale = (
+    x_pixel_scale = (
         Angle(
-            abs(header_data['CDELT1']),
+            header_data['CDELT1'],
             cunit1,
         ).to_value('arcsec')
     )
 
+    y_pixel_scale = (
+        Angle(
+            header_data['CDELT2'],
+            cunit2
+        ).to_value('arcsec')
+    )
 
     int_x_coords = []
     int_y_coords = []
@@ -1382,11 +1385,11 @@ def summary(
         # in arcsec.
         int_x_coords.append(
             (int_peak_coords[i][0] - center[0])
-            * pixel_scale
+            * x_pixel_scale
         )
         int_y_coords.append(
             (int_peak_coords[i][1] - center[1])
-            * pixel_scale
+            * y_pixel_scale
         )
     int_x_coords = np.array(int_x_coords)
     int_y_coords = np.array(int_y_coords)
@@ -1428,11 +1431,11 @@ def summary(
         # in arcsec.
         x_coords.append(
             (ext_peak_coords[i][0] - center[0])
-            * pixel_scale
+            * x_pixel_scale
         )
         y_coords.append(
             (ext_peak_coords[i][1] - center[1])
-            * pixel_scale
+            * y_pixel_scale
         )
 
     fwhm = info['fwhm']
@@ -1519,14 +1522,14 @@ def summary(
         int_snr = info['int_snr'][0]
 
         # Find the image boundaries.
-        x_min = ((0 - center[0]) - 0.5) * pixel_scale
-        y_min = ((0 - center[1]) - 0.5) * pixel_scale
+        x_min = ((0 - center[0]) - 0.5) * x_pixel_scale
+        y_min = ((0 - center[1]) - 0.5) * y_pixel_scale
         x_max = (
             (image_data.shape[1] -  center[0]) - 0.5
-        ) * pixel_scale
+        ) * x_pixel_scale
         y_max = (
             (image_data.shape[0] -  center[1]) - 0.5
-        ) * pixel_scale
+        ) * y_pixel_scale
 
         # Calculate angle to plot the reference beam.
         x_direction = np.sign(header_data["CDELT1"]) * np.sin(bpa_rad)
