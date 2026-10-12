@@ -1881,8 +1881,9 @@ def best_auto_detect(
         raise ValueError("All attempts failed to converge.")
 
 
-def uv_fit(
-    fits_file: str | Path,
+def uv_fit_no_image(
+    vis : npt.ArrayLike,
+    info : dict,
     sources: list,
     peak_guess: list | None = None,
     ra_guess: list | None = None,
@@ -1903,8 +1904,41 @@ def uv_fit(
 
     Parameters
     ----------
-    fits_file : str
-        The path of the FITS file that contains the visibility data.
+    vis : np.ArrayLike
+        The visibility table. Elements of the table should themselves be
+        array-like objects of 6 elements each: the 0th index corresponding to
+        the frequency bin, the 1st index corresponding to the `u` coordinate,
+        the 2nd index corresponding to the `v` coordinate, the 3rd index
+        corresponding to the real component of the visibility, the 4th index
+        corresponding to the imaginary component of the visibility, and the 5th
+        index corresponding to the visibility weight.
+    info : dict
+        Dictionary of observation information, with the following keys:
+        `CDELT1` : float
+            The pixel size of the first axis, in the units of info[`CUNIT1`].
+        `CUNIT1` : u.UnitBase
+            The units of the first axis.
+        `NAXIS1` : int
+            The length of the first axis, in pixels.
+        `BMAJ` : float
+            The beam major axis, in degrees.
+        `BMIN` : float
+            The beam minor axis, in degrees.
+        `int_peak_val` : list
+            A list of guesses for the internal peak intensities, in Jy.
+        `int_peak_coord` : tuple of float
+            A list of guesses for the internal peak coordinates, in relative
+            arcseconds.
+        `ext_peak_val` : float
+            A list of guesses for the external peak intensities, in Jy.
+        `ext_peak_coord` : tuple float
+            A list of geusses for the external peak coordinates, in relative
+            arcseconds.
+        And optionally, the following keys:
+        `U_RES` : float
+            The resolution/scale of the `u` coordinates.
+        `V_RES` : float
+            The resolution/scale of the `v` coordinates.
     sources : list
         List of source types to fit. Each source type should be one of 'p'
         (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
@@ -2156,6 +2190,15 @@ def uv_fit(
 
     Notes
     -----
+    Assumes square pixels, i.e. that `CDELT1` is equal to `CDELT2` and `CUNIT1`
+    is equal to `CUNIT2`.
+
+    Assumes a square image, i.e. that `NAXIS1` is equal to `NAXIS2`. If the
+    image is in fact not square, then the positional initial guesses for the
+    sources whose positions are not listed in either or
+    `info['int_peak_coord']` or `info['ext_peak_coord']` may be outside of the
+    image or may not properly sample the entire image.
+
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
     position angle will be in radians and rotated by pi/2 relative to the
@@ -2416,36 +2459,29 @@ def uv_fit(
         else:  # Nothing to convert.
             vis_priors.append([[None, None]] * 6)
 
-    # Extract data from FITS file.
-    fits_file = Path(fits_file)
-    with fits.open(fits_file) as file:
-        cdelt1 = file[0].header['CDELT1']
-        cunit1 = file[0].header['CUNIT1']
-        naxis1 = file[0].header['NAXIS1']
-        data = file[1].data
-        bmaj = file[0].header['BMAJ']
-        bmin = file[0].header['BMIN']
-        # Account for different visiblity conventions.
-        if file[1].header['TTYPE2'] == 'indexU':
-            u_res = file[1].header['U_RES']
-        else:
-            u_res = 1
-        if file[1].header['TTYPE3'] == 'indexV':
-            v_res = file[1].header['V_RES']
-        else:
-            v_res = 1
+    # Extract data from info
+    cdelt1 = info['CDELT1']
+    cunit1 = info['CUNIT1']
+    naxis1 = info['NAXIS1']
 
+    bmaj = info['BMAJ']
+    bmin = info['BMIN']
     rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
     rad_bmin = Angle(bmin, cunit1).to(units.radian).value
     rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
     rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
-
-    # Get image domain fitting results.
-    summ = summary(fits_file, plot=False)
-    int_peaks = summ['int_peak_val']
-    int_coords = summ['int_peak_coord']
-    ext_peaks = summ['ext_peak_val']
-    ext_coords = summ['ext_peak_coord']
+    int_peaks = info['int_peak_val']
+    int_coords = info['int_peak_coord']
+    ext_peaks = info['ext_peak_val']
+    ext_coords = info['ext_peak_coord']
+    if 'U_RES' in info.keys():
+        u_res = info['U_RES']
+    else:
+        u_res = 1
+    if 'V_RES' in info.keys():
+        v_res = info['V_RES']
+    else:
+        v_res = 1
 
     if min_sep is None:
         min_sep = rad_bmaj / 10
@@ -2466,7 +2502,7 @@ def uv_fit(
             f"than the number of sources to fit ({n_sources})."
         )
 
-    vis = np.array(data)
+    vis = np.array(vis)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
     for row in vis:
         freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
@@ -2973,8 +3009,9 @@ def uv_fit(
         else:
             large_g_peak_guess = [g_peak_from_amp] + (n_sources - 1) * [None]
         large_g_sources = ['g'] + sources[1:]
-        large_gaussian_result = uv_fit(
-            fits_file=fits_file,
+        large_gaussian_result = uv_fit_no_image(
+            vis=vis,
+            info=info,
             sources=large_g_sources,
             peak_guess=large_g_peak_guess,
             ra_guess=ra_guess,
@@ -2996,8 +3033,9 @@ def uv_fit(
         else:
             large_d_peak_guess = [d_peak_from_amp] + (n_sources - 1) * [None]
         large_d_sources = ['d'] + sources [1:]
-        large_disk_result = uv_fit(
-            fits_file=fits_file,
+        large_disk_result = uv_fit_no_image(
+            vis=vis,
+            info=info,
             sources=large_d_sources,
             peak_guess=large_d_peak_guess,
             ra_guess=ra_guess,
@@ -3017,8 +3055,9 @@ def uv_fit(
         # Make sure we haven't already tested this.
         if not (sources[0] in ['p', 'any']):
             p_sources = ['p'] + sources[1:]
-            point_result = uv_fit(
-                fits_file=fits_file,
+            point_result = uv_fit_no_image(
+                vis=vis,
+                info=info,
                 sources=p_sources,
                 peak_guess=peak_guess,
                 ra_guess=ra_guess,
@@ -3275,3 +3314,337 @@ def uv_fit(
         del permutation_info['chain']
 
     return all_results
+
+
+def uv_fit_with_image(
+    fits_file: str | Path,
+    sources: list,
+    peak_guess: list | None = None,
+    ra_guess: list | None = None,
+    dec_guess: list | None = None,
+    width_guess: list | None = None,
+    ratio_guess: list | None = None,
+    angle_guess: list | None = None,
+    priors: list | None = None,
+    clean_output: bool = True,
+    corner_plot: bool = True,
+    additional_runs: int = 2,
+    extreme_case_check: bool = True,
+    min_sep: float | None = None,
+) -> list:
+    """
+    Fit visibility data from a FITS file to a model of a given source type or
+    given source types.
+
+    Parameters
+    ----------
+    fits_file : str
+        The path of the FITS file that contains the visibility data.
+    sources : list
+        List of source types to fit. Each source type should be one of 'p'
+        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
+        (try all and pick best fit).
+    peak_guess : list | None, optional
+        A guess for the flux density/densities of the source(s), in Jy.
+        If `peak_guess` is a list, each element is a guess for the
+        corresponding source in `sources`, so the list must be the same length
+        as `sources`. Elements in the list may be `None`.
+    ra_guess : list | None, optional
+        A guess for the Right Ascension(s) of the source(s), in arcseconds
+        relative to the field center.
+        If `ra_guess` is a list, each element is a guess for the corresponding
+        source in `sources`, so the list must be the same length as `sources`.
+        Elements in the list may be `None`.
+    dec_guess : list | None, optional
+        A guess for the Declination(s) of the source(s), in arcseconds relative
+        to the field center.
+        If `dec_guess` is a list, each element is a guess for the corresponding
+        source in `sources`, so the list must be the same length as `sources`.
+        Elements in the list may be `None`.
+    width_guess : list | None, optional
+        A guess for the width(s) of the source(s), in arcseconds.
+        If `width_guess` is a list, each element is a guess for the
+        corresponding source in `sources`, so the list must be the same length
+        as `sources`. Elements in the list may be `None`, but a width guess is
+        required for every source type except `p`.
+    ratio_guess : list | None, optional
+        A guess for the source's/sources' minor axis to major axis ratio(s).
+        If `ratio_guess` is a list, each element is a guess for the
+        corresponding source in `sources`, so the list must be the same length
+        as `sources`. Elements in the list may be `None`, but a ratio guess is
+        required for every source type except `p` and `c`.
+    angle_guess : list | None, optional
+        A guess for the source angle(s), in degrees.
+        If `angle_guess` is a list, each element is a guess for the
+        corresponding source in `sources`, so the list must be the same length
+        as `sources`. Elements in the list may be `None`, but an angle guess is
+        required for every source type except `p` and `c`.
+    priors : list | None, optional
+        Priors for the source(s).
+        If `priors` is a list, each element may be `None` or a list of priors
+        for the 6 parameters (peak, ra, dec, width, ratio, angle) for the
+        corresponding source in `sources`. If `priors` is a list, it may
+        either be of length 1, in which case the set of priors will be applied
+        to all sources, or it must be the same length as `sources`. The list of
+        priors must contain 6 elements (one for each parameter), that are
+        either tuples (`min`, `max`) exclusive or lists [`min`, `max`]
+        inclusive.
+    clean_output : bool, optional
+        Whether to return the list of fit results in a more human-parsable
+        format. See Returns section for more details.
+    additional_runs : int, optional
+        The number of MCMC runs beyond the first to perform.
+    extreme_case_check : bool, optional
+        Whether to check for extreme cases: the brightest source is a very
+        large Gaussian, a very large disk, or a point source.
+    min_sep : float | None, optional
+        The minimum separation, in radians, to differentiate two distinct
+        sources.
+
+    Returns
+    -------
+    list of dict
+        A list of a dictionary/dictionaries with the following keys:
+        `permutation` : tuple of str
+            Tuple of source types corresponding to the model being fit.
+        `n_params` : int
+            The total number of parameters in the model.
+        `result` : dict
+            A dictionary with the following keys:
+            `source_m` : dict
+                A dictionary, for each source (m = 1 through m = `n_sources`),
+                with the following keys:
+                    `type` : str
+                        The source type, as a single character code (a key of
+                        SOURCE_TYPES).
+                    `peak` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted peak estimate and its
+                        uncertainty, respectively, in Jy. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sampled
+                        parameters, in Jy, all rounded to 3 signficant figures.
+                        Else, a tuple of the fitted peak estimate and its
+                        uncertainty, respectively, in Jy.
+                    `ra` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted Right Ascension
+                        estimate and its uncertainty, respectively, in
+                        arcseconds relative to the field center. The
+                        uncertainty is rounded to 3 significant figures and the
+                        estimate is rounded to the appropriate number of digits
+                        to match the uncertainty. The second tuple contains
+                        the 2.5th, 16th, 50th, 84th, and 97.5th percentile of
+                        sample parameters, in relative arcseconds, all rounded
+                        to 3 significant figures.
+                        Else, a tuple of the fitted Right Ascension estimate
+                        and its uncertainty, respectively, in radians relative
+                        to the field center.
+                    `dec` : tuple of tuple | tuple of float
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted Declination estimate
+                        and its uncertainty, respectively, in arcseconds
+                        relative to the field center. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sample
+                        parameters, in relative arcseconds, all rounded to 3
+                        significant figures.
+                        Else, a tuple of the fitted Declination estimate and
+                        its uncertainty, respectively, in radians relative to
+                        the field center.
+                    `sigma` : tuple of tuple | tuple of float
+                        This key is only present for sources of `type` 'c'.
+                        If `clean_output` is `True`, a tuple of 2 tuples. The
+                        first tuple contains the fitted circular Gaussian
+                        standard deviation estimate and its uncertainty,
+                        respectively, in arcseconds. The uncertainty is
+                        rounded to 3 significant figures and the estimate is
+                        rounded to the appropriate number of digits to match
+                        the uncertainty. The second tuple contains the 2.5th,
+                        16th, 50th, 84th, and 97.5th percentile of sample
+                        parameters, in arcseconds, all rounded to 3 significant
+                        figures.
+                        Else, a tuple of the fitted circular Gaussian standard
+                        deviation estimate and its uncertainty, respectively,
+                        in radians.
+                    `r` : tuple of float
+                        This key is only present when `clean_output` is `False`
+                        and the source is of `type` 'd'.
+                        A tuple of the fitted disk radius estimate and its
+                        uncertainty, respectively, in radians.
+                    `theta` : tuple of tuple
+                        This key is only present when `clean_output` is `True`
+                        and the source is of `type` 'g' or 'd'.
+                        A tuple of 2 tuples. The first tuple contains the
+                        fitted source angle estimate and its uncertainty,
+                        respectively, in degrees. The uncertainty is rounded to
+                        3 significant figures and the estimate is rounded to
+                        the appropriate number of digits to match the
+                        uncertainty. The second tuple contains the 2.5th, 16th,
+                        50th, 84th, and 97.5th percentile of sample parameters,
+                        in degrees, all rounded to 3 significant figures.
+                    `vis_theta` : tuple of float
+                        This key is only present when `clean_output` is `False`
+                        and the source is of `type` 'g' or 'd'.
+                        A tuple of the fitted source angle estimate in
+                        visibility space and its uncertainty, respectively, in
+                        radians.
+                    `ratio` : tuple of float
+                        This key is only present when `clean_output` is `False`
+                        and the source is of `type` 'g' or 'd'.
+                        A tuple of the fitted source minor axis to major axis
+                        ratio and its uncertainty, respectively.
+                    `major_axis` : tuple of tuple
+                        This key is only present when `clean_output` is `True`
+                        and the source is of `type` 'g' or 'd'.
+                        A tuple of 2 tuples. The first tuple contains the
+                        fitted source major axis estimate and its uncertainty,
+                        respectively, in arcseconds. The uncertainty is rounded
+                        to 3 significant figures and the estimate is rounded to
+                        the appropriate number of digits to match the
+                        uncertainty. The second tuple contains the 2.5th, 16th,
+                        50th, 84th, and 97.5th percentile of sample parameters,
+                        in arcseconds, all rounded to 3 significant figures.
+                    `minor_axis : tuple of tuple
+                        This key is only present when `clean_output` is `True`
+                        and the source is of `type` 'g' or 'd'.
+                        A tuple of 2 tuples. The first tuple contains the
+                        fitted source minor axis estimate and its uncertainty,
+                        respectively, in arcseconds. The uncertainty is rounded
+                        to 3 significant figures and the estimate is rounded to
+                        the appropriate number of digits to match the
+                        uncertainty. The second tuple contains the 2.5th, 16th,
+                        50th, 84th, and 97.5th percentile of sample parameters,
+                        in arcseconds, all rounded to 3 significant figures.
+                    `best` : dict
+                        This key is only present if `clean_output` is `False`.
+                        A dictionary, of the collection of sample parameters
+                        that resulted in the lowest chi-squared value, with the
+                        following keys:
+                            `peak` : float
+                                The peak flux density, in Jy.
+                            `ra` : float
+                                The right ascension, in radians relative to the
+                                field center.
+                            `dec` : float
+                                The declination, in radians relative to the
+                                field center.
+                            `r` : float
+                                This key is only present if the source is of
+                                `type` 'd'. The disk radius, in radians.
+                            `sigma` : float
+                                This key is only present if the source is of
+                                `type` 'c' or 'g'. The source standard
+                                deviation, in radians.
+                            `ratio` : float
+                                This key is only present if the source is of
+                                `type` 'g' or 'd'. The ratio between the source
+                                minor axis and major axis.
+                            `vis_theta` : float
+                                This key is only present if the source is of
+                                `type` 'g' or 'd'. The source angle in
+                                visibility space, in radians.
+
+        `chi2` : float
+            The chi-squared value of the fit.
+            If `clean_output` is `True`, the chi-squared value is rounded to
+            the hundredths.
+        `bic` : float
+            The Bayesian Information Criterion (BIC), estimated as
+            chi^2 + k * ln(n), where chi^2 is the chi-squared value of the
+            fit, k is the number of parameters, and n is the number of data
+            points to which the model is being fit.
+            If `clean_output` is `True`, the BIC is rounded to the hundredths.
+        `red_chi2` : float
+            The reduced chi-squared value of the fit.
+            If `clean_output` is `True`, the reduced chi-squared value is
+            rounded to the hundredths.
+
+    Raises
+    ------
+    ValueError
+        If `additional_runs` is negative.
+        If `priors` has improper formatting.
+        If no sources are specified.
+        If improper source types are specified.
+        If required initial guesses are missing.
+        If initial guesses are outside of the proper bounds (width guesses are
+        not positive, ratio guesses are not greater than 0 but less than or
+        equal to 1, angle guesses are not between -90 and 90 degrees
+        inclusive).
+
+    Warns
+    -----
+    UserWarning
+        If the number of peaks detected from the image fitting is less than the
+        number of sources requested to fit.
+        If the autocorrelation time for parameters of an MCMC run could not be
+        estimated.
+        If the best-fit model has a reduced chi-square value greater than 10.
+        If `extreme_case_check` is true and the brightest source might be an
+        extreme case (a very large Gaussian, a very large disk, or a point
+        source).
+
+    Notes
+    -----
+    Regardless of `clean_output`, corner plots will be of the visibility
+    parameters. This means that the RA and Dec will be in radians, and the
+    position angle will be in radians and rotated by pi/2 relative to the
+    position angle in the image domain.
+
+    This function employs Markov chain Monte Carlo (MCMC) via the emcee package
+    to sample the parameter space.
+
+    Additional MCMC runs use the fitting results from the previous run to
+    create initial guesses.
+
+    For the very large Gaussian and very large disk checks, the width initial
+    guesses are created around twice the beam major axis. The flux initial
+    guesses are created around the median visibility amplitude. If there is
+    no ratio or angle guess, intial guesses will be created around 0.8 and
+    around 0 radians.
+    """
+    # Extract data from FITS file.
+    info = {}
+    fits_file = Path(fits_file)
+    with fits.open(fits_file) as file:
+        info['CDELT1'] = file[0].header['CDELT1']
+        info['CUNIT1'] = file[0].header['CUNIT1']
+        info['NAXIS1'] = file[0].header['NAXIS1']
+        vis = file[1].data
+        info['BMAJ'] = file[0].header['BMAJ']
+        info['BMIN'] = file[0].header['BMIN']
+        # Account for different visiblity conventions.
+        if file[1].header['TTYPE2'] == 'indexU':
+            info['U_RES'] = file[1].header['U_RES']
+        if file[1].header['TTYPE3'] == 'indexV':
+            info['V_RES'] = file[1].header['V_RES']
+
+    # Get image domain fitting results.
+    summ = summary(fits_file, plot=False)
+    info['int_peak_val'] = summ['int_peak_val']
+    info['int_peak_coord'] = summ['int_peak_coord']
+    info['ext_peak_val'] = summ['ext_peak_val']
+    info['ext_peak_coord'] = summ['ext_peak_coord']
+
+    uv_fit_with_image(
+        vis=vis,
+        info=info,
+        sources=sources,
+        peak_guess=peak_guess,
+        ra_guess=ra_guess,
+        dec_guess=dec_guess,
+        width_guess=width_guess,
+        ratio_guess=ratio_guess,
+        angle_guess=angle_guess,
+        priors=priors,
+        clean_output=clean_output,
+        corner_plot=corner_plot,
+        additional_runs=additional_runs,
+        extreme_case_check=extreme_case_check,
+        min_sep=min_sep,
+    )
