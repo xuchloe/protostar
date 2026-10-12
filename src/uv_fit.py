@@ -1240,7 +1240,7 @@ def sigmas(param_chain: npt.ArrayLike) -> tuple:
     )
 
 
-def _auto_detect(
+def auto_detect(
     vis: npt.ArrayLike,
     info: dict,
     n_sources: int,
@@ -1255,12 +1255,12 @@ def _auto_detect(
     Parameters
     ----------
     vis : npt.ArrayLike
-        An array-like object with 5 indices, corresponding to the data for the
-        `u` coordinate of the visibility, in wavelengths; the `v` coordinate of
-        the visilibyt, in wavelenghts; the real part of the visibility, in Jy;
-        the imaginary part of the visibility, in Jy; and the weight (the
-        inverse of the uncertainty squared) for each visibility measurement, in
-        1/Jy^2.
+        An array-like object with 6 indices, corresponding to the data for the
+        frequency or frequency bin; the `u` coordinate of the visibility, in
+        wavelengths; the `v` coordinate of the visibility, in wavelenghts; the
+        real part of the visibility, in Jy; the imaginary part of the
+        visibility, in Jy; and the weight (the inverse of the uncertainty
+        squared) for each visibility measurement, in 1/Jy^2.
     info : dict
         Image domain information and some results from image domain fitting.
         Should include the following keys:
@@ -1311,7 +1311,7 @@ def _auto_detect(
                         The source type, as a single character code (a key of
                         SOURCE_TYPES).
                         By definition, 'p' for all the sources in
-                        _auto_detect().
+                        auto_detect().
                     `peak` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
                         first tuple contains the fitted peak estimate and its
@@ -1380,7 +1380,7 @@ def _auto_detect(
         Autocorrelation time for parameters could not be estimated. Most likely
         due to extremely poor initial guesses or extremely poor model choice.
     """
-    u, v, re, im, w = vis
+    freq, u, v, re, im, w = vis
     all_peaks = info['all_peaks']  # Information from image fitting.
     n_peaks = info['n_peaks']
     rad_pix = info['rad_pix']
@@ -1646,7 +1646,8 @@ def best_auto_detect(
     Paramters
     ---------
     fits_file : str | Path
-        The path of the FITS file that contains the visibility data.
+        The path of the FITS file that contains the visibility data as its
+        index 1 element.
     n_sources : int | None, optional
         The number of point sources in the model that will be fit to the data.
         If none, models with different numbers of point sources will be fit to
@@ -1742,6 +1743,15 @@ def best_auto_detect(
 
     Notes
     -----
+    The visibility table should contain as its elements  rows of 6 elements
+    each: the 0th index corresponding to the frequency or frequency bin, the
+    1st index corresponding to the `u` coordinate, in wavelengths; the 2nd
+    index corresponding to the `v` coordinate, in wavelengths; the 3rd index
+    corresponding to the real component of the visibility, in Jy; the 4th index
+    corresponding to the imaginary component of the visibility, in Jy; and the
+    5th index corresponding to the visibility weight (the inverse of the
+    uncertainty squared), in 1/Jy^2.
+
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
     position angle will be in radians and rotated by pi/2 relative to the
@@ -1835,7 +1845,7 @@ def best_auto_detect(
     im = np.array(im)
     w = np.array(w)
 
-    input_vis = [u, v, re, im, w]
+    input_vis = [freq_bin, u, v, re, im, w]
     info = {
         'all_peaks': all_peaks,
         'n_peaks': n_peaks,
@@ -1852,7 +1862,7 @@ def best_auto_detect(
         # negatives, start at the number of peaks detected in the image domain
         # and try models with fewer and fewer sources.
         for i in range(n_peaks, 0, -1):
-            temp = _auto_detect(
+            temp = auto_detect(
                 vis=input_vis,
                 info=info,
                 n_sources=i,
@@ -1866,7 +1876,7 @@ def best_auto_detect(
                 else:
                     results = temp
     else:
-        results = _auto_detect(
+        results = auto_detect(
             vis=input_vis,
             info=info,
             n_sources=n_sources,
@@ -1907,15 +1917,15 @@ def uv_fit_no_image(
     vis : np.ArrayLike
         The visibility table. Elements of the table should themselves be
         array-like objects of 6 elements each: the 0th index corresponding to
-        the frequency bin, the 1st index corresponding to the `u` coordinate,
-        the 2nd index corresponding to the `v` coordinate, the 3rd index
-        corresponding to the real component of the visibility, the 4th index
-        corresponding to the imaginary component of the visibility, and the 5th
-        index corresponding to the visibility weight.
+        the frequency or frequency bin, the 1st index corresponding to the `u`
+        coordinate, the 2nd index corresponding to the `v` coordinate, the 3rd
+        index corresponding to the real component of the visibility, the 4th
+        index corresponding to the imaginary component of the visibility, and
+        the 5th index corresponding to the visibility weight.
     info : dict
         Dictionary of observation information, with the following keys:
         `CDELT1` : float
-            The pixel size of the first axis, in the units of info[`CUNIT1`].
+            The pixel size of the first axis, in the units of `info['CUNIT1']`.
         `CUNIT1` : u.UnitBase
             The units of the first axis.
         `NAXIS1` : int
@@ -1932,7 +1942,7 @@ def uv_fit_no_image(
         `ext_peak_val` : float
             A list of guesses for the external peak intensities, in Jy.
         `ext_peak_coord` : tuple float
-            A list of geusses for the external peak coordinates, in relative
+            A list of guesses for the external peak coordinates, in relative
             arcseconds.
         And optionally, the following keys:
         `U_RES` : float
@@ -3339,7 +3349,8 @@ def uv_fit_with_image(
     Parameters
     ----------
     fits_file : str
-        The path of the FITS file that contains the visibility data.
+        The path of the FITS file that contains the visibility data as the
+        index 1 element.
     sources : list
         List of source types to fit. Each source type should be one of 'p'
         (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
@@ -3591,6 +3602,15 @@ def uv_fit_with_image(
 
     Notes
     -----
+    The visibility table should contain as its elements  rows of 6 elements
+    each: the 0th index corresponding to the frequency or frequency bin, the
+    1st index corresponding to the `u` coordinate, in wavelengths; the 2nd
+    index corresponding to the `v` coordinate, in wavelengths; the 3rd index
+    corresponding to the real component of the visibility, in Jy; the 4th index
+    corresponding to the imaginary component of the visibility, in Jy; and the
+    5th index corresponding to the visibility weight (the inverse of the
+    uncertainty squared), in 1/Jy^2.
+    
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
     position angle will be in radians and rotated by pi/2 relative to the
