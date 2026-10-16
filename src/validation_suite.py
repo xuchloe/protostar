@@ -14,6 +14,123 @@ from uv_fit import *
 import sigfig
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
+from casatasks import importfits, imfit
+import os
+
+def compare_imfit_find_source(
+        fits_file: str | Path,
+        clean: bool = True,
+    ):
+    """
+    Perform image fitting with CASA's `imfit()` and with `summary()`.
+
+    Parameters
+    ----------
+    fits_file : str | Path
+        The path of the FITS file that contains the image. The FITS file is
+        assumed to be in the same format as produced by CASA.
+    clean : bool, optional
+        Whether to clean up (shorten) the `imfit()` results.
+
+    Returns
+    -------
+    tuple of 2 dict
+        The first dictionary is the (shortened, if `clean` is `True`) CASA
+        `imfit()` results dictionary and the second dicitonary is the
+        (shortened, if `clean` is `True`) `summary()` results dictionary.
+
+    Notes
+    -----
+    `imfit()` fits a Gaussian, while `summary()` fits a point source.
+    """
+    # Get result from CASA's imfit().
+    imagename = os.path.splitext(fits_file)[0] + ".image"
+    user_imagename = os.path.expanduser(imagename)
+
+    if not os.path.exists(user_imagename):
+        importfits(
+            fitsimage=fits_file,
+            imagename=imagename,
+            overwrite=False,
+        )
+    else:
+        print(f"Using existing CASA image: {imagename}.")
+
+    imfit_result = imfit(
+        imagename=imagename,
+        append=False,
+        logfile='',
+        complist='',
+        overwrite=True,
+    )
+
+    # Only keep peak value (Jy), peak error (Jy), and coordinates relative to
+    # field center (arcsec) for each source for the clean version.
+    if clean:
+        with fits.open(fits_file) as hdul:
+            header_data = hdul[0].header
+        cdelt1 = header_data['CDELT1']
+        cdelt2 = header_data['CDELT2']
+        axis1_sign = cdelt1 / abs(cdelt1)
+        axis2_sign = cdelt2 / abs(cdelt2)
+        naxis1 = header_data['NAXIS1']
+        naxis2 = header_data['NAXIS2']
+        center = ((naxis1 - 1) / 2, (naxis2 - 1) / 2)
+
+        cleaned_imfit = {}
+        for component_num, source in imfit_result['results'].items():
+            pix_per_arcsec = imfit_result['pixelsperarcsec']
+            if component_num != 'nelements':
+                imfit_peak_val = source['peak']['value']
+                imfit_peak_err = source['peak']['error']
+                imfit_pixelcoords = source['pixelcoords']
+                imfit_relative_pix = (
+                    float(
+                        (imfit_pixelcoords[0] - center[0])
+                        / pix_per_arcsec[0] * axis1_sign
+                    ),
+                    float(
+                        (imfit_pixelcoords[1] - center[1])
+                        / pix_per_arcsec[1] * axis2_sign
+                    ),
+                )
+
+                cleaned_imfit[component_num] = {
+                    'peak_value' : imfit_peak_val,
+                    'peak_error' : imfit_peak_err,
+                    'arcsec_coords' : imfit_relative_pix,
+                }
+
+        imfit_result = cleaned_imfit
+
+    # Get result from summary().
+    summary_result = summary(
+        fits_file,
+        plot=False,
+    )
+
+    # Only keep the information on the field center; internal and external peak
+    # values (Jy) and coordinates relative to the field center (arcsec), and
+    # their uncertainties.
+    if clean:
+        keys_to_keep = [
+            'field_center',
+            'int_peak_val',
+            'int_peak_coord',
+            'int_peak_uncert',
+            'int_pos_uncert',
+            'ext_peak_val',
+            'ext_peak_coord',
+            'ext_peak_uncert',
+            'ext_pos_uncert',
+        ]
+
+        summary_result = {
+            k: summary_result[k] for k in keys_to_keep
+        }
+
+    return (imfit_result, summary_result)
+
 
 P_PARAMS = ['peak', 'ra', 'dec']
 C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
@@ -588,7 +705,7 @@ def average_points(fits_file, sources, peaks, coords, noise, widths=None, ratios
         info, vis = generate_synthetic_info_vis(fits_file, sources, new_peaks, new_coords, noise, widths, ratios, thetas)
 
         pts = 0
-        result = sim_auto_detect(info, vis, corner_plot=False)[0]
+        result = auto_detect(info, vis, corner_plot=False)[0]
 
         # try:
         #     result = sim_auto_detect(info, vis, corner_plot=False)[0]
