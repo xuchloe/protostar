@@ -4,6 +4,7 @@ from scipy.optimize import curve_fit
 from scipy.stats import norm, median_abs_deviation
 from astropy.coordinates import Angle
 import astropy.units as u
+from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as ticker
@@ -1130,7 +1131,8 @@ def summary(
     dict
         Dictionary with the following keys:
         `field_center` : tuple of 2 float
-            Image center in relative arcsec to the center, so (0,0).
+            Image center coordinates, in hms for Right Ascension and dms for
+            Declination.
         `rms_val` : float
             The estimated RMS, in Jy, of the image, excluding circular
             neighborhoods around flux densities that were considered to be
@@ -1242,7 +1244,7 @@ def summary(
         `conservative_snr` : float
             The SNR of the brightest internal peak, calculated using
             `conservative_rms`.
-        `int_flux_uncert` : list of float
+        `int_peak_uncert` : list of float
             The uncertainties, in Jy, of the fluxes of the brightest internal
             peak and the remaining significant internal peaks, if these exist.
             The order of these uncertainties corresponds to the order of the
@@ -1252,7 +1254,7 @@ def summary(
             peak and the remaining significant internal peaks, if these exist.
             The order of these uncertainties corresponds to the order of the
             coordinates in `int_peak_coord`.
-        `ext_flux_uncert` : str | list of float
+        `ext_peak_uncert` : str | list of float
             The uncertainties, in Jy, of the fluxes of the significant external
             peaks, if these exist. The order of these uncertainties corresponds
             to the order of the fluxes in `ext_peak_val`. If no significant
@@ -1277,7 +1279,7 @@ def summary(
     using a Gaussian beam attenuation model after completing the statistical
     computations and analysis. Primary beam corrections are applied only to the
     source fluxes (`int_peak_val` and `ext_peak_val`) and source flux
-    uncertainties (`int_flux_uncert` and `ext_flux_uncert`).
+    uncertainties (`int_peak_uncert` and `ext_peak_uncert`).
 
     This function modifies the global Matplotlib `rcParams` by setting the font
     size to 15.
@@ -1370,6 +1372,7 @@ def summary(
             noise_unit = hdu.columns[column_index].unit
             break
 
+    wcs = WCS(header_data).celestial
     cunit1 = header_data['CUNIT1']
     cunit2 = header_data['CUNIT2']
 
@@ -1405,12 +1408,13 @@ def summary(
     int_x_coords = np.array(int_x_coords)
     int_y_coords = np.array(int_y_coords)
 
+    center_wcs = wcs.pixel_to_world(center[0], center[1])
+
     incl_radius = info['incl_radius']
 
     # Read the estimated RMS from the FITS table if present, compute the RMS's
     # with the various methods, and select the most conservative RMS and
     # use it to calculate the internal SNR.
-
     # Convert noise_estimate to Jy if needed.
     if noise_unit is None:
         noise_estimate = None
@@ -1711,61 +1715,65 @@ def summary(
             short_info['ext_exp_exceed'] = 'No significant external peak'
             short_info['calc_ext_exp_exceed'] = 'No significant external peak'
             short_info['calc_ext_snr'] = 'No significant external peak'
-            short_info['ext_flux_uncert'] = 'No significant external peak'
+            short_info['ext_peak_uncert'] = 'No significant external peak'
             short_info['ext_pos_uncert'] = 'No significant external peak'
         else:
-            short_info['ext_flux_uncert'] = [conservative_rms] * n_int_peaks
+            short_info['ext_peak_uncert'] = [conservative_rms] * n_int_peaks
             short_info['ext_pos_uncert'] = ext_pos_uncert
 
         short_info['int_peak_coord'] = int_peaks
         short_info['ext_peak_coord'] = ext_peaks
-        short_info['field_center'] = (0,0)
+        ra_hms = center_wcs.ra.hms
+        dec_dms = center_wcs.dec.dms
+        short_info['field_center'] = (
+            f"{ra_hms.h}h{ra_hms.m}m{ra_hms.s}s",
+            f"{dec_dms.d}h{dec_dms.m}m{dec_dms.s}s",
+        )
         short_info['conservative_rms'] = conservative_rms
         short_info['conservative_snr'] = conservative_snr
-        short_info['int_flux_uncert'] = [conservative_rms] * n_int_peaks
+        short_info['int_peak_uncert'] = [conservative_rms] * n_int_peaks
         short_info['int_pos_uncert'] = int_pos_uncert
 
         # Round numerical values if requested.
         if sig_figs is not None:
             for key, value in short_info.items():
-                if key != 'field_center':  # 'field_center' is always (0,0).
-                    if (
-                        isinstance(value, float)
-                        or isinstance(value, int)
-                    ):
-                        short_info[key] = float(
-                            sigfig.round(value, sigfigs=sig_figs)
-                        )
-                    elif (
-                        isinstance(value, list)
-                    ):
-                        for i, val in enumerate(value):
-                            if (
-                                isinstance(val, float)
-                                or isinstance(val, int)
-                            ):
-                                short_info[key][i] = float(
-                                    sigfig.round(val, sigfigs=sig_figs)
-                                )
-                            # Handle list of coordinates (tuples) case.
-                            elif (
-                                isinstance(val, tuple)
-                            ):
-                                temp = []
-                                for v in val:
-                                    if (
-                                        isinstance(v, float)
-                                        or isinstance(v, int)
-                                    ):
-                                        temp.append(
-                                            float(sigfig.round(
-                                                v,
-                                                sigfigs=sig_figs,
-                                            ))
-                                        )
-                                    else:
-                                        temp.append(v)
-                                    short_info[key][i] = tuple(temp)
+                if (
+                    isinstance(value, float)
+                    or isinstance(value, int)
+                ):
+                    short_info[key] = float(
+                        sigfig.round(value, sigfigs=sig_figs)
+                    )
+                elif (
+                    isinstance(value, list)
+                ):
+                    for i, val in enumerate(value):
+                        if (
+                            isinstance(val, float)
+                            or isinstance(val, int)
+                        ):
+                            short_info[key][i] = float(
+                                sigfig.round(val, sigfigs=sig_figs)
+                            )
+                        # Handle list of coordinates (tuples) case.
+                        elif (
+                            isinstance(val, tuple)
+                        ):
+                            temp = []
+                            for v in val:
+                                if (
+                                    isinstance(v, float)
+                                    or isinstance(v, int)
+                                ):
+                                    temp.append(
+                                        float(sigfig.round(
+                                            v,
+                                            sigfigs=sig_figs,
+                                        ))
+                                    )
+                                else:
+                                    temp.append(v)
+                                short_info[key][i] = tuple(temp)
 
             if prim_beam_fwhm is not None:
                 pb_fwhm_arcsec = prim_beam_fwhm.to(u.arcsec).value
@@ -1811,8 +1819,8 @@ def summary(
                     short_info['int_peak_coord'],
                     pb_fwhm_arcsec,
                 )
-                short_info['int_flux_uncert'] = pb_corrected_flux(
-                    short_info['int_flux_uncert'],
+                short_info['int_peak_uncert'] = pb_corrected_flux(
+                    short_info['int_peak_uncert'],
                     short_info['int_peak_coord'],
                     pb_fwhm_arcsec,
                 )
@@ -1821,8 +1829,8 @@ def summary(
                     short_info['ext_peak_coord'],
                     pb_fwhm_arcsec,
                 )
-                short_info['ext_flux_uncert'] = pb_corrected_flux(
-                    short_info['ext_flux_uncert'],
+                short_info['ext_peak_uncert'] = pb_corrected_flux(
+                    short_info['ext_peak_uncert'],
                     short_info['ext_peak_coord'],
                     pb_fwhm_arcsec,
                 )

@@ -2,6 +2,7 @@ from astropy.io import fits
 from astropy.coordinates import Angle, SkyCoord
 from astropy.time import Time
 import astropy.units as u
+from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import numpy as np
@@ -407,8 +408,7 @@ def make_catalog(
     Raises
     ------
     ValueError
-        If `CTYPE1` and `CTYPE2` do not describe one Right Ascension axis and
-        one Declination axis, or if the `CUNIT1` and `CUNIT2` are not equal.
+        If `CUNIT1` and `CUNIT2` are not equal.
 
     Notes
     -----
@@ -441,15 +441,15 @@ def make_catalog(
     bmaj = header_data['BMAJ']
     bmin = header_data['BMIN']
     bpa = header_data['BPA']
-    ctype1 = header_data['CTYPE1'].upper()
-    crval1 = header_data['CRVAL1']
+    naxis1 = header_data['NAXIS1']
     cunit1 = header_data['CUNIT1']
-    ctype2 = header_data['CTYPE2'].upper()
-    crval2 = header_data['CRVAL2']
+    naxis2 = header_data['NAXIS2']
     cunit2 = header_data['CUNIT2']
     ctype3 = header_data['CTYPE3'].upper()
     crval3 = header_data['CRVAL3']
     cunit3 = header_data['CUNIT3'].lower()
+
+    wcs = WCS(header_data).celestial
 
     if cunit1 != cunit2:
         raise ValueError("Axes have different units.")
@@ -475,7 +475,6 @@ def make_catalog(
     # Interpret the beam axes using the corresponding celestial-axis units.
     beam_maj_axis = Angle(bmaj, cunit1)
     beam_min_axis = Angle(bmin, cunit2)
-    bpa_rad = math.radians(bpa)
 
     # Solar System bodies require moving-source treatment and are not treated
     # as stationary targets.
@@ -528,10 +527,11 @@ def make_catalog(
     else:
         n_ext_sources = len(summ['ext_peak_val'])
 
-    ra = crval1
-    dec = crval2
+    ra_hms, dec_dms = summ['field_center']
+    ra_deg = Angle(ra_hms).deg
+    dec_deg = Angle(dec_dms).deg
 
-    center = SkyCoord(ra, dec, unit=cunit1)
+    center = SkyCoord(ra_deg, dec_deg, unit=u.deg)
 
     def create_source_info(
         peak_value: float,
