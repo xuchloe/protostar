@@ -11,13 +11,17 @@ import warnings
 import itertools
 from uncertainties import ufloat
 from uv_fit import *
+from find_source import summary
 import sigfig
 from matplotlib import pyplot as plt
 from matplotlib.ticker import PercentFormatter
-from casatasks import importfits, imfit
+from casatools import componentlist
+from casatasks import importfits, imfit, simobserve, uvmodelfit
 import os
+import re
+import shutil
 
-def compare_imfit_find_source(
+def compare_imfit_summary(
         fits_file: str | Path,
         clean: bool = True,
     ):
@@ -130,6 +134,209 @@ def compare_imfit_find_source(
         }
 
     return (imfit_result, summary_result)
+
+
+def generate_ms_simobserve(
+    project_name: str,
+    source_position: str,
+    source_type : str,
+    flux: float,
+    major_axis: str | None = None,
+    ratio: float | None = None,
+    position_angle: str | None = None,
+    flux_unit: str = 'Jy',
+    field_center: str = 'J2000 18h00m00.0s -23d00m00.0s',
+    antenna_list: str | Path = 'alma;0.5arcsec',
+    incenter: str | int | float = '230.0GHz',
+    compwidth: str | int | float = '2.0GHz',
+    comp_nchan: int = 64,
+    totaltime: str | int | float = '1200s',
+    integration: str | int | float = '10s',
+):
+    """
+    Generate a synthetic CASA Measurement Set with `simobserve()` and perform
+    visibility fitting with `uvmodelfit()` and `uv_fit_no_image()`.
+
+    Parameters
+    ----------
+    project_name : str
+        The name of the simulated project.
+    source_position : str
+        The position of the source, in the format '[Frame] [RA] [Dec]', with
+        the following styles accepted:
+        '[Frame] HHhMMmSS.Ss +/-DDdMMmSS.Ss'
+        '[Frame] HH:MM:SS.S +/-DD:MM:SS.S'
+        '[Frame] DDD.DDdeg +/-DD.DDdeg'.
+        Valid reference frames are J2000, B1950, and GALACTIC.
+    source_type: str
+        The type/shape of the source.
+        The accepted values (case-sensitive) are 'point', 'Gaussian', and
+        'disk'.
+    flux : float
+        The flux of the source, in units of `flux_unit`.
+    major_axis : str | None, optional
+        The major axis of the source, if the source is extended.
+        The accepted format is a numerical value directly followed by a valid
+        angular unit: 'arcsec' (arcseconds), 'arcmin' (arcminutes), 'deg'
+        (degrees), 'rad' (radians).
+    ratio : float | None, optional
+        The ratio of the minor axis to the major axis of the source, if the
+        source is extended.
+    position_angle: str | None, optional
+        The position angle of the source, if the source is not rotationally
+        symmetric.
+        The accepted format is a numerical value directly followed by a valid
+        angular unit: 'deg' (degrees), 'rad' (radians).
+    flux_unit: str, optional
+        The unit of the source's flux.
+        Accepted values are 'Jy' (Jansky), 'mJy' (milli-Jansky), 'uJy'
+        (micro-Jansky), 'K' (Kelvin).
+    field_center: str, optional
+        The position of the field center, in the format '[Frame] [RA] [Dec]',
+        with the following styles accepted:
+        '[Frame] HHhMMmSS.Ss +/-DDdMMmSS.Ss'
+        '[Frame] HH:MM:SS.S +/-DD:MM:SS.S'
+        '[Frame] DDD.DDdeg +/-DD.DDdeg'.
+        Valid reference frames are J2000, B1950, and GALACTIC.
+    antenna_list : str | Path
+        A string-parsable antenna list or a path to the antenna configuration
+        file.
+    incenter: str | int | float, optional
+        The central sky frequency of the simulated observation track.
+        The accepted format is a numerical value directly followed by a valid
+        frequency unit: 'GHz' (Gigahertz), 'MHz' (Megahertz), 'kHz'
+        (Kilohertz), 'Hz' (Hertz).
+        Pure numbers are assumed to be in Hz.
+    compwidth: str | int | float, optional
+        The total, continuous bandwidth of the spectral window of the simulated
+        observation track.
+        The accepted format is a numerical value directly followed by a valid
+        frequency unit: 'GHz' (Gigahertz), 'MHz' (Megahertz), 'kHz'
+        (Kilohertz), 'Hz' (Hertz).
+        Pure numbers are assumed to be in Hz.
+    comp_nchan: int, optional
+        The number of discrete spectral frequency channels inside the total
+        bandwidth of the simulated observation track.
+    totaltime: str | int | float, optional
+        The total duration of the simulated obesrvation track.
+        The accepted format is a numerical value directly followed by a valid
+        time unit: 's' (seconds), 'min' (minutes), 'h' (hours), 'd' (days).
+        Pure numbers are assumed to be in seconds.
+    integration: str, optional
+        The integration interval of a single simulated visibility measurement
+        stamp.
+        The accepted format is a numerical value directly followed by a valid
+        time unit: 's' (seconds), 'min' (minutes), 'h' (hours), 'd' (days).
+        Pure numbers are assumed to be in seconds.
+
+    Notes
+    -----
+    The default values are set to match ALMA Band 6 parameters.
+    """
+    cl_name = f"{project_name}.cl"
+
+    cl = componentlist()
+
+    # Remove old component list, if needed.
+    if os.path.exists(cl_name):
+        if os.path.isdir(cl_name):
+            shutil.rmtree(cl_name)
+        else:
+            os.remove(cl_name)
+
+    # Remove old simulation directory, if needed.
+    if os.path.exists(project_name) and os.path.isdir(project_name):
+        shutil.rmtree(project_name)
+
+    cl.done()
+
+    parsed_maj_ax = re.match(r'^(\d+\.?\d*)([a-zA-Z]+)', major_axis)
+    min_ax_val = float(parsed_maj_ax.group(1)) * ratio
+    minor_axis = f'{min_ax_val}' + parsed_maj_ax.group(2)
+
+    print(minor_axis)
+
+    source_params = {
+        'flux': flux,
+        'fluxunit': flux_unit,
+        'shape': source_type,
+        'dir': source_position,
+    }
+    if source_type in ['Gaussian', 'disk']:
+        source_params['majoraxis'] = major_axis
+        source_params['minoraxis'] = minor_axis
+        source_params['positionangle'] = position_angle
+
+    cl.addcomponent(**source_params)
+
+    # Save components to disk.
+    cl.rename(f"{project_name}.cl")
+    cl.done()
+
+    print(f"Component list saved as: {project_name}.cl")
+
+    # Generate the MS with simobserve().
+    simobserve(
+        project=project_name,
+        complist=f"{project_name}.cl",
+        compwidth=compwidth,
+        comp_nchan=comp_nchan,
+        obsmode='int',
+        antennalist=antenna_list,
+        totaltime=totaltime,
+        integration=integration,
+        indirection=field_center,
+        incenter=incenter,
+        thermalnoise='',
+        graphics='none',
+        verbose=True,
+        overwrite=True,
+    )
+
+
+def compare_uvmodelfit_uv_fit_no_image(
+
+):
+
+    casa_src_type = source_type.upper()
+    uvfit_src_type = source_type.lower()
+
+    if casa_src_type not in ['P', 'G', 'D']:
+        raise ValueError(
+            "The source type 'source_type' must be one of 'P', 'p', 'G', 'g', "
+            f"'D', or 'd'. Got {source_type}."
+        )
+
+    sourcepar = [
+        flux_guess,
+        ra_guess,
+        dec_guess,
+    ]
+
+    if casa_src_type in ['G', 'D']:
+        sourcepar += [
+            width_guess,
+            ratio_guess,
+            pa_guess
+        ]
+
+    uvmodelfit(
+        vis=str(ms_path),
+        field="",
+        spw="",
+        comptype=casa_src_type,
+        sourcepar=sourcepar,
+        niter=niter,
+    )
+
+    # flux_guess,
+    #         0.0, 0.0,
+    #         major_guess,
+    #         minor_guess,
+    #         pa_guess,
+    #     ],
+
+    return str(ms_path)
 
 
 P_PARAMS = ['peak', 'ra', 'dec']
