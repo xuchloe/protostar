@@ -1893,8 +1893,10 @@ def best_auto_detect(
 
 def uv_fit_no_image(
     vis : npt.ArrayLike,
-    info : dict,
     sources: list,
+    info : dict | None = None,
+    u_res: float | None = None,
+    v_res: float | None = None,
     peak_guess: list | None = None,
     ra_guess: list | None = None,
     dec_guess: list | None = None,
@@ -1922,7 +1924,11 @@ def uv_fit_no_image(
         index corresponding to the real component of the visibility, the 4th
         index corresponding to the imaginary component of the visibility, and
         the 5th index corresponding to the visibility weight.
-    info : dict
+    sources : list
+        List of source types to fit. Each source type should be one of 'p'
+        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
+        (try all and pick best fit).
+    info : dict, optional
         Dictionary of observation information, with the following keys:
         `CDELT1` : float
             The pixel size of the first axis, in the units of `info['CUNIT1']`.
@@ -1944,15 +1950,11 @@ def uv_fit_no_image(
         `ext_peak_coord` : tuple float
             A list of guesses for the external peak coordinates, in relative
             arcseconds.
-        And optionally, the following keys:
-        `U_RES` : float
-            The resolution/scale of the `u` coordinates.
-        `V_RES` : float
-            The resolution/scale of the `v` coordinates.
-    sources : list
-        List of source types to fit. Each source type should be one of 'p'
-        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
-        (try all and pick best fit).
+        If `info` is not provided, then source parameter guesses are required.
+    u_res : float
+        The resolution/scale of the `u` coordinates.
+    v_res : float
+        The resolution/scale of the `v` coordinates.
     peak_guess : list | None, optional
         A guess for the flux density/densities of the source(s), in Jy.
         If `peak_guess` is a list, each element is a guess for the
@@ -2469,42 +2471,41 @@ def uv_fit_no_image(
         else:  # Nothing to convert.
             vis_priors.append([[None, None]] * 6)
 
-    # Extract data from info
-    cdelt1 = info['CDELT1']
-    cunit1 = info['CUNIT1']
-    naxis1 = info['NAXIS1']
+    if info:
+        # Extract data from info
+        cdelt1 = info['CDELT1']
+        cunit1 = info['CUNIT1']
+        naxis1 = info['NAXIS1']
 
-    bmaj = info['BMAJ']
-    bmin = info['BMIN']
-    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
-    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
-    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
-    int_peaks = info['int_peak_val']
-    int_coords = info['int_peak_coord']
-    ext_peaks = info['ext_peak_val']
-    ext_coords = info['ext_peak_coord']
-    if 'U_RES' in info.keys():
-        u_res = info['U_RES']
-    else:
+        bmaj = info['BMAJ']
+        bmin = info['BMIN']
+        rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+        rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+        rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
+        rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
+        int_peaks = info['int_peak_val']
+        int_coords = info['int_peak_coord']
+        ext_peaks = info['ext_peak_val']
+        ext_coords = info['ext_peak_coord']
+        int_info = list(zip(int_peaks, int_coords))
+        if type(ext_peaks) is list:
+            ext_info = list(zip(ext_peaks, ext_coords))
+        else:
+            ext_info = []
+        # Create a list of image domain detected peak information. The list
+        # elements are tuples (peak, (ra, dec)), in descending internal peak flux
+        # densities then in descending external peak flux densities.
+        all_peaks = int_info + ext_info
+
+    if not u_res:
         u_res = 1
-    if 'V_RES' in info.keys():
-        v_res = info['V_RES']
-    else:
+    if not v_res:
         v_res = 1
 
     if min_sep is None:
         min_sep = rad_bmaj / 10
 
-    int_info = list(zip(int_peaks, int_coords))
-    if type(ext_peaks) is list:
-        ext_info = list(zip(ext_peaks, ext_coords))
-    else:
-        ext_info = []
-    # Create a list of image domain detected peak information. The list
-    # elements are tuples (peak, (ra, dec)), in descending internal peak flux
-    # densities then in descending external peak flux densities.
-    all_peaks = int_info + ext_info
+
     n_peaks = len(all_peaks)
     if n_peaks < n_sources:
         warnings.warn(
@@ -3610,7 +3611,7 @@ def uv_fit_with_image(
     corresponding to the imaginary component of the visibility, in Jy; and the
     5th index corresponding to the visibility weight (the inverse of the
     uncertainty squared), in 1/Jy^2.
-    
+
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
     position angle will be in radians and rotated by pi/2 relative to the
@@ -3631,6 +3632,8 @@ def uv_fit_with_image(
     # Extract data from FITS file.
     info = {}
     fits_file = Path(fits_file)
+    u_res = None
+    v_res = None
     with fits.open(fits_file) as file:
         info['CDELT1'] = file[0].header['CDELT1']
         info['CUNIT1'] = file[0].header['CUNIT1']
@@ -3640,9 +3643,9 @@ def uv_fit_with_image(
         info['BMIN'] = file[0].header['BMIN']
         # Account for different visiblity conventions.
         if file[1].header['TTYPE2'] == 'indexU':
-            info['U_RES'] = file[1].header['U_RES']
+            u_res = file[1].header['U_RES']
         if file[1].header['TTYPE3'] == 'indexV':
-            info['V_RES'] = file[1].header['V_RES']
+            v_res = file[1].header['V_RES']
 
     # Get image domain fitting results.
     summ = summary(fits_file, plot=False)
@@ -3651,10 +3654,12 @@ def uv_fit_with_image(
     info['ext_peak_val'] = summ['ext_peak_val']
     info['ext_peak_coord'] = summ['ext_peak_coord']
 
-    uv_fit_with_image(
+    uv_fit_no_image(
         vis=vis,
         info=info,
         sources=sources,
+        u_res=u_res,
+        v_res=v_res,
         peak_guess=peak_guess,
         ra_guess=ra_guess,
         dec_guess=dec_guess,

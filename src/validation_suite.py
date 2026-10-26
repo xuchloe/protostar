@@ -294,10 +294,30 @@ def generate_ms_simobserve(
     )
 
 
-def compare_uvmodelfit_uv_fit_no_image(
-
+def uv_fit_ms(
+    ms_path: str | Path,
+    source_type: str,
+    flux_guess: float,
+    ra_guess: float,
+    dec_guess: float,
+    width_guess: float | None = None,
+    ratio_guess: float | None = None,
+    pa_guess: float | None = None,
 ):
+    pass
 
+
+def compare_uvmodelfit_uv_fit_no_image(
+    ms_path: str | Path,
+    source_type: str,
+    flux_guess: float,
+    ra_guess: float,
+    dec_guess: float,
+    width_guess: float | None = None,
+    ratio_guess: float | None = None,
+    pa_guess: float | None = None,
+    niter: int = 20,
+):
     casa_src_type = source_type.upper()
     uvfit_src_type = source_type.lower()
 
@@ -317,26 +337,17 @@ def compare_uvmodelfit_uv_fit_no_image(
         sourcepar += [
             width_guess,
             ratio_guess,
-            pa_guess
+            pa_guess,
         ]
 
-    uvmodelfit(
+    uvmf_results = uvmodelfit(
         vis=str(ms_path),
-        field="",
-        spw="",
+        field='0',
+        spw='0',
         comptype=casa_src_type,
         sourcepar=sourcepar,
         niter=niter,
     )
-
-    # flux_guess,
-    #         0.0, 0.0,
-    #         major_guess,
-    #         minor_guess,
-    #         pa_guess,
-    #     ],
-
-    return str(ms_path)
 
 
 P_PARAMS = ['peak', 'ra', 'dec']
