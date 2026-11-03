@@ -2107,7 +2107,7 @@ def uv_fit_no_image(
     priors : list | None, optional
         Priors for the source(s).
         If `priors` is a list, each element may be `None` or a list of priors
-        for the 6 parameters (peak, ra, dec, width, ratio, angle) for the
+        for the 6 parameters (flux, ra, dec, width, ratio, angle) for the
         corresponding source in `sources`. If `priors` is a list, it may
         either be of length 1, in which case the set of priors will be applied
         to all sources, or it must be the same length as `sources`. The list of
@@ -2145,16 +2145,16 @@ def uv_fit_no_image(
                     `type` : str
                         The source type, as a single character code (a key of
                         SOURCE_TYPES).
-                    `peak` : tuple of tuple | tuple of float
+                    `flux` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
-                        first tuple contains the fitted peak estimate and its
+                        first tuple contains the fitted flux estimate and its
                         uncertainty, respectively, in Jy. The uncertainty is
                         rounded to 3 significant figures and the estimate is
                         rounded to the appropriate number of digits to match
                         the uncertainty. The second tuple contains the 2.5th,
                         16th, 50th, 84th, and 97.5th percentile of sampled
                         parameters, in Jy, all rounded to 3 signficant figures.
-                        Else, a tuple of the fitted peak estimate and its
+                        Else, a tuple of the fitted flux estimate and its
                         uncertainty, respectively, in Jy.
                     `ra` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
@@ -2253,8 +2253,8 @@ def uv_fit_no_image(
                         A dictionary, of the collection of sample parameters
                         that resulted in the lowest chi-squared value, with the
                         following keys:
-                            `peak` : float
-                                The peak flux density, in Jy.
+                            `flux` : float
+                                The flux, in Jy.
                             `ra` : float
                                 The right ascension, in radians relative to the
                                 field center.
@@ -2373,7 +2373,7 @@ def uv_fit_no_image(
                 if len(priors[i]) != 6:
                     raise ValueError(
                         "Each prior list must have 6 elements corresponding "
-                        "to ranges for peak, RA, declination, "
+                        "to ranges for flux, RA, declination, "
                         "width parameter, ratio, and position angle."
                     )
                 for j in range(len(priors[i])):
@@ -3277,16 +3277,16 @@ def uv_fit_no_image(
                     start:start + n_source_params
                 ]
 
-                # Peak.
-                peak_chain = source_chain[:, 0]
-                peak_sigmas = tuple([
+                # Flux.
+                flux_chain = source_chain[:, 0]
+                flux_sigmas = tuple([
                     float(sigfig.round(sigma, sigfigs=3))
-                    for sigma in sigmas(peak_chain)
+                    for sigma in sigmas(flux_chain)
                 ])
                 source_result['flux'] = (
                     round_tuple(
                         (source_result['flux'][0], source_result['flux'][1])
-                    ), peak_sigmas
+                    ), flux_sigmas
                 )
 
                 # Convert ra, dec to arcsec.
@@ -3534,7 +3534,7 @@ def uv_fit_with_image(
     priors : list | None, optional
         Priors for the source(s).
         If `priors` is a list, each element may be `None` or a list of priors
-        for the 6 parameters (peak, ra, dec, width, ratio, angle) for the
+        for the 6 parameters (flux, ra, dec, width, ratio, angle) for the
         corresponding source in `sources`. If `priors` is a list, it may
         either be of length 1, in which case the set of priors will be applied
         to all sources, or it must be the same length as `sources`. The list of
@@ -3572,16 +3572,16 @@ def uv_fit_with_image(
                     `type` : str
                         The source type, as a single character code (a key of
                         SOURCE_TYPES).
-                    `peak` : tuple of tuple | tuple of float
+                    `flux` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
-                        first tuple contains the fitted peak estimate and its
+                        first tuple contains the fitted flux estimate and its
                         uncertainty, respectively, in Jy. The uncertainty is
                         rounded to 3 significant figures and the estimate is
                         rounded to the appropriate number of digits to match
                         the uncertainty. The second tuple contains the 2.5th,
                         16th, 50th, 84th, and 97.5th percentile of sampled
                         parameters, in Jy, all rounded to 3 signficant figures.
-                        Else, a tuple of the fitted peak estimate and its
+                        Else, a tuple of the fitted flux estimate and its
                         uncertainty, respectively, in Jy.
                     `ra` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
@@ -3680,8 +3680,8 @@ def uv_fit_with_image(
                         A dictionary, of the collection of sample parameters
                         that resulted in the lowest chi-squared value, with the
                         following keys:
-                            `peak` : float
-                                The peak flux density, in Jy.
+                            `flux` : float
+                                The flux, in Jy.
                             `ra` : float
                                 The right ascension, in radians relative to the
                                 field center.
