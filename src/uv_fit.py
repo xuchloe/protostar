@@ -18,8 +18,6 @@ def p_model(
     p_params: npt.ArrayLike,
     u: float | npt.ArrayLike,
     v: float | npt.ArrayLike,
-    rad_bmaj: float,
-    rad_barea: float,
 ) -> complex | npt.NDArray:
     """
     Evaluate the complex visibility of a point source model.
@@ -27,27 +25,18 @@ def p_model(
     Parameters
     ----------
     p_params : npt.ArrayLike
-        Point source model parameters `(peak, ra, dec)`, where `peak` is the
-        source peak flux density, in Jy, and `ra` and `dec` are the source
-        position offsets from the field center, in radians.
+        Point source model parameters `(flux, ra, dec)`, where `flux` is the
+        total source flux, in Jy, and `ra` and `dec` are the source position
+        offsets from the field center, in radians.
     u : float | npt.ArrayLike
         `u` coordinate of the visibility, in wavelengths.
     v : float | npt.ArrayLike
         `v` coordinate of the visibility, in wavelengths.
-    rad_bmaj : float
-        Beam major axis, in radians. This parameter is currently unused.
-    rad_barea : float
-        Beam area, in radians^2. This parameter is currently unused.
 
     Returns
     -------
     float | npt.ArrayLike
         Complex visibility value of the point source model.
-
-    Notes
-    -----
-    The `rad_bmaj` and `rad_barea` parameters are retained for consistency
-    with other model functions but do not affect the point source visibility.
 
     References
     ----------
@@ -55,16 +44,14 @@ def p_model(
         *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
         Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
     """
-    peak, ra, dec = p_params
-    return peak * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
+    flux, ra, dec = p_params
+    return flux * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
 
 
 def c_model(
     c_params: npt.ArrayLike,
     u: float | npt.ArrayLike,
     v: float | npt.ArrayLike,
-    rad_bmaj: float,
-    rad_barea: float,
 ) -> complex | npt.NDArray:
     """
     Evaluate the complex visibility of a circular Gaussian source model.
@@ -72,33 +59,19 @@ def c_model(
     Parameters
     ----------
     c_params : npt.ArrayLike
-        Circular Gaussian source model parameters `(peak, ra, dec, sigma)`,
-        where `peak` is the source peak flux density, in Jy; `ra` and `dec` are
-        the source position offsets from the field center, in radian; and
-        `sigma` is the source flux density standard deviation, in radians.
+        Circular Gaussian source model parameters `(flux, ra, dec, sigma)`,
+        where `flux` is the total source flux, in Jy; `ra` and `dec` are the
+        source position offsets from the field center, in radian; and `sigma`
+        is the Gaussian sigma of the source profile, in radians.
     u : float | npt.ArrayLike
         `u` coordinate of the visibility, in wavelengths.
     v : float | npt.ArrayLike
         `v` coordinate of the visibility, in wavelengths.
-    rad_bmaj : float
-        Beam major axis, in radians.
-    rad_barea : float
-        Beam area, in radians^2.
 
     Returns
     -------
     float | npt.NDArray
         Complex visibility value of the circular Gaussian source model.
-
-    Notes
-    -----
-    For a source with a standard deviation less than or equal to half the
-    beam major axis, the model omits the source-area normalization. This
-    allows an unresolved source to approach the point source limit while
-    retaining a finite fitted flux density. Without this treatment, the source
-    area approaches zero as `sigma` approaches zero, requiring the fitted
-    flux density to diverge in order to maintain the appropriate integrated
-    flux.
 
     References
     ----------
@@ -106,25 +79,19 @@ def c_model(
         *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
         Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
     """
-    peak, ra, dec, sigma = c_params
+    flux, ra, dec, sigma = c_params
     visibility = (
-        peak
+        flux
         * np.exp(-2 * np.pi**2 * sigma**2 * (u**2 + v**2))
         * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
     )
-
-    # Omit the source-area normalization for unresolved sources.
-    if sigma <= rad_bmaj / 2:
-        return visibility
-    return 2 * np.pi * sigma**2 / rad_barea * visibility
+    return visibility
 
 
 def g_model(
     g_params: npt.ArrayLike,
     u: float | npt.ArrayLike,
     v: float | npt.ArrayLike,
-    rad_bmaj: float,
-    rad_barea: float,
 ) -> float | npt.NDArray:
     """
     Evaluate the complex visibility of a elliptical Gaussian source model.
@@ -132,35 +99,21 @@ def g_model(
     Parameters
     ----------
     g_params : npt.ArrayLike
-        Elliptical Gaussian source model parameters `(peak, ra, dec, sigma,
-        ratio, vis_theta)`, where `peak` is the source peak flux density, in
-        Jy; `ra` and `dec` are the source position offsets from the field
-        center, in radians; `sigma` is the source flux density standard
-        deviation, in radians; `ratio` is the ratio of minor to major axis; and
-        `vis_theta` is the source angle in visibility space, in radians.
+        Elliptical Gaussian source model parameters `(flux, ra, dec, sigma,
+        ratio, vis_theta)`, where `flux` is the total source flux, in Jy;
+        `ra` and `dec` are the source position offsets from the field center,
+        in radians; `sigma` is the Gaussian sigma of the source profile, in
+        radians; `ratio` is the ratio of minor to major axis; and `vis_theta`
+        is the source angle in visibility space, in radians.
     u : float | npt.ArrayLike
         `u` coordinate of the visibility, in wavelengths.
     v : float | npt.ArrayLike
         `v` coordinate of the visibility, in wavelengths.
-    rad_bmaj : float
-        Beam major axis, in radians.
-    rad_barea : float
-        Beam area, in radians^2.
 
     Returns
     -------
     float | npt.NDArray
         Complex visibility value of the elliptical Gaussian source model.
-
-    Notes
-    -----
-    For a source with a standard deviation less than or equal to half the
-    beam major axis, the model omits the source-area normalization. This
-    allows an unresolved source to approach the point source limit while
-    retaining a finite fitted flux density. Without this treatment, the source
-    area approaches zero as `sigma` approaches zero, requiring the fitted
-    flux density to diverge in order to maintain the appropriate integrated
-    flux.
 
     References
     ----------
@@ -168,9 +121,9 @@ def g_model(
         *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
         Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
     """
-    peak, ra, dec, sigma, ratio, vis_theta = g_params
+    flux, ra, dec, sigma, ratio, vis_theta = g_params
     visibility = (
-        peak
+        flux
         * np.exp(
             -2 * np.pi**2 * sigma**2 *
             (
@@ -181,19 +134,13 @@ def g_model(
         )
         * np.exp(-2 * np.pi *1j * (u * ra + v * dec))
     )
-
-    # Omit the source-area normalization for unresolved sources.
-    if sigma <= rad_bmaj / 2:
-        return visibility
-    return peak * 2 * np.pi * sigma**2 * ratio / rad_barea * visibility
+    return visibility
 
 
 def d_model(
     d_params: npt.ArrayLike,
     u: float | npt.ArrayLike,
     v: float | npt.ArrayLike,
-    rad_bmaj: float,
-    rad_barea: float,
 ) -> float | npt.NDArray:
     """
     Evaluate the complex visibility of a disk source model.
@@ -201,35 +148,21 @@ def d_model(
     Parameters
     ----------
     d_params : npt.ArrayLike
-        Disk source model parameters `(peak, ra, dec, r, ratio, vis_theta)`,
-        where `peak` is the source peak flux density, in Jy; `ra` and `dec` are
-        the source position offsets from the field center, in radians; `r` is
-        the source radius (or major axis if the disk is rotated), in radians;
+        Disk source model parameters `(flux, ra, dec, r, ratio, vis_theta)`,
+        where `flux` is the total source flux, in Jy; `ra` and `dec` are the
+        source position offsets from the field center, in radians; `r` is the
+        source radius (or major axis if the disk is rotated), in radians;
         `ratio` is the ratio of minor to major axis; and `vis_theta` is the
         source angle in visibility space, in radians.
     u : float | npt.ArrayLike
         `u` coordinate of the visibility, in wavelengths.
     v : float | npt.ArrayLike
         `v` coordinate of the visibility, in wavelengths.
-    rad_bmaj : float
-        Beam major axis, in radians.
-    rad_barea : float
-        Beam area, in radians^2.
 
     Returns
     -------
     float | npt.NDArray
         Complex visibility value of the disk source model.
-
-    Notes
-    -----
-    For a source with a radius/major axis less than or equal to half the
-    beam major axis, the model omits the source-area normalization. This
-    allows an unresolved source to approach the point source limit while
-    retaining a finite fitted flux density. Without this treatment, the source
-    area approaches zero as `r` approaches zero, requiring the fitted
-    flux density to diverge in order to maintain the appropriate integrated
-    flux.
 
     References
     ----------
@@ -237,26 +170,23 @@ def d_model(
         *Interferometry and Synthesis in Radio Astronomy*, 3rd ed.,
         Springer, 2017. https://doi.org/10.1007/978-3-319-44431-4
     """
-    peak, ra, dec, r, ratio, vis_theta = d_params
+    flux, ra, dec, r, ratio, vis_theta = d_params
     u_theta = u * np.cos(vis_theta) - v * np.sin(vis_theta)
     v_theta = u * np.sin(vis_theta) + v * np.cos(vis_theta)
     q_theta = r * np.sqrt(u_theta**2 + ratio**2 * v_theta**2)
     visibility = (
-        peak
+        flux
         / (np.pi * q_theta)
         * sp.j1(2 * np.pi * q_theta)
         * np.exp(-2 * np.pi * 1j * (u * ra + v * dec))
     )
-    # Omit the source-area normalization for unresolved sources.
-    if r <= rad_bmaj / 2 :
-        return visibility
-    return np.pi * r**2 * ratio / rad_barea * visibility
+    return visibility
 
 
 def p_p0(
-    peak: float,
+    flux: float,
     rad_coord: tuple,
-    rad_pix: float,
+    rad_bmaj: float,
     width_p0: float,
     ratio_p0: float,
     theta_p0: float,
@@ -267,13 +197,13 @@ def p_p0(
 
     Paramters
     ---------
-    peak : float
-        The source flux density, in Jy.
+    flux : float
+        The total source flux, in Jy.
     rad_coord : tuple
         The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
         source position offsets from the field center, in radians.
-    rad_pix : float
-        The size of one side of a pixel in the image domain, in radians.
+    rad_bmaj : float
+        The beam major axis, in radians.
     width_p0 : float
         This parameter is currently unused.
     ratio_p0 : float
@@ -299,27 +229,27 @@ def p_p0(
     """
     p0 = np.zeros((n_walkers, 3))
     for i in range(n_walkers):
-        # Peak.
-        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        # Flux.
+        p0[i,0] = np.random.uniform(0.95 * flux, 1.05 * flux)
 
         # RA.
         p0[i,1] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[0],
-            rad_pix / 2 + rad_coord[0]
+            -rad_bmaj / 2 + rad_coord[0],
+            rad_bmaj / 2 + rad_coord[0]
         )
 
         # Dec.
         p0[i,2] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[1],
-            rad_pix / 2 + rad_coord[1]
+            -rad_bmaj / 2 + rad_coord[1],
+            rad_bmaj / 2 + rad_coord[1]
         )
     return p0
 
 
 def c_p0(
-    peak: float,
+    flux: float,
     rad_coord: tuple,
-    rad_pix: float,
+    rad_bmaj: float,
     width_p0: float,
     ratio_p0: float,
     theta_p0: float,
@@ -330,15 +260,15 @@ def c_p0(
 
     Paramters
     ---------
-    peak : float
-        The source flux density, in Jy.
+    flux : float
+        The total source flux, in Jy.
     rad_coord : tuple
         The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
         source position offsets from the field center, in radians.
-    rad_pix : float
-        The size of one side of a pixel in the image domain, in radians.
+    rad_bmaj : float
+        The beam major axis, in radians.
     width_p0 : float
-        A guess for the source width parameter, i.e. the source flux density
+        A guess for the source width parameter, i.e. the source intensity
         standard deviation, in radians.
     ratio_p0 : float
         This parameter is currently unused.
@@ -363,19 +293,19 @@ def c_p0(
     """
     p0 = np.zeros((n_walkers, 4))
     for i in range(n_walkers):
-        # Peak.
-        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        # Flux.
+        p0[i,0] = np.random.uniform(0.95 * flux, 1.05 * flux)
 
         # RA.
         p0[i,1] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[0],
-            rad_pix / 2 + rad_coord[0],
+            -rad_bmaj / 2 + rad_coord[0],
+            rad_bmaj / 2 + rad_coord[0],
         )
 
         # Dec.
         p0[i,2] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[1],
-            rad_pix / 2 + rad_coord[1]
+            -rad_bmaj / 2 + rad_coord[1],
+            rad_bmaj / 2 + rad_coord[1]
         )
 
         # Width (sigma).
@@ -387,9 +317,9 @@ def c_p0(
 
 
 def g_p0(
-    peak: float,
+    flux: float,
     rad_coord: tuple,
-    rad_pix: float,
+    rad_bmaj: float,
     width_p0: float,
     ratio_p0: float,
     theta_p0: float,
@@ -401,15 +331,15 @@ def g_p0(
 
     Paramters
     ---------
-    peak : float
-        The source flux density, in Jy.
+    flux : float
+        The total source flux, in Jy.
     rad_coord : tuple
         The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
         source position offsets from the field center, in radians.
-    rad_pix : float
-        The size of one side of a pixel in the image domain, in radians.
+    rad_bmaj : float
+        The beam major axis, in radians.
     width_p0 : float
-        A guess for the source width parameter, i.e. the source flux density
+        A guess for the source width parameter, i.e. the source intensity
         standard deviation, in radians.
     ratio_p0 : float
         A guess for the source minor axis to major axis ratio.
@@ -430,19 +360,19 @@ def g_p0(
     """
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
-        # Peak.
-        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        # Flux.
+        p0[i,0] = np.random.uniform(0.95 * flux, 1.05 * flux)
 
         # RA.
         p0[i,1] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[0],
-            rad_pix / 2 + rad_coord[0]
+            -rad_bmaj / 2 + rad_coord[0],
+            rad_bmaj / 2 + rad_coord[0]
         )
 
         # Dec.
         p0[i,2] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[1],
-            rad_pix / 2 + rad_coord[1],
+            -rad_bmaj / 2 + rad_coord[1],
+            rad_bmaj / 2 + rad_coord[1],
         )
 
         # Width (sigma).
@@ -471,9 +401,9 @@ def g_p0(
 
 
 def d_p0(
-    peak: float,
+    flux: float,
     rad_coord: tuple,
-    rad_pix: float,
+    rad_bmaj: float,
     width_p0: float,
     ratio_p0: float,
     theta_p0: float,
@@ -484,13 +414,13 @@ def d_p0(
 
     Paramters
     ---------
-    peak : float
-        The source flux density, in Jy.
+    flux : float
+        The total source flux, in Jy.
     rad_coord : tuple
         The source coordinate (`ra`, `dec`), where `ra` and `dec` are the
         source position offsets from the field center, in radians.
-    rad_pix : float
-        The size of one side of a pixel in the image domain, in radians.
+    rad_bmaj : float
+        The beam major axis, in radians.
     width_p0 : float
         A guess for the source width parameter, i.e. the source radius (or
         major axis if the source is rotated), in radians.
@@ -512,19 +442,19 @@ def d_p0(
     """
     p0 = np.zeros((n_walkers, 6))
     for i in range(n_walkers):
-        # Peak.
-        p0[i,0] = np.random.uniform(0.95 * peak, 1.05 * peak)
+        # Flux.
+        p0[i,0] = np.random.uniform(0.95 * flux, 1.05 * flux)
 
         # RA.
         p0[i,1] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[0],
-            rad_pix / 2 + rad_coord[0],
+            -rad_bmaj / 2 + rad_coord[0],
+            rad_bmaj / 2 + rad_coord[0],
         )
 
         # Dec.
         p0[i,2] = np.random.uniform(
-            -rad_pix / 2 + rad_coord[1],
-            rad_pix / 2 + rad_coord[1],
+            -rad_bmaj / 2 + rad_coord[1],
+            rad_bmaj / 2 + rad_coord[1],
         )
 
         # Width (radius).
@@ -643,12 +573,12 @@ def p_prior(
     Parameters
     ----------
     params : npt.ArrayLike
-        Point source model parameters `(peak, ra, dec)`, where `peak` is the
-        source peak flux density, in Jy, and `ra` and `dec` are the source
-        position offsets from the field center, in radians.
+        Point source model parameters `(flux, ra, dec)`, where `flux` is the
+        total source flux, in Jy, and `ra` and `dec` are the source position
+        offsets from the field center, in radians.
     vis_priors : npt.ArrayLike
         Priors on the point source model. The 0th index corresponds to priors
-        on `peak`, the 1st index corresponds to priors on `ra`, and the
+        on `flux`, the 1st index corresponds to priors on `ra`, and the
         2nd index corresponds to priors on `dec`. The 0th index of the
         array-like object for each parameter corresponds to the minimum value,
         and the 1st index of the array-like object for each parameter
@@ -663,23 +593,23 @@ def p_prior(
         parameters.
         0 if the parameters are within the priors and -np.inf if not.
     """
-    peak, ra, dec = params
+    flux, ra, dec = params
     if vis_priors is not None:
-        peak_priors = vis_priors[0]
+        flux_priors = vis_priors[0]
         ra_priors = vis_priors[1]
         dec_priors = vis_priors[2]
-        peak_min, peak_max = peak_priors
+        flux_min, flux_max = flux_priors
         ra_min, ra_max = ra_priors
         dec_min, dec_max = dec_priors
 
-        if peak_min is not None and peak < peak_min:
+        if flux_min is not None and flux < flux_min:
             return -np.inf
-        if peak_max is not None and peak > peak_max:
+        if flux_max is not None and flux > flux_max:
             return -np.inf
-        if isinstance(peak_priors, tuple):
-            if peak_min is not None and peak == peak_min:
+        if isinstance(flux_priors, tuple):
+            if flux_min is not None and flux == flux_min:
                 return -np.inf
-            if peak_max is not None and peak == peak_max:
+            if flux_max is not None and flux == flux_max:
                 return -np.inf
         if ra_min is not None and ra < ra_min:
             return -np.inf
@@ -713,13 +643,13 @@ def c_prior(
     Parameters
     ----------
     params : npt.ArrayLike
-        Circular Gaussian source model parameters `(peak, ra, dec, sigma)`,
-        where `peak` is the source peak flux density, in Jy; `ra` and `dec` are
-        the source position offsets from the field center, in radian; and
-        `sigma` is the source flux density standard deviation, in radians.
+        Circular Gaussian source model parameters `(flux, ra, dec, sigma)`,
+        where `flux` is the total source flux, in Jy; `ra` and `dec` are the
+        source position offsets from the field center, in radian; and `sigma`
+        is the source intensity standard deviation, in radians.
     vis_priors : npt.ArrayLike
         Priors on the circular Gaussian source model. The 0th index corresponds
-        to priors on `peak`, the 1st index corresponds to priors on `ra`, the
+        to priors on `flux`, the 1st index corresponds to priors on `ra`, the
         2nd index corresponds to priors on `dec`, and the 3rd index corresopnds
         to priors on `sigma`. The 0th index of the array-like object for each
         parameter corresponds to the minimum value, and the 1st index of the
@@ -735,30 +665,30 @@ def c_prior(
         parameters.
         0 if the parameters are within the priors and -np.inf if not.
     """
-    peak, ra, dec, sigma = params
+    flux, ra, dec, sigma = params
     # Hardcode the requirement that the width parameter of a source should be
     # positive.
     if sigma <= 0:
         return -np.inf
 
     if vis_priors is not None:
-        peak_priors = vis_priors[0]
+        flux_priors = vis_priors[0]
         ra_priors = vis_priors[1]
         dec_priors = vis_priors[2]
         sigma_priors = vis_priors[3]
-        peak_min, peak_max = peak_priors
+        flux_min, flux_max = flux_priors
         ra_min, ra_max = ra_priors
         dec_min, dec_max = dec_priors
         sigma_min, sigma_max = sigma_priors
 
-        if peak_min is not None and peak < peak_min:
+        if flux_min is not None and flux < flux_min:
             return -np.inf
-        if peak_max is not None and peak > peak_max:
+        if flux_max is not None and flux > flux_max:
             return -np.inf
-        if isinstance(peak_priors, tuple):
-            if peak_min is not None and peak == peak_min:
+        if isinstance(flux_priors, tuple):
+            if flux_min is not None and flux == flux_min:
                 return -np.inf
-            if peak_max is not None and peak == peak_max:
+            if flux_max is not None and flux == flux_max:
                 return -np.inf
         if ra_min is not None and ra < ra_min:
             return -np.inf
@@ -801,15 +731,15 @@ def g_prior(
     Parameters
     ----------
     params : npt.ArrayLike
-        Circular Gaussian source model parameters `(peak, ra, dec, sigma,
-        ratio, vis_theta)`, where `peak` is the source peak flux density, in
-        Jy; `ra` and `dec` are the source position offsets from the field
-        center, in radians; `sigma` is the source flux density standard
-        deviation, in radians; `ratio` is the ratio of minor to major axis; and
-        `vis_theta` is the source angle in visibility space, in radians.
+        Circular Gaussian source model parameters `(flux, ra, dec, sigma,
+        ratio, vis_theta)`, where `flux` is the total source flux, in Jy; `ra`
+        and `dec` are the source position offsets from the field center, in
+        radians; `sigma` is the source intensity standard deviation, in
+        radians; `ratio` is the ratio of minor to major axis; and `vis_theta`
+        is the source angle in visibility space, in radians.
     vis_priors : npt.ArrayLike
         Priors on the circular Gaussian source model. The 0th index
-        corresponds to priors on `peak`, the 1st index corresponds to priors
+        corresponds to priors on `flux`, the 1st index corresponds to priors
         on `ra`, the 2nd index corresponds to priors on `dec`, the 3rd index
         corresopnds to priors on `sigma`, the 4th index corresponds to priors
         on `ratio`, and the 5th index corresponds to priors on `vis_theta`. The
@@ -826,7 +756,7 @@ def g_prior(
         parameters.
         0 if the parameters are within the priors and -np.inf if not.
     """
-    peak, ra, dec, sigma, ratio, vis_theta = params
+    flux, ra, dec, sigma, ratio, vis_theta = params
     # Hardcode the requirement that the width parameter of a source should be
     # positive.
     if sigma <= 0:
@@ -845,27 +775,27 @@ def g_prior(
         return -np.inf
 
     if vis_priors is not None:
-        peak_priors = vis_priors[0]
+        flux_priors = vis_priors[0]
         ra_priors = vis_priors[1]
         dec_priors = vis_priors[2]
         sigma_priors = vis_priors[3]
         ratio_priors = vis_priors[4]
         vis_theta_priors = vis_priors[5]
-        peak_min, peak_max = peak_priors
+        flux_min, flux_max = flux_priors
         ra_min, ra_max = ra_priors
         dec_min, dec_max = dec_priors
         sigma_min, sigma_max = sigma_priors
         ratio_min, ratio_max = ratio_priors
         vis_theta_min, vis_theta_max = vis_theta_priors
 
-        if peak_min is not None and peak < peak_min:
+        if flux_min is not None and flux < flux_min:
             return -np.inf
-        if peak_max is not None and peak > peak_max:
+        if flux_max is not None and flux > flux_max:
             return -np.inf
-        if isinstance(peak_priors, tuple):
-            if peak_min is not None and peak == peak_min:
+        if isinstance(flux_priors, tuple):
+            if flux_min is not None and flux == flux_min:
                 return -np.inf
-            if peak_max is not None and peak == peak_max:
+            if flux_max is not None and flux == flux_max:
                 return -np.inf
         if ra_min is not None and ra < ra_min:
             return -np.inf
@@ -926,15 +856,15 @@ def d_prior(
     Parameters
     ----------
     params : npt.ArrayLike
-        Disk source model parameters `(peak, ra, dec, r, ratio, vis_theta)`,
-        where `peak` is the source peak flux density, in Jy; `ra` and `dec` are
-        the source position offsets from the field center, in radians; `r` is
-        the source radius (or major axis if the disk is rotated), in radians;
+        Disk source model parameters `(flux, ra, dec, r, ratio, vis_theta)`,
+        where `flux` is the total source flux, in Jy; `ra` and `dec` are the
+        source position offsets from the field center, in radians; `r` is the
+        source radius (or major axis if the disk is rotated), in radians;
         `ratio` is the ratio of minor to major axis; and `vis_theta` is the
         source angle in visibility space, in radians.
     vis_priors : npt.ArrayLike
         Priors on the disk source model. The 0th index corresponds to priors on
-        `peak`, the 1st index corresponds to priors on `ra`, the 2nd index
+        `flux`, the 1st index corresponds to priors on `ra`, the 2nd index
         corresponds to priors on `dec`, the 3rd index corresopnds to priors on
         `sigma`, the 4th index corresponds to priors on `ratio`, and the 5th
         index corresponds to priors on `vis_theta`. The 0th index of the
@@ -951,7 +881,7 @@ def d_prior(
         parameters.
         0 if the parameters are within the priors and -np.inf if not.
     """
-    peak, ra, dec, r, ratio, vis_theta = params
+    flux, ra, dec, r, ratio, vis_theta = params
     # Hardcode the requirement that the width parameter of a source should be
     # positive.
     if r <= 0:
@@ -970,27 +900,27 @@ def d_prior(
         return -np.inf
 
     if vis_priors is not None:
-        peak_priors = vis_priors[0]
+        flux_priors = vis_priors[0]
         ra_priors = vis_priors[1]
         dec_priors = vis_priors[2]
         r_priors = vis_priors[3]
         ratio_priors = vis_priors[4]
         vis_theta_priors = vis_priors[5]
-        peak_min, peak_max = peak_priors
+        flux_min, flux_max = flux_priors
         ra_min, ra_max = ra_priors
         dec_min, dec_max = dec_priors
         r_min, r_max = r_priors
         ratio_min, ratio_max = ratio_priors
         vis_theta_min, vis_theta_max = vis_theta_priors
 
-        if peak_min is not None and peak < peak_min:
+        if flux_min is not None and flux < flux_min:
             return -np.inf
-        if peak_max is not None and peak > peak_max:
+        if flux_max is not None and flux > flux_max:
             return -np.inf
-        if isinstance(peak_priors, tuple):
-            if peak_min is not None and peak == peak_min:
+        if isinstance(flux_priors, tuple):
+            if flux_min is not None and flux == flux_min:
                 return -np.inf
-            if peak_max is not None and peak == peak_max:
+            if flux_max is not None and flux == flux_max:
                 return -np.inf
         if ra_min is not None and ra < ra_min:
             return -np.inf
@@ -1071,16 +1001,150 @@ def log_likelihood(
     return -0.5 * np.sum(w * ((re - model.real)**2 + (im - model.imag)**2))
 
 
-P_PARAMS = ['peak', 'ra', 'dec']
-C_PARAMS = ['peak', 'ra', 'dec', 'sigma']
-G_PARAMS = ['peak', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
-D_PARAMS = ['peak', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
+def p_flux(
+    peak: float,
+    width: float,
+    ratio: float,
+    rad_barea: float,
+) -> float:
+    """
+    Convert the intensity of a point source in Jy/beam to flux in Jy.
+
+    Parameters
+    ----------
+    peak : float
+        The source intensity, in Jy/beam.
+    width : float
+        This parameter is currently unused.
+    ratio : float
+        This parameter is currently unused.
+    rad_barea : float
+        This parameter is currently unused.
+
+    Returns
+    -------
+    float
+        The source flux, in Jy.
+
+    Notes
+    -----
+    The `width`, `ratio`, and `rad_barea` parameters are retained for
+    consistency with other flux functions but do not affect the point source
+    flux.
+    """
+    return peak
+
+
+def c_flux(
+    peak: float,
+    width: float,
+    ratio: float,
+    rad_barea: float,
+) -> float:
+    """
+    Convert the intensity of a circular Gaussian source in Jy/beam to flux in
+    Jy.
+
+    Parameters
+    ----------
+    peak : float
+        The source intensity, in Jy/beam.
+    width : float
+        The Gaussian width parameter, in radians.
+    ratio : float
+        This parameter is currently unused.
+    rad_barea : float
+        The synthesized beam area, in radians^2.
+
+    Returns
+    -------
+    float
+        The source flux, in Jy.
+
+    Notes
+    -----
+    The `ratio` parameter is retained for consistency with other flux functions
+    but do not affect the point source flux.
+    """
+    n_beams = 2 * np.pi * width**2 / rad_barea
+    if n_beams > 1:
+        return peak * n_beams
+    return peak
+
+
+def g_flux(
+    peak: float,
+    width: float,
+    ratio: float,
+    rad_barea: float,
+) -> float:
+    """
+    Convert the intensity of an elliptical Gaussian source in Jy/beam to flux in
+    Jy.
+
+    Parameters
+    ----------
+    peak : float
+        The source intensity, in Jy/beam.
+    width : float
+        The Gaussian width parameter, in radians.
+    ratio : float
+        The Gaussian minor to major axis ratio.
+    rad_barea : float
+        The synthesized beam area, in radians^2.
+
+    Returns
+    -------
+    float
+        The source flux, in Jy.
+    """
+    n_beams = peak * 2 * np.pi * width**2 * ratio / rad_barea
+    if n_beams > 1:
+        return peak * n_beams
+    return peak
+
+
+def d_flux(
+    peak: float,
+    width: float,
+    ratio: float,
+    rad_barea: float,
+) -> float:
+    """
+    Convert the intensity of a disk source in Jy/beam to flux in Jy.
+
+    Parameters
+    ----------
+    peak : float
+        The source intensity, in Jy/beam.
+    width : float
+        The disk radius (or major axis, if the disk is rotated), in radians.
+    ratio : float
+        The disk minor to major axis ratio.
+    rad_barea : float
+        The synthesized beam area, in radians^2.
+
+    Returns
+    -------
+    float
+        The source flux, in Jy.
+    """
+    n_beams = np.pi * width**2 * ratio / rad_barea
+    if n_beams > 1:
+        return peak * n_beams
+    return peak
+
+
+P_PARAMS = ['flux', 'ra', 'dec']
+C_PARAMS = ['flux', 'ra', 'dec', 'sigma']
+G_PARAMS = ['flux', 'ra', 'dec', 'sigma', 'ratio', 'vis_theta']
+D_PARAMS = ['flux', 'ra', 'dec', 'r', 'ratio', 'vis_theta']
 
 SOURCE_TYPES = {
-    'p': [3, p_p0, p_prior, p_model, P_PARAMS],
-    'c': [4, c_p0, c_prior, c_model, C_PARAMS],
-    'g': [6, g_p0, g_prior, g_model, G_PARAMS],
-    'd': [6, d_p0, d_prior, d_model, D_PARAMS]
+    'p': [3, p_p0, p_prior, p_model, P_PARAMS, p_flux],
+    'c': [4, c_p0, c_prior, c_model, C_PARAMS, c_flux],
+    'g': [6, g_p0, g_prior, g_model, G_PARAMS, g_flux],
+    'd': [6, d_p0, d_prior, d_model, D_PARAMS, d_flux]
 }
 
 
@@ -1242,8 +1306,8 @@ def sigmas(param_chain: npt.ArrayLike) -> tuple:
 
 def auto_detect(
     vis: npt.ArrayLike,
-    info: dict,
     n_sources: int,
+    info: dict,
     clean_output: bool = True,
     corner_plot: bool = True,
     min_sep: float | None = None,
@@ -1261,6 +1325,8 @@ def auto_detect(
         real part of the visibility, in Jy; the imaginary part of the
         visibility, in Jy; and the weight (the inverse of the uncertainty
         squared) for each visibility measurement, in 1/Jy^2.
+    n_sources : int
+        The number of point sources in the model that will be fit to the data.
     info : dict
         Image domain information and some results from image domain fitting.
         Should include the following keys:
@@ -1273,20 +1339,12 @@ def auto_detect(
             detected peak.
         `n_peaks` : int
             The number of peaks detected in the image domain.
-        `rad_pix` : float
-            The length of one side of a pixel (assumed to be square), in
-            radians.
         `rad_barea` : float
             Beam area, in radians^2.
-        `naxis1` : int
-            The number of pixels in the first axis of the image (assumed to be
-            square).
         `rad_bmaj` : float
             Beam major axis, in radians.
         `rad_bmin` : float
             Beam minor axis, in radians.
-    n_sources : int
-        The number of point sources in the model that will be fit to the data.
     clean_output : bool, optional
         Whether to return the list of fit results in a more human-parsable
         format. See Returns section for more details.
@@ -1312,16 +1370,16 @@ def auto_detect(
                         SOURCE_TYPES).
                         By definition, 'p' for all the sources in
                         auto_detect().
-                    `peak` : tuple of tuple | tuple of float
+                    `flux` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
-                        first tuple contains the fitted peak estimate and its
-                        uncertainty, respectively, in Jy. The uncertainty is
-                        rounded to 3 significant figures and the estimate is
+                        first tuple contains the fitted flux estimate and its
+                        uncertainty, respectively, in Jy/beam. The uncertainty
+                        is rounded to 3 significant figures and the estimate is
                         rounded to the appropriate number of digits to match
                         the uncertainty. The second tuple contains the 2.5th,
                         16th, 50th, 84th, and 97.5th percentile of sampled
                         parameters, in Jy, all rounded to 3 signficant figures.
-                        Else, a tuple of the fitted peak estimate and its
+                        Else, a tuple of the fitted flux estimate and its
                         uncertainty, respectively, in Jy.
                     `ra` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
@@ -1356,8 +1414,8 @@ def auto_detect(
                         A dictionary, of the collection of sample parameters
                         that resulted in the lowest chi-squared value, with the
                         following keys:
-                            `peak` : float
-                                The peak flux density, in Jy.
+                            `flux` : float
+                                The flux, in Jy.
                             `ra` : float
                                 The right ascension, in radians relative to the
                                 field center.
@@ -1379,13 +1437,18 @@ def auto_detect(
     RuntimeError
         Autocorrelation time for parameters could not be estimated. Most likely
         due to extremely poor initial guesses or extremely poor model choice.
+
+    Notes
+    -----
+    If the number of sources to fit exceeds the number of sources with
+    information in `info`, then the initial guess for the source location will
+    be the a square around the origin, with side length equal to the beam major
+    axis.
     """
     freq, u, v, re, im, w = vis
     all_peaks = info['all_peaks']  # Information from image fitting.
     n_peaks = info['n_peaks']
-    rad_pix = info['rad_pix']
     rad_barea = info['rad_barea']
-    naxis1 = info['naxis1']
     rad_bmaj = info['rad_bmaj']
     rad_bmin = info['rad_bmin']
 
@@ -1415,7 +1478,7 @@ def auto_detect(
         # If the number of sources to be fit exceeds the number of sources
         # found in the image domain, use the value of the dimmest peak detected
         # in the image domain to prompt the initial guess(es) for the
-        # flux density/intensities of the remaining source(s).
+        # intensities of the remaining source(s).
         peak = all_peaks[i][0] if i < n_peaks else all_peaks[min_index][0]
         coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[min_index][1]
         rad_coord = (
@@ -1423,10 +1486,11 @@ def auto_detect(
             float(Angle(coord0[1], units.arcsec).to(units.radian).value)
         )
         if i == 0:
+            # For a point source, the intensity is the same as the flux.
             p0 = SOURCE_TYPES['p'][1](
                 peak,
                 rad_coord,
-                rad_pix,
+                rad_bmaj,
                 width_p0,
                 ratio_p0,
                 theta_p0,
@@ -1436,7 +1500,7 @@ def auto_detect(
             mini_p0 = SOURCE_TYPES['p'][1](
                 peak,
                 rad_coord,
-                rad_pix,
+                rad_bmaj,
                 width_p0,
                 ratio_p0,
                 theta_p0,
@@ -1444,17 +1508,17 @@ def auto_detect(
             )
             # If the number of sources to be fit exceeds the number of sources
             # found in the image domain, allow the initial guess(es) for the
-            # coordinates of the remaining source(s) to come from the entire
-            # image.
+            # coordinates of the remaining source(s) to come from the a square
+            # of side lengths rad_bmaj, centered around the origin.
             if i >= n_peaks:
                 for j in range(n_walkers):
                     mini_p0[j,1] = np.random.uniform(
-                        -naxis1 / 2 * rad_pix,
-                        naxis1 / 2 * rad_pix,
+                        -rad_bmaj / 2,
+                        rad_bmaj / 2,
                     )
                     mini_p0[j,2] = np.random.uniform(
-                        -naxis1 / 2 * rad_pix,
-                        naxis1 / 2 * rad_pix,
+                        -rad_bmaj / 2,
+                        rad_bmaj / 2,
                     )
             p0 = np.append(p0, mini_p0, axis=1)
 
@@ -1558,16 +1622,16 @@ def auto_detect(
             n_walkers = 2 * n_source_params
             source_chain = permutation_chain[:, start:start+n_source_params]
 
-            # Round peak and uncertainty and find percentiles.
-            peak_chain = source_chain[:, 0]
-            peak_sigmas = tuple([
+            # Round flux and uncertainty and find percentiles.
+            flux_chain = source_chain[:, 0]
+            flux_sigmas = tuple([
                 float(sigfig.round(sigma, sigfigs=3))
-                for sigma in sigmas(peak_chain)
+                for sigma in sigmas(flux_chain)
             ])
-            source_result['peak'] = (
+            source_result['flux'] = (
                 round_tuple(
-                    (source_result['peak'][0], source_result['peak'][1])
-                ), peak_sigmas
+                    (source_result['flux'][0], source_result['flux'][1])
+                ), flux_sigmas
             )
 
             # Convert ra, dec to arcsec. Round values and uncertainties and
@@ -1636,7 +1700,8 @@ def best_auto_detect(
     n_sources: int | None = None,
     clean_output: bool = True,
     corner_plot: bool = True,
-    min_sep: float | None = None
+    min_sep: float | None = None,
+    only_best: bool = True,
 ) -> list:
     """
     Fit visibility data from a FITS file to a given number of point sources or
@@ -1660,6 +1725,8 @@ def best_auto_detect(
     min_sep : float | None, optional
         The minimum separation, in radians, to differentiate two distinct
         sources.
+    only_best : bool, optional
+        Whether to only return the best result.
 
     Returns
     -------
@@ -1677,16 +1744,16 @@ def best_auto_detect(
                         SOURCE_TYPES).
                         By definition, 'p' for all the sources in
                         best_auto_detect().
-                    `peak` : tuple of tuple | tuple of float
+                    `flux` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
-                        first tuple contains the fitted peak estimate and its
+                        first tuple contains the fitted flux estimate and its
                         uncertainty, respectively, in Jy. The uncertainty is
                         rounded to 3 significant figures and the estimate is
                         rounded to the appropriate number of digits to match
                         the uncertainty. The second tuple contains the 2.5th,
                         16th, 50th, 84th, and 97.5th percentile of sampled
                         parameters, in Jy, all rounded to 3 signficant figures.
-                        Else, a tuple of the fitted peak estimate and its
+                        Else, a tuple of the fitted flux estimate and its
                         uncertainty, respectively, in Jy.
                     `ra` : tuple of tuple | tuple of float
                         If `clean_output` is `True`, a tuple of 2 tuples. The
@@ -1721,8 +1788,8 @@ def best_auto_detect(
                         A dictionary, of the collection of sample parameters
                         that resulted in the lowest chi-squared value, with the
                         following keys:
-                            `peak` : float
-                                The peak flux density, in Jy.
+                            `flux` : float
+                                The flux, in Jy.
                             `ra` : float
                                 The right ascension, in radians relative to the
                                 field center.
@@ -1775,17 +1842,20 @@ def best_auto_detect(
     # Extract data from the FITS file.
     fits_file = Path(fits_file)
     with fits.open(fits_file) as file:
-        cdelt1 = file[0].header['CDELT1']
         cunit1 = file[0].header['CUNIT1']
-        naxis1 = file[0].header['NAXIS1']
         data = file[1].data
         bmaj = file[0].header['BMAJ']
         bmin = file[0].header['BMIN']
+        weighted_vis = False
+        try:
+            if file[1].header['EXTNAME'] == 'Weighted Visibilities':
+                weighted_vis = True
+        except KeyError:  # 'EXTNAME' is not a key.
+            pass
 
     rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
     rad_bmin = Angle(bmin, cunit1).to(units.radian).value
     rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
 
     # Get image domain fitting results.
     summ = summary(fits_file, plot=False)
@@ -1823,8 +1893,12 @@ def best_auto_detect(
         freq_bin.append(int(freq_bin_data))
         u.append(int(u_data))
         v.append(int(v_data))
-        re.append(float(re_data/w_data))
-        im.append(float(im_data/w_data))
+        if weighted_vis:
+            re.append(float(re_data / w_data))
+            im.append(float(im_data / w_data))
+        else:
+            re.append(float(re_data))
+            im.append(float(im_data))
         w.append(float(w_data))
 
     # Add in the conjugate half of the visibility data.
@@ -1849,37 +1923,38 @@ def best_auto_detect(
     info = {
         'all_peaks': all_peaks,
         'n_peaks': n_peaks,
-        'rad_pix': rad_pix,
         'rad_barea': rad_barea,
-        'naxis1': naxis1,
         'rad_bmaj': rad_bmaj,
-        'rad_bmin': rad_bmin
+        'rad_bmin': rad_bmin,
     }
 
     results = []
     if n_sources is None:
         # Assuming that summary() more often has false positives than false
-        # negatives, start at the number of peaks detected in the image domain
-        # and try models with fewer and fewer sources.
-        for i in range(n_peaks, 0, -1):
+        # negatives, start with a single-source model and increment up to the
+        # number of peaks detected in the image domain.
+        for i in range(1, n_peaks + 1):
             temp = auto_detect(
                 vis=input_vis,
-                info=info,
                 n_sources=i,
+                info=info,
                 clean_output=clean_output,
                 corner_plot=corner_plot,
             )
             if temp:
-                if results:
-                    if results[0]['bic'] - temp[0]['bic'] > 10:
+                if only_best:
+                    if results:
+                        if results[0]['bic'] - temp[0]['bic'] > 10:
+                            results = temp
+                    else:
                         results = temp
                 else:
-                    results = temp
+                    results.append(temp)
     else:
         results = auto_detect(
             vis=input_vis,
-            info=info,
             n_sources=n_sources,
+            info=info,
             clean_output=clean_output,
             corner_plot=corner_plot,
             min_sep=min_sep,
@@ -1891,11 +1966,51 @@ def best_auto_detect(
         raise ValueError("All attempts failed to converge.")
 
 
+def estimate_beam_axes(
+    u: npt.ArrayLike,
+    v: npt.ArrayLike,
+    w: npt.ArrayLike,
+) -> npt.ArrayLike:
+    """
+    Estimate the synthesized beam major and minor axes.
+
+    Paramters:
+    u : npt.ArrayLike
+        `u` coordinate of the visibility, in wavelengths.
+    v : npt.ArrayLike
+        `v` coordinate of the visibility, in wavelengths.
+    w : npt.ArrayLike
+        The data weight(s), equal to 1 over the uncertainty squared, in 1/Jy^2.
+
+    Returns
+    -------
+    npt.Arraylike
+        An array [`b_maj`, `b_min`] of the estimated beam major (`b_maj`) and
+        minor (`b_min`) axes, in radians.
+
+    Notes
+    -----
+    Uses the method of moments with natural weighting.
+    """
+    uu_moment = np.sum(w * u**2) / np.sum(w)
+    vv_moment = np.sum(w * v**2) / np.sum(w)
+    uv_moment = np.sum(w * u * v) / np.sum(w)
+    moment_mtx = np.array(
+        [[uu_moment, uv_moment], [uv_moment, vv_moment]]
+    )
+    eigvals = np.sort(np.linalg.eigvals(moment_mtx))
+    beam_axes = (
+        np.sqrt(2 * np.log(2))
+        / (np.pi * np.sqrt(eigvals))
+    )
+    return beam_axes
+
+
 def uv_fit_no_image(
-    vis : npt.ArrayLike,
-    info : dict,
+    vis: npt.ArrayLike,
     sources: list,
-    peak_guess: list | None = None,
+    info: dict,
+    flux_guess: list | None = None,
     ra_guess: list | None = None,
     dec_guess: list | None = None,
     width_guess: list | None = None,
@@ -1907,6 +2022,7 @@ def uv_fit_no_image(
     additional_runs: int = 2,
     extreme_case_check: bool = True,
     min_sep: float | None = None,
+    use_image_guess : bool = False,
 ) -> list:
     """
     Fit visibility data from a FITS file to a model of a given source type or
@@ -1922,40 +2038,40 @@ def uv_fit_no_image(
         index corresponding to the real component of the visibility, the 4th
         index corresponding to the imaginary component of the visibility, and
         the 5th index corresponding to the visibility weight.
-    info : dict
+    sources : list
+        List of source types to fit. Each source type should be one of 'p'
+        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
+        (try all and pick best fit).
+    info : dict, optional
         Dictionary of observation information, with the following keys:
-        `CDELT1` : float
-            The pixel size of the first axis, in the units of `info['CUNIT1']`.
         `CUNIT1` : u.UnitBase
             The units of the first axis.
-        `NAXIS1` : int
-            The length of the first axis, in pixels.
         `BMAJ` : float
             The beam major axis, in degrees.
         `BMIN` : float
             The beam minor axis, in degrees.
         `int_peak_val` : list
-            A list of guesses for the internal peak intensities, in Jy.
+            A list of guesses for the internal peak intensities, in Jy/beam.
         `int_peak_coord` : tuple of float
             A list of guesses for the internal peak coordinates, in relative
             arcseconds.
         `ext_peak_val` : float
-            A list of guesses for the external peak intensities, in Jy.
-        `ext_peak_coord` : tuple float
+            A list of guesses for the external peak intensities, in Jy/beam.
+        `ext_peak_coord` : tuple of float
             A list of guesses for the external peak coordinates, in relative
             arcseconds.
+        `weighted_vis` : bool
+            Whether the visibilities are weighted, i.e. whether the real and
+            imaginary components of the visibility in the table have been
+            multiplied by their weights.
         And optionally, the following keys:
         `U_RES` : float
             The resolution/scale of the `u` coordinates.
         `V_RES` : float
             The resolution/scale of the `v` coordinates.
-    sources : list
-        List of source types to fit. Each source type should be one of 'p'
-        (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
-        (try all and pick best fit).
-    peak_guess : list | None, optional
-        A guess for the flux density/densities of the source(s), in Jy.
-        If `peak_guess` is a list, each element is a guess for the
+    flux_guess : list | None, optional
+        A guess for the flux(es) of the source(s), in Jy.
+        If `flux_guess` is a list, each element is a guess for the
         corresponding source in `sources`, so the list must be the same length
         as `sources`. Elements in the list may be `None`.
     ra_guess : list | None, optional
@@ -2009,6 +2125,9 @@ def uv_fit_no_image(
     min_sep : float | None, optional
         The minimum separation, in radians, to differentiate two distinct
         sources.
+    use_image_guess : bool, optional
+        Whether to use the image domain fitting results as initial guesses for
+        flux, RA, and dec in the visibility fitting.
 
     Returns
     -------
@@ -2200,14 +2319,18 @@ def uv_fit_no_image(
 
     Notes
     -----
-    Assumes square pixels, i.e. that `CDELT1` is equal to `CDELT2` and `CUNIT1`
-    is equal to `CUNIT2`.
+    If the number of peaks in `info` is less than the `n_sources`, and `info`
+    is being used for initial guesses, then the remaining sources will have
+    initial flux guesses calculated from the dimmest peak in `info` and initial
+    position guesses randomly selected (uniformly) from a square of side
+    length rad_bmaj, centered around the origin.
 
-    Assumes a square image, i.e. that `NAXIS1` is equal to `NAXIS2`. If the
-    image is in fact not square, then the positional initial guesses for the
-    sources whose positions are not listed in either or
-    `info['int_peak_coord']` or `info['ext_peak_coord']` may be outside of the
-    image or may not properly sample the entire image.
+    Assumes that `CUNIT1` is equal to `CUNIT2`.
+
+    If the number of sources to fit exceeds the number of sources with
+    information in `info`, then the initial guess for the source location will
+    be the a square around the origin, with side length equal to the beam major
+    axis.
 
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
@@ -2284,7 +2407,7 @@ def uv_fit_no_image(
 
     # Make sure guesses, if they exist, have proper length.
     user_guesses = [
-        peak_guess,
+        flux_guess,
         ra_guess,
         dec_guess,
         width_guess,
@@ -2299,84 +2422,50 @@ def uv_fit_no_image(
                     f"the length of sources ({n_sources})."
                 )
 
-    # Convert ra_guess, dec_guess from relative (to field center) arcsec to
-    # relative radians.
-    rad_ra_guess = []
-    rad_dec_guess = []
-    ra_guess_inputted = False
-    dec_guess_inputted = False
-    if ra_guess is not None:
-        ra_guess_inputted = True
-    if dec_guess is not None:
-        dec_guess_inputted = True
-    for i in range(n_sources):
-        temp_ra_guess = None
-        temp_dec_guess = None
-        if ra_guess_inputted and ra_guess[i] is not None:
-            temp_ra_guess = float(
-                Angle(ra_guess[i], units.arcsec).to(units.radian).value
-            )
-        if dec_guess_inputted and dec_guess[i] is not None:
-            temp_dec_guess = float(
-                Angle(dec_guess[i], units.arcsec).to(units.radian).value
-            )
-        rad_ra_guess.append(temp_ra_guess)
-        rad_dec_guess.append(temp_dec_guess)
+    # Extract data from visibility table.
+    vis = np.array(vis)
+    freq_bin, u, v, re, im, w = [], [], [], [], [], []
+    for row in vis:
+        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
+        freq_bin.append(int(freq_bin_data))
+        u.append(int(u_data * u_res))
+        v.append(int(v_data * v_res))
+        if info and info['weighted_vis']:
+            re.append(float(re_data / w_data))
+            im.append(float(im_data / w_data))
+        else:
+            re.append(float(re_data))
+            im.append(float(im_data))
+        w.append(float(w_data))
 
-    # Require a width guess for all models except point source.
-    # Require a ratio and position angle guess for all models except point
-    # source and circular gaussian.
-    rad_width = []
-    rad_theta = []
-    for i in range(n_sources):
-        if sources[i] != 'p':
-            if width_guess is None or width_guess[i] is None:
-                raise ValueError(
-                    "Value required for width initial guess unless only "
-                    "fitting point sources."
-                )
-            # Convert width from arcsec to radians, if needed.
-            if width_guess[i] < 0:
-                raise ValueError("Width initial guesses may not be negative.")
-            rad_width.append(
-                float(
-                    Angle(width_guess[i], units.arcsec).to(units.radian).value
-                )
-            )
-        else:
-            rad_width.append(None)
-        if sources[i] not in ['p', 'c']:
-            if ratio_guess[i] is None:
-                raise ValueError(
-                    "Value required for ratio initial guess if fitting "
-                    "elliptical gaussian ('g'), disk ('d'), or 'any' for that "
-                    "source."
-                )
-            # Ensure ratio is in the correct range.
-            if ratio_guess[i] <= 0 or ratio_guess[i] > 1:
-                raise ValueError(
-                    "If not None, ratio initial guesses must be greater than "
-                    "0 and less than or equal to 1."
-                )
-            if angle_guess[i] is None:
-                raise ValueError(
-                    "Value required for position angle initial guess if "
-                    "fitting elliptical gaussian ('g'), disk ('d'), or 'any' "
-                    "for that source."
-                )
-            if angle_guess[i] < -90 or angle_guess[i] > 90:
-                raise ValueError(
-                    "Position angle initial guess must be between -90 and 90 "
-                    "degrees, inclusive."
-                )
-            # Convert position angle from degrees to radians, if needed.
-            # Shift by 90 degrees to go from image to visibility angle.
-            temp_pa = angle_guess[i] - 90
-            if temp_pa < -90:
-                temp_pa += 180  # Because -90 to -180 is the same as 90 to 0.
-            rad_theta.append(temp_pa * np.pi/180)
-        else:
-            rad_theta.append(None)
+    # Add in the conjugate half of the visibility data.
+    freq_bin *= 2
+    neg_u = [-1 * val for val in u]
+    u += neg_u
+    neg_v = [-1 * val for val in v]
+    v += neg_v
+    re *= 2
+    neg_im = [-1 * val for val in im]
+    im += neg_im
+    w *= 2
+
+    freq_bin = np.array(freq_bin)
+    u = np.array(u)
+    v = np.array(v)
+    re = np.array(re)
+    im = np.array(im)
+    w = np.array(w)
+
+    # Extract beam information from info, if it exists.
+    if info:
+        cunit1 = info['CUNIT1']
+        bmaj = info['BMAJ']
+        bmin = info['BMIN']
+        rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
+        rad_bmin = Angle(bmin, cunit1).to(units.radian).value
+    else:
+        rad_bmaj, rad_bmin = estimate_beam_axes(u, v, w)
+    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
 
     # Clean up priors and convert units.
     vis_priors = []
@@ -2390,7 +2479,7 @@ def uv_fit_no_image(
         if priors[i] is not None:
             for j in range(len(priors[i])):
                 if priors[i][j] is not None:
-                    if j == 0:  # Peak, so keep as is.
+                    if j == 0:  # Flux, so keep as is.
                         mini_vis_priors.append(priors[i][j])
                     # Ra, dec, width parameter, so convert from arcsec to
                     # radians.
@@ -2469,77 +2558,129 @@ def uv_fit_no_image(
         else:  # Nothing to convert.
             vis_priors.append([[None, None]] * 6)
 
-    # Extract data from info
-    cdelt1 = info['CDELT1']
-    cunit1 = info['CUNIT1']
-    naxis1 = info['NAXIS1']
+    # Convert initial guesses, if given, to proper units.
+    # Apply default initial guesses if not given.
+    rad_ra_guess = []
+    rad_dec_guess = []
+    rad_width_guess = []
+    rad_theta_guess = []
+    if flux_guess is None:
+        flux_guess = [None] * n_sources
+    if ra_guess is None:
+        ra_guess = [None] * n_sources
+    if dec_guess is None:
+        dec_guess = [None] * n_sources
+    if width_guess is None:
+        width_guess = [None] * n_sources
+    if ratio_guess is None:
+        ratio_guess = [None] * n_sources
+    if angle_guess is None:
+        angle_guess = [None] * n_sources
 
-    bmaj = info['BMAJ']
-    bmin = info['BMIN']
-    rad_bmaj = Angle(bmaj, cunit1).to(units.radian).value
-    rad_bmin = Angle(bmin, cunit1).to(units.radian).value
-    rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
-    rad_pix = float(Angle(cdelt1, cunit1).to(units.radian).value)
-    int_peaks = info['int_peak_val']
-    int_coords = info['int_peak_coord']
-    ext_peaks = info['ext_peak_val']
-    ext_coords = info['ext_peak_coord']
-    if 'U_RES' in info.keys():
-        u_res = info['U_RES']
-    else:
-        u_res = 1
-    if 'V_RES' in info.keys():
-        v_res = info['V_RES']
-    else:
-        v_res = 1
+    # Apply default guesses if needed.
+    for i in range(n_sources):
+        if flux_guess[i] is None:
+            flux_guess[i] = 1
+        if ra_guess[i] is None:
+            rad_ra_guess.append(0)
+        else:
+            rad_ra_guess.append(
+                Angle(ra_guess[i], units.arcsec).to(units.radian).value
+            )
+        if dec_guess[i] is None:
+            rad_dec_guess.append(0)
+        else:
+            rad_dec_guess.append(
+                Angle(dec_guess[i], units.arcsec).to(units.radian).value
+            )
+
+        if sources[i] != 'p':
+            if width_guess[i] is None:
+                rad_width_guess.append(rad_bmaj)
+            # Convert width from arcsec to radians, if needed.
+            elif width_guess[i] < 0:
+                raise ValueError("Width initial guesses may not be negative.")
+            else:
+                rad_width_guess.append(
+                    float(
+                        Angle(width_guess[i], units.arcsec)
+                        .to(units.radian).value
+                    )
+                )
+        else:
+            rad_width_guess.append(None)
+        if sources[i] not in ['p', 'c']:
+            if ratio_guess[i] is None:
+                ratio_guess[i] = 1
+            # Ensure ratio is in the correct range.
+            elif ratio_guess[i] <= 0 or ratio_guess[i] > 1:
+                raise ValueError(
+                    "If not None, ratio initial guesses must be greater than "
+                    "0 and less than or equal to 1."
+                )
+            if angle_guess[i] is None:
+                rad_theta_guess.append(-np.pi / 2)  # 0 in image domain.
+            elif angle_guess[i] < -90 or angle_guess[i] > 90:
+                raise ValueError(
+                    "Position angle initial guess must be between -90 and 90 "
+                    "degrees, inclusive."
+                )
+            else:
+                # Convert position angle from degrees to radians, if needed.
+                # Shift by 90 degrees to go from image to visibility angle.
+                temp_pa = angle_guess[i] - 90
+                if temp_pa < -90:
+                    temp_pa += 180  # -90 to -180 is the same as 90 to 0.
+                rad_theta_guess.append(temp_pa * np.pi/180)
+        else:
+            rad_theta_guess.append(None)
+
+    # Extract peak data from info, if it exists and if needed.
+    if info:
+        if 'U_RES' in info.keys():
+            u_res = info['U_RES']
+        else:
+            u_res = 1
+        if 'V_RES' in info.keys():
+            v_res = info['V_RES']
+        else:
+            v_res = 1
+
+        if use_image_guess:
+            peak_info = info['int_peak_val']
+            ext_peaks = info['ext_peak_val']
+            coord_info = info['int_peak_coord']
+            ext_coords = info['ext_peak_coord']
+            if type(ext_peaks) is list:
+                peak_info += ext_peaks
+                coord_info += ext_coords
+            n_peaks = len(peak_info)
+            smallest_peak = np.min(peak_info)
+            # Use image RA and dec guesses for the sources where we have image
+            # domain results.
+            if i in range(n_peaks):
+                rad_ra_guess[i] = Angle(
+                    coord_info[i][0], units.arcsec
+                ).to(units.radian).value
+                rad_dec_guess[i] = Angle(
+                    coord_info[i][1], units.arcsec
+                ).to(units.radian).value
+            if n_peaks < n_sources:
+                warnings.warn(
+                    f"Number of detected peaks ({n_peaks}) from the image is "
+                    f"less than the number of sources to fit ({n_sources}). "
+                    "Fitting will continue but be aware."
+                )
+    elif use_image_guess:
+        warnings.warn(
+            "User requested to use image domain results as initial "
+            "guesses. However, image results (`info`) was not provided. "
+            "Fitting will continue with user-inputted guesses, if they "
+            "exist, or with default guesses."
+        )
 
     if min_sep is None:
         min_sep = rad_bmaj / 10
-
-    int_info = list(zip(int_peaks, int_coords))
-    if type(ext_peaks) is list:
-        ext_info = list(zip(ext_peaks, ext_coords))
-    else:
-        ext_info = []
-    # Create a list of image domain detected peak information. The list
-    # elements are tuples (peak, (ra, dec)), in descending internal peak flux
-    # densities then in descending external peak flux densities.
-    all_peaks = int_info + ext_info
-    n_peaks = len(all_peaks)
-    if n_peaks < n_sources:
-        warnings.warn(
-            f"Number of detected peaks ({n_peaks}) from the image is less "
-            f"than the number of sources to fit ({n_sources})."
-        )
-
-    vis = np.array(vis)
-    freq_bin, u, v, re, im, w = [], [], [], [], [], []
-    for row in vis:
-        freq_bin_data, u_data, v_data, re_data, im_data, w_data = row
-        freq_bin.append(int(freq_bin_data))
-        u.append(int(u_data * u_res))
-        v.append(int(v_data * v_res))
-        re.append(float(re_data / w_data))
-        im.append(float(im_data / w_data))
-        w.append(float(w_data))
-
-    # Add in the conjugate half of the visibility data.
-    freq_bin *= 2
-    neg_u = [-1 * val for val in u]
-    u += neg_u
-    neg_v = [-1 * val for val in v]
-    v += neg_v
-    re *= 2
-    neg_im = [-1 * val for val in im]
-    im += neg_im
-    w *= 2
-
-    freq_bin = np.array(freq_bin)
-    u = np.array(u)
-    v = np.array(v)
-    re = np.array(re)
-    im = np.array(im)
-    w = np.array(w)
 
     # Find all possible permutations.
     sample_space = list(SOURCE_TYPES.keys()) * n_sources
@@ -2563,40 +2704,36 @@ def uv_fit_no_image(
 
         # Initial guesses.
         for i in range(n_sources):
-            peak_p0 = peak_guess[i] if peak_guess is not None else None
+            source = permutation[i]
+            flux_p0 = flux_guess[i]
             ra_p0 = rad_ra_guess[i]
             dec_p0 = rad_dec_guess[i]
-            width_p0 = rad_width[i]
+            width_p0 = rad_width_guess[i]
             ratio_p0 = ratio_guess[i]
-            theta_p0 = rad_theta[i]
-            source = permutation[i]
-            # If the number of sources to be fit exceeds the number of sources
-            # found in the image domain, use the value of the dimmest peak
-            # detected in the image domain to prompt the initial guess(es) for
-            # the flux density/intensities of the remaining source(s).
-            if peak_p0 is None:
-                peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
-            else:
-                peak = peak_p0
-            coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
-            if ra_p0 is None:
-                temp_ra = float(
-                    Angle(coord0[0], units.arcsec).to(units.radian).value
-                )
-            else:
-                temp_ra = ra_p0
-            if dec_p0 is None:
-                temp_dec = float(
-                    Angle(coord0[1], units.arcsec).to(units.radian).value
-                )
-            else:
-                temp_dec = dec_p0
-            rad_coord = (temp_ra, temp_dec)
+            theta_p0 = rad_theta_guess[i]
+            rad_coord = (ra_p0, dec_p0)
+            if peak_info is not None:
+                # Use image domain guesses instead for flux. (RA and dec have
+                # already been handled above.)
+                if i < n_peaks:
+                    flux_p0 = SOURCE_TYPES[source][5](
+                        peak_info[i],
+                        width_p0,
+                        ratio_p0,
+                        rad_barea,
+                    )
+                else:
+                    flux_p0 = SOURCE_TYPES[source][5](
+                        smallest_peak,
+                        width_p0,
+                        ratio_p0,
+                        rad_barea,
+                    )
             if i == 0:
                 p0 = SOURCE_TYPES[source][1](
-                    peak,
+                    flux_p0,
                     rad_coord,
-                    rad_pix,
+                    rad_bmaj,
                     width_p0,
                     ratio_p0,
                     theta_p0,
@@ -2604,25 +2741,28 @@ def uv_fit_no_image(
                 )
             else:
                 mini_p0 = SOURCE_TYPES[source][1](
-                    peak,
+                    flux_p0,
                     rad_coord,
-                    rad_pix,
+                    rad_bmaj,
                     width_p0,
                     ratio_p0,
                     theta_p0,
-                    n_walkers
+                    n_walkers,
                 )
                 # If the number of sources to be fit exceeds the number of
-                # sources found in the image domain, allow the initial
+                # sources found in the image domain and image domain results
+                # are being used as initial guesses, allow the initial
                 # guess(es) for the coordinates of the remaining source(s) to
-                # come from the entire image.
-                if i >= n_peaks:
+                # come a square of side lengths rad_bmaj, centered around the
+                # origin. (After the else statement because we are guaranteed
+                # to have at least 1 source found in image.)
+                if peak_info is not None and i >= n_peaks:
                     for j in range(n_walkers):
                         mini_p0[j,1] = np.random.uniform(
-                            -naxis1 / 2 * rad_pix, naxis1 / 2 * rad_pix
+                            -rad_bmaj / 2, rad_bmaj / 2
                         )
                         mini_p0[j,2] = np.random.uniform(
-                            -naxis1 / 2 * rad_pix, naxis1 / 2 * rad_pix
+                            -rad_bmaj / 2, rad_bmaj / 2
                         )
                 p0 = np.append(p0, mini_p0, axis=1)
 
@@ -2758,61 +2898,69 @@ def uv_fit_no_image(
             # New initial guesses from previous results.
             for i in range(n_sources):
                 source = permutation[i]
-                coord0 = all_peaks[i][1] if i < n_peaks else all_peaks[-1][1]
-                rad_coord = (
-                    float(
-                        Angle(coord0[0], units.arcsec).to(units.radian).value
-                    ),
-                    float(
-                        Angle(coord0[1], units.arcsec).to(units.radian).value
-                    )
-                )
                 # If fitting didn't happen, we can't actually refine our
-                # guesses, so we keep inputted guesses since we have nothing
-                # better right now.
+                # guesses, so we keep inputted guesses and possibly image
+                # guesses since we have nothing better right now.
                 if permutation_info['result'] is None:
-                    width_p0 = rad_width[i]
-                    ratio_p0 = ratio_guess[i]
-                    theta_p0 = rad_theta[i]
-                    # If the number of sources to be fit exceeds the number of
-                    # sources found in the image domain, use the value of the
-                    # dimmest peak detected in the image domain to prompt the
-                    # initial guess(es) for the flux density/intensities of the
-                    # remaining source(s).
-                    peak = all_peaks[i][0] if i < n_peaks else all_peaks[-1][0]
+                    flux_p1 = flux_guess[i]
+                    ra_p1 = rad_ra_guess[i]
+                    dec_p1 = rad_dec_guess[i]
+                    width_p1 = rad_width_guess[i]
+                    ratio_p1 = ratio_guess[i]
+                    theta_p1 = rad_theta_guess[i]
+                    rad_coord = (ra_p1, dec_p1)
+                    if peak_info is not None:
+                        # Use image domain guesses instead for flux. (RA and
+                        # dec have already been handled.)
+                        if i < n_peaks:
+                            flux_p1 = SOURCE_TYPES[source][5](
+                                peak_info[i],
+                                width_p1,
+                                ratio_p1,
+                                rad_barea,
+                            )
+                        else:
+                            flux_p1 = SOURCE_TYPES[source][5](
+                                smallest_peak,
+                                width_p1,
+                                ratio_p1,
+                                rad_barea,
+                            )
                     if i == 0:
                         p1 = SOURCE_TYPES[source][1](
-                            peak,
+                            flux_p1,
                             rad_coord,
-                            rad_pix,
-                            width_p0,
-                            ratio_p0,
-                            theta_p0,
+                            rad_bmaj,
+                            width_p1,
+                            ratio_p1,
+                            theta_p1,
                             n_walkers,
                         )
                     else:
                         mini_p1 = SOURCE_TYPES[source][1](
-                            peak,
+                            flux_p1,
                             rad_coord,
-                            rad_pix,
-                            width_p0,
-                            ratio_p0,
-                            theta_p0,
+                            rad_bmaj,
+                            width_p1,
+                            ratio_p1,
+                            theta_p1,
                             n_walkers,
                         )
                         # If the number of sources to be fit exceeds the number
-                        # of sources found in the image domain, allow the
+                        # of sources found in the image domain and image domain
+                        # results are being used as initial guesses, allow the
                         # initial guess(es) for the coordinates of the
-                        # remaining source(s) to come from the entire image.
-                        if i >= n_peaks:
+                        # remaining source(s) to come a square of side lengths
+                        # rad_bmaj, centered around the origin. (After the else
+                        # statement because we are guaranteed to have at least
+                        # 1 source found in image.)
+                        if peak_info is not None and i >= n_peaks:
                             for j in range(n_walkers):
                                 mini_p1[j,1] = np.random.uniform(
-                                    -naxis1 / 2 * rad_pix,
-                                    naxis1 / 2 * rad_pix
+                                    -rad_bmaj / 2, rad_bmaj / 2
                                 )
                                 mini_p1[j,2] = np.random.uniform(
-                                    -naxis1 / 2 * rad_pix,
-                                    naxis1 / 2 * rad_pix
+                                    -rad_bmaj / 2, rad_bmaj / 2
                                 )
                         p1 = np.append(p1, mini_p1, axis=1)
                 else:
@@ -2991,39 +3139,31 @@ def uv_fit_no_image(
         # case.
         median_amp = np.nanmedian(amplitudes)
         large_width_guess = [large_width] + width_guess[1:]
-        if ratio_guess is not None:
-            new_ratio_guess = ratio_guess  # Keep guesses if they exist.
-        # 0.8 is a reasonable value to guess when we have no idea.
-        else:
-            new_ratio_guess = [0.8] + (n_sources - 1) * [None]
-        if angle_guess is not None:
-            new_angle_guess = angle_guess  # Keep guesses if they exist
-        # 0 is a reasonable value to guess when we have no idea.
-        else:
-            new_angle_guess = [0] + (n_sources - 1) * [None]
-        new_priors = None
+
+        # Keep ratio guesses if they exist.
+        new_ratio_guess = ratio_guess
+        if ratio_guess[0] is None:
+            new_ratio_guess[0] = 1  # Use default of 1 if no ratio guess.
+
+        # Keep angle guesses if they exist.
+        new_angle_guess = angle_guess
+        if angle_guess[0] is None:
+            new_angle_guess[0] = -np.pi / 2
+
+        new_priors = [pr for pr in priors]
         # Get rid of any prior on the width of this source, if it exists.
-        if priors is not None:
-            if priors[0] is not None:
-                if priors[0][3] is not None:
-                    new_priors = [
-                        priors[0][:3] + [None] + priors[0][4:]
-                    ] + priors[1:]
-        if new_priors is None:
-            new_priors = priors
+        if new_priors[0] is not None and new_priors[0][3] is not None:
+            new_priors[0][3] = None
 
         # Subcase: very resolved Gaussian.
-        g_peak_from_amp = median_amp * rad_barea / (2 * np.pi * large_width**2)
-        if peak_guess is not None:
-            large_g_peak_guess = [g_peak_from_amp] + peak_guess[1:]
-        else:
-            large_g_peak_guess = [g_peak_from_amp] + (n_sources - 1) * [None]
+        large_g_flux_guess = [flux for flux in flux_guess]
+        large_g_flux_guess[0] = median_amp
         large_g_sources = ['g'] + sources[1:]
         large_gaussian_result = uv_fit_no_image(
             vis=vis,
             info=info,
             sources=large_g_sources,
-            peak_guess=large_g_peak_guess,
+            flux_guess=large_g_flux_guess,
             ra_guess=ra_guess,
             dec_guess=dec_guess,
             width_guess=large_width_guess,
@@ -3034,20 +3174,18 @@ def uv_fit_no_image(
             corner_plot=False,
             additional_runs=additional_runs,
             extreme_case_check=False,
+            use_image_guess=False,
         )
 
         # Subcase: very resolved disk.
-        d_peak_from_amp = median_amp * rad_barea / (np.pi * large_width**2)
-        if peak_guess is not None:
-            large_d_peak_guess = [d_peak_from_amp] + peak_guess[1:]
-        else:
-            large_d_peak_guess = [d_peak_from_amp] + (n_sources - 1) * [None]
+        large_d_flux_guess = [flux for flux in flux_guess]
+        large_d_flux_guess[0] = median_amp
         large_d_sources = ['d'] + sources [1:]
         large_disk_result = uv_fit_no_image(
             vis=vis,
             info=info,
             sources=large_d_sources,
-            peak_guess=large_d_peak_guess,
+            flux_guess=large_d_flux_guess,
             ra_guess=ra_guess,
             dec_guess=dec_guess,
             width_guess=large_width_guess,
@@ -3058,6 +3196,7 @@ def uv_fit_no_image(
             corner_plot=False,
             additional_runs=additional_runs,
             extreme_case_check=False,
+            use_image_guess=False,
         )
 
         # Case: brightest source is a point source.
@@ -3069,7 +3208,7 @@ def uv_fit_no_image(
                 vis=vis,
                 info=info,
                 sources=p_sources,
-                peak_guess=peak_guess,
+                flux_guess=flux_guess,
                 ra_guess=ra_guess,
                 dec_guess=dec_guess,
                 width_guess=width_guess,
@@ -3080,6 +3219,7 @@ def uv_fit_no_image(
                 corner_plot=False,
                 additional_runs=additional_runs,
                 extreme_case_check=False,
+                use_image_guess=False,
             )
 
         # Compare BICs of these extreme cases to BICs of the other results.
@@ -3143,9 +3283,9 @@ def uv_fit_no_image(
                     float(sigfig.round(sigma, sigfigs=3))
                     for sigma in sigmas(peak_chain)
                 ])
-                source_result['peak'] = (
+                source_result['flux'] = (
                     round_tuple(
-                        (source_result['peak'][0], source_result['peak'][1])
+                        (source_result['flux'][0], source_result['flux'][1])
                     ), peak_sigmas
                 )
 
@@ -3329,7 +3469,7 @@ def uv_fit_no_image(
 def uv_fit_with_image(
     fits_file: str | Path,
     sources: list,
-    peak_guess: list | None = None,
+    flux_guess: list | None = None,
     ra_guess: list | None = None,
     dec_guess: list | None = None,
     width_guess: list | None = None,
@@ -3341,6 +3481,7 @@ def uv_fit_with_image(
     additional_runs: int = 2,
     extreme_case_check: bool = True,
     min_sep: float | None = None,
+    use_image_guess: bool = True,
 ) -> list:
     """
     Fit visibility data from a FITS file to a model of a given source type or
@@ -3355,9 +3496,9 @@ def uv_fit_with_image(
         List of source types to fit. Each source type should be one of 'p'
         (point), 'c' (circular gaussian), 'g' (gaussian), 'd' (disk), or 'any'
         (try all and pick best fit).
-    peak_guess : list | None, optional
-        A guess for the flux density/densities of the source(s), in Jy.
-        If `peak_guess` is a list, each element is a guess for the
+    flux_guess : list | None, optional
+        A guess for the flux(es) of the source(s), in Jy.
+        If `flux_guess` is a list, each element is a guess for the
         corresponding source in `sources`, so the list must be the same length
         as `sources`. Elements in the list may be `None`.
     ra_guess : list | None, optional
@@ -3411,6 +3552,9 @@ def uv_fit_with_image(
     min_sep : float | None, optional
         The minimum separation, in radians, to differentiate two distinct
         sources.
+    use_image_guess : bool, optional
+        Whether to use the image domain fitting results as initial guesses for
+        the visibility fitting.
 
     Returns
     -------
@@ -3610,7 +3754,12 @@ def uv_fit_with_image(
     corresponding to the imaginary component of the visibility, in Jy; and the
     5th index corresponding to the visibility weight (the inverse of the
     uncertainty squared), in 1/Jy^2.
-    
+
+    If the number of sources to fit exceeds the number of sources detected in
+    the image domain, then the initial guess for the source location will
+    be the a square around the origin, with side length equal to the beam major
+    axis.
+
     Regardless of `clean_output`, corner plots will be of the visibility
     parameters. This means that the RA and Dec will be in radians, and the
     position angle will be in radians and rotated by pi/2 relative to the
@@ -3632,9 +3781,7 @@ def uv_fit_with_image(
     info = {}
     fits_file = Path(fits_file)
     with fits.open(fits_file) as file:
-        info['CDELT1'] = file[0].header['CDELT1']
         info['CUNIT1'] = file[0].header['CUNIT1']
-        info['NAXIS1'] = file[0].header['NAXIS1']
         vis = file[1].data
         info['BMAJ'] = file[0].header['BMAJ']
         info['BMIN'] = file[0].header['BMIN']
@@ -3643,6 +3790,13 @@ def uv_fit_with_image(
             info['U_RES'] = file[1].header['U_RES']
         if file[1].header['TTYPE3'] == 'indexV':
             info['V_RES'] = file[1].header['V_RES']
+        weighted_vis = False
+        try:
+            if file[1].header['EXTNAME'] == 'Weighted Visibilities':
+                weighted_vis = True
+        except KeyError:  # 'EXTNAME' is not a key.
+            pass
+        info['weighted_vis'] = weighted_vis
 
     # Get image domain fitting results.
     summ = summary(fits_file, plot=False)
@@ -3651,11 +3805,11 @@ def uv_fit_with_image(
     info['ext_peak_val'] = summ['ext_peak_val']
     info['ext_peak_coord'] = summ['ext_peak_coord']
 
-    uv_fit_with_image(
+    uv_fit_no_image(
         vis=vis,
         info=info,
         sources=sources,
-        peak_guess=peak_guess,
+        flux_guess=flux_guess,
         ra_guess=ra_guess,
         dec_guess=dec_guess,
         width_guess=width_guess,
@@ -3667,4 +3821,9 @@ def uv_fit_with_image(
         additional_runs=additional_runs,
         extreme_case_check=extreme_case_check,
         min_sep=min_sep,
+        use_image_guess=use_image_guess,
     )
+
+
+# TODO: default guesses
+# TODO: fit fluxes and report fluxes
