@@ -2422,6 +2422,15 @@ def uv_fit_no_image(
                     f"the length of sources ({n_sources})."
                 )
 
+     # Extract U_RES, V_RES information from info, if it exists.
+    u_res = 1
+    v_res = 1
+    if info:
+        if 'U_RES' in info.keys():
+            u_res = info['U_RES']
+        if 'V_RES' in info.keys():
+            v_res = info['V_RES']
+
     # Extract data from visibility table.
     vis = np.array(vis)
     freq_bin, u, v, re, im, w = [], [], [], [], [], []
@@ -2557,15 +2566,6 @@ def uv_fit_no_image(
             vis_priors.append(mini_vis_priors)
         else:  # Nothing to convert.
             vis_priors.append([[None, None]] * 6)
-
-    # Extract U_RES, V_RES information from info, if it exists.
-    u_res = 1
-    v_res = 1
-    if info:
-        if 'U_RES' in info.keys():
-            u_res = info['U_RES']
-        if 'V_RES' in info.keys():
-            v_res = info['V_RES']
 
     # Convert initial guesses, if given, to proper units.
     # Apply default initial guesses if not given.
