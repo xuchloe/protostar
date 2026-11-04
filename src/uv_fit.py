@@ -2645,6 +2645,7 @@ def uv_fit_no_image(
             rad_theta_guess.append(None)
 
     # Extract peak data from info, if it exists and if needed.
+    peak_info = None
     if info:
         if use_image_guess:
             peak_info = info['int_peak_val']
