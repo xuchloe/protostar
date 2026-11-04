@@ -1157,8 +1157,6 @@ def log_probability(
     u: float | npt.ArrayLike,
     v: float | npt.ArrayLike,
     w: float | npt.ArrayLike,
-    rad_bmaj: float,
-    rad_bmin: float,
     min_sep: float,
 ) -> float:
     """
@@ -1224,11 +1222,10 @@ def log_probability(
         ra_list.append(source_params[1])
         dec_list.append(source_params[2])
         lp = prior_func(source_params, vis_priors[i])
-        rad_barea = np.pi * rad_bmaj * rad_bmin / (4 * np.log(2))
         if not np.isfinite(lp):
             return -np.inf
         log_prior += lp
-        model += model_func(source_params, u, v, rad_bmaj, rad_barea)
+        model += model_func(source_params, u, v)
         start += n_params
     # List of indices for ra_list and dec_list.
     indices = list(range(len(ra_list)))
@@ -1537,8 +1534,6 @@ def auto_detect(
             u,
             v,
             w,
-            rad_bmaj,
-            rad_bmin,
             min_sep,
         )
     )
@@ -2781,8 +2776,6 @@ def uv_fit_no_image(
                 u,
                 v,
                 w,
-                rad_bmaj,
-                rad_bmin,
                 min_sep,
             )
         )
@@ -2993,8 +2986,6 @@ def uv_fit_no_image(
                     u,
                     v,
                     w,
-                    rad_bmaj,
-                    rad_bmin,
                     min_sep,
                 )
             )
