@@ -2009,7 +2009,7 @@ def estimate_beam_axes(
 def uv_fit_no_image(
     vis: npt.ArrayLike,
     sources: list,
-    info: dict,
+    info: dict | None = None,
     flux_guess: list | None = None,
     ra_guess: list | None = None,
     dec_guess: list | None = None,
@@ -2558,6 +2558,15 @@ def uv_fit_no_image(
         else:  # Nothing to convert.
             vis_priors.append([[None, None]] * 6)
 
+    # Extract U_RES, V_RES information from info, if it exists.
+    u_res = 1
+    v_res = 1
+    if info:
+        if 'U_RES' in info.keys():
+            u_res = info['U_RES']
+        if 'V_RES' in info.keys():
+            v_res = info['V_RES']
+
     # Convert initial guesses, if given, to proper units.
     # Apply default initial guesses if not given.
     rad_ra_guess = []
@@ -2637,15 +2646,6 @@ def uv_fit_no_image(
 
     # Extract peak data from info, if it exists and if needed.
     if info:
-        if 'U_RES' in info.keys():
-            u_res = info['U_RES']
-        else:
-            u_res = 1
-        if 'V_RES' in info.keys():
-            v_res = info['V_RES']
-        else:
-            v_res = 1
-
         if use_image_guess:
             peak_info = info['int_peak_val']
             ext_peaks = info['ext_peak_val']
