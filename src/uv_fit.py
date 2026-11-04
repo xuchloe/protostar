@@ -2862,8 +2862,6 @@ def uv_fit_no_image(
                 temp_max_probs,
                 u,
                 v,
-                rad_bmaj,
-                rad_barea,
             )
             result[f'source_{i+1}'] = source_result
             start += n_source_params
@@ -3076,8 +3074,6 @@ def uv_fit_no_image(
                     temp_max_probs,
                     u,
                     v,
-                    rad_bmaj,
-                    rad_barea,
                 )
                 result[f'source_{i+1}'] = source_result
                 start += n_source_params
